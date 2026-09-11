@@ -1,0 +1,85 @@
+.filters {
+  display: flex;
+  gap: var(--space-4);
+  margin-block-end: var(--space-5);
+  max-width: 28rem;
+}
+
+.summary {
+  display: flex;
+  gap: var(--space-4);
+  margin-block-end: var(--space-5);
+}
+
+.summaryCard {
+  padding: var(--space-4) var(--space-5);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.summaryValue {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+}
+
+.summaryLabel {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-block-end: var(--space-4);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.tab,
+.tabActive {
+  padding: var(--space-2) var(--space-4);
+  background: none;
+  border: none;
+  border-block-end: 2px solid transparent;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-block-end: -1px;
+}
+
+.tabActive {
+  border-block-end-color: var(--brand-9);
+  color: var(--brand-11);
+  font-weight: var(--weight-semibold);
+}
+
+.chartCard {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.table th {
+  padding: var(--space-3);
+  text-align: start;
+  background: var(--surface-page);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.table td {
+  padding: var(--space-3);
+  border-block-end: 1px solid var(--border-subtle);
+}

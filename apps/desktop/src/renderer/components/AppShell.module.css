@@ -1,0 +1,209 @@
+.shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  height: 100%;
+}
+
+/* ---- Sidebar ----------------------------------------------------------- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--brand-12);
+  color: var(--white-a11);
+  padding: var(--space-5) var(--space-3);
+  overflow-y: auto;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-3) var(--space-5);
+  margin-block-end: var(--space-4);
+  border-block-end: 1px solid var(--white-a4);
+}
+
+.brandMark {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  /* The one place green and the cyan signature meet — see --highlight-* in tokens.css. */
+  background: linear-gradient(135deg, var(--brand-9), var(--highlight-9));
+  border-radius: var(--radius-md);
+  color: #fff;
+}
+
+.brandLogo {
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
+
+.brandName {
+  font-size: var(--text-base);
+  font-weight: var(--weight-bold);
+  color: #fff;
+}
+
+.brandMeta {
+  font-size: var(--text-xs);
+  color: var(--white-a9);
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: var(--white-a10);
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.navItem:hover {
+  background: var(--white-a3);
+  color: #fff;
+}
+
+.navItemActive,
+.navItemActive:hover {
+  background: var(--brand-9);
+  color: #fff;
+  position: relative;
+}
+
+/* A shape as well as a colour: the current page stays identifiable to anyone
+   who can't separate the green fill from the dark sidebar behind it. */
+.navItemActive::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block: 22%;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: #fff;
+  animation: activeBarIn var(--duration-fast) var(--ease-out);
+}
+
+@keyframes activeBarIn {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.userBox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  margin-block-start: var(--space-4);
+  border-block-start: 1px solid var(--white-a4);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  background: var(--white-a4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: #fff;
+}
+
+.userName {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  color: #fff;
+}
+
+.userRole {
+  font-size: var(--text-xs);
+  color: var(--white-a9);
+}
+
+.logout {
+  margin-inline-start: auto;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--white-a10);
+  cursor: pointer;
+}
+
+.logout:hover {
+  background: var(--white-a4);
+  color: #fff;
+}
+
+/* ---- Main -------------------------------------------------------------- */
+.main {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  height: var(--topbar-height);
+  padding: 0 var(--space-6);
+  background: var(--surface-card);
+  border-block-end: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.pageTitle {
+  font-size: var(--text-xl);
+}
+
+.topbarDate {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-6);
+  animation: pageIn var(--duration-normal) var(--ease-out);
+}
+
+/* Small enough not to look like the page is sliding into place. */
+@keyframes pageIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

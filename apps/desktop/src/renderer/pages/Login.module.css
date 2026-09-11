@@ -1,0 +1,113 @@
+.page {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  /* A quiet green wash rather than a flat panel — the only gradient in the app. */
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--brand-3), transparent 70%),
+    var(--surface-page);
+}
+
+/* Fades in as the splash fades out, so the handover reads as one movement. */
+.card {
+  animation: cardIn var(--duration-normal) var(--ease-out) 60ms backwards;
+  width: min(90vw, 24rem);
+  padding: var(--space-8);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The delay is not covered by the global reduced-motion override. */
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation-delay: 0ms !important;
+  }
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-end: var(--space-6);
+  text-align: center;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  /* Same brand-to-signature gradient as the sidebar mark in AppShell. */
+  background: linear-gradient(135deg, var(--brand-9), var(--highlight-9));
+  border-radius: var(--radius-lg);
+  color: #fff;
+  box-shadow: var(--shadow-brand);
+}
+
+.logo {
+  width: 3.25rem;
+  height: 3.25rem;
+  object-fit: contain;
+  border-radius: var(--radius-lg);
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.alert {
+  padding: var(--space-3);
+  background: var(--danger-3);
+  border: 1px solid var(--danger-6);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--danger-11);
+}
+
+.serverRow {
+  margin-block-start: var(--space-5);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.serverToggle {
+  align-self: center;
+  margin-block-start: var(--space-2);
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.serverToggle:hover {
+  color: var(--text-secondary);
+}

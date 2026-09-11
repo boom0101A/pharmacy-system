@@ -1,0 +1,107 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+  margin-block-end: var(--space-6);
+}
+
+.stat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  height: 100%;
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+a.stat:hover {
+  border-color: var(--brand-7);
+  box-shadow: var(--shadow-md);
+}
+
+.statIcon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  background: var(--brand-3);
+  color: var(--brand-11);
+  border-radius: var(--radius-md);
+}
+
+/*
+ * Today's takings is the figure the owner opens this screen to see, so it is
+ * the one card allowed to carry the cyan signature. The other three stay
+ * neutral — if every card were highlighted, none would be.
+ */
+.statHero {
+  border-color: var(--highlight-6);
+}
+
+.statHero .statIcon {
+  background: var(--highlight-3);
+  color: var(--highlight-11);
+}
+
+.statValue {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+}
+
+.statLabel {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.lists {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.listCard {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.listTitle {
+  font-size: var(--text-base);
+  margin-block-end: var(--space-3);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.list li {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  border-block-end: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.list li:last-child {
+  border-block-end: none;
+}
+
+.listEmpty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}

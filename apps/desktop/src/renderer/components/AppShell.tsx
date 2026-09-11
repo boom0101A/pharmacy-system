@@ -1,0 +1,191 @@
+import type { KeyboardEvent, ReactNode } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import {
+  BarChart3,
+  Cross,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  ScanBarcode,
+  Settings,
+  ShoppingBag,
+  Truck,
+  Undo2,
+  Users as UsersIcon,
+} from 'lucide-react';
+import styles from './AppShell.module.css';
+import { useAuth } from '../store/auth';
+import { useBranding } from '../store/branding';
+import { cx, formatDate } from '../lib/cx';
+import type { Role } from '@pharmacy/shared-types';
+
+interface NavEntry {
+  to: string;
+  label: string;
+  icon: ReactNode;
+  /** Roles allowed to see the link; the server enforces the same rules. */
+  roles: Role[];
+}
+
+const NAV: NavEntry[] = [
+  {
+    to: '/pos',
+    label: 'نقطة البيع',
+    icon: <ScanBarcode size={18} />,
+    roles: ['admin', 'pharmacist', 'cashier'],
+  },
+  {
+    to: '/',
+    label: 'لوحة التحكم',
+    icon: <LayoutDashboard size={18} />,
+    roles: ['admin', 'pharmacist', 'cashier'],
+  },
+  {
+    to: '/returns',
+    label: 'الإرجاعات',
+    icon: <Undo2 size={18} />,
+    roles: ['admin', 'pharmacist', 'cashier'],
+  },
+  {
+    to: '/inventory',
+    label: 'المخزون',
+    icon: <Package size={18} />,
+    roles: ['admin', 'pharmacist', 'cashier'],
+  },
+  {
+    to: '/suppliers',
+    label: 'الموردون',
+    icon: <Truck size={18} />,
+    roles: ['admin', 'pharmacist'],
+  },
+  {
+    to: '/purchases',
+    label: 'المشتريات',
+    icon: <ShoppingBag size={18} />,
+    roles: ['admin', 'pharmacist'],
+  },
+  {
+    to: '/reports',
+    label: 'التقارير',
+    icon: <BarChart3 size={18} />,
+    roles: ['admin', 'pharmacist'],
+  },
+  {
+    to: '/users',
+    label: 'المستخدمون',
+    icon: <UsersIcon size={18} />,
+    roles: ['admin'],
+  },
+  {
+    to: '/settings',
+    label: 'الإعدادات',
+    icon: <Settings size={18} />,
+    roles: ['admin'],
+  },
+];
+
+const ROLE_LABEL: Record<Role, string> = {
+  admin: 'مدير',
+  pharmacist: 'صيدلي',
+  cashier: 'كاشير',
+};
+
+const TITLES: Record<string, string> = {
+  '/': 'لوحة التحكم',
+  '/pos': 'نقطة البيع',
+  '/returns': 'الإرجاعات',
+  '/inventory': 'المخزون',
+  '/suppliers': 'الموردون',
+  '/purchases': 'المشتريات',
+  '/reports': 'التقارير',
+  '/users': 'المستخدمون',
+  '/settings': 'الإعدادات',
+};
+
+export function AppShell() {
+  const { user, logout } = useAuth();
+  const logoUrl = useBranding((s) => s.logoUrl);
+  const { pathname } = useLocation();
+
+  const visible = NAV.filter((entry) => user && entry.roles.includes(user.role));
+
+  /**
+   * Arrow keys walk the sidebar, wrapping at both ends. Scoped to the nav
+   * itself rather than the window: up/down still belong to whatever is focused
+   * everywhere else in the app — the till's search field and number inputs
+   * would both break if these keys were claimed globally.
+   */
+  function handleNavKeys(event: KeyboardEvent<HTMLElement>) {
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+
+    const links = Array.from(event.currentTarget.querySelectorAll('a'));
+    const current = links.indexOf(document.activeElement as HTMLAnchorElement);
+    if (current === -1) return;
+
+    event.preventDefault();
+    const step = event.key === 'ArrowDown' ? 1 : -1;
+    links[(current + step + links.length) % links.length].focus();
+  }
+
+  return (
+    <div className={styles.shell}>
+      <aside className={styles.sidebar}>
+        <div className={styles.brand}>
+          {logoUrl ? (
+            <img src={logoUrl} alt="" className={styles.brandLogo} />
+          ) : (
+            <span className={styles.brandMark}>
+              <Cross size={18} />
+            </span>
+          )}
+          <div>
+            <div className={styles.brandName}>نظام الصيدلية</div>
+            <div className={styles.brandMeta}>إدارة المخزون والمبيعات</div>
+          </div>
+        </div>
+
+        <nav className={styles.nav} onKeyDown={handleNavKeys}>
+          {visible.map((entry) => (
+            <NavLink
+              key={entry.to}
+              to={entry.to}
+              end={entry.to === '/'}
+              className={({ isActive }) =>
+                cx(styles.navItem, isActive && styles.navItemActive)
+              }
+            >
+              {entry.icon}
+              {entry.label}
+            </NavLink>
+          ))}
+        </nav>
+
+        {user && (
+          <div className={styles.userBox}>
+            <span className={styles.avatar}>{user.name.charAt(0)}</span>
+            <div>
+              <div className={styles.userName}>{user.name}</div>
+              <div className={styles.userRole}>{ROLE_LABEL[user.role]}</div>
+            </div>
+            <button className={styles.logout} onClick={logout} aria-label="تسجيل الخروج">
+              <LogOut size={16} />
+            </button>
+          </div>
+        )}
+      </aside>
+
+      <div className={styles.main}>
+        <header className={styles.topbar}>
+          <h1 className={styles.pageTitle}>{TITLES[pathname] ?? ''}</h1>
+          <span className={styles.topbarDate}>{formatDate(new Date().toISOString())}</span>
+        </header>
+        {/* Keyed by route so the fade replays on navigation. Keying the <main>
+            itself rather than an inner wrapper keeps pages that size themselves
+            against it (POS, inventory) with the same parent box they had. */}
+        <main key={pathname} className={styles.content}>
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}

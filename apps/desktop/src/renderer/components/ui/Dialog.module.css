@@ -1,0 +1,164 @@
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes contentIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-dialog);
+  background: var(--black-a6);
+  backdrop-filter: blur(2px);
+  animation: overlayIn var(--duration-normal) var(--ease-out);
+}
+
+.content {
+  position: fixed;
+  z-index: var(--z-dialog);
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
+  width: min(90vw, 34rem);
+  max-height: 85vh;
+  overflow-y: auto;
+  background: var(--surface-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  animation: contentIn var(--duration-normal) var(--ease-out);
+}
+
+@keyframes contentInRtl {
+  from {
+    opacity: 0;
+    transform: translate(50%, -48%) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(50%, -50%) scale(1);
+  }
+}
+
+/*
+ * inset-inline-start resolves to the right edge in RTL, so the centring
+ * translate has to flip sign along with it.
+ */
+:global([dir='rtl']) .content {
+  transform: translate(50%, -50%);
+  animation-name: contentInRtl;
+}
+
+/*
+ * Closing plays in reverse instead of vanishing. Radix sets data-state="closed"
+ * and keeps the node mounted until the animation ends — the same mechanism the
+ * toast already relies on. These rules come after the RTL block above so they
+ * win the animation-name at equal specificity.
+ */
+@keyframes overlayOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes contentOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+}
+
+@keyframes contentOutRtl {
+  from {
+    opacity: 1;
+    transform: translate(50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(50%, -48%) scale(0.97);
+  }
+}
+
+.overlay[data-state='closed'] {
+  animation: overlayOut var(--duration-fast) var(--ease-out);
+}
+
+.content[data-state='closed'] {
+  animation: contentOut var(--duration-fast) var(--ease-out);
+}
+
+:global([dir='rtl']) .content[data-state='closed'] {
+  animation-name: contentOutRtl;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.title {
+  font-size: var(--text-xl);
+}
+
+.description {
+  margin-block-start: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.body {
+  padding: var(--space-6);
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  background: var(--surface-page);
+  border-block-start: 1px solid var(--border-subtle);
+  border-end-start-radius: var(--radius-xl);
+  border-end-end-radius: var(--radius-xl);
+}

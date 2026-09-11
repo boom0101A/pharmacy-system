@@ -1,0 +1,210 @@
+// Pharmacy system schema.
+// Cash-only by design: there are no customer, debt, or payment-type models.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  pharmacist
+  cashier
+}
+
+enum PurchaseStatus {
+  pending
+  received
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  username     String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  sales     Sale[]
+  purchases Purchase[]
+  returns   Return[]
+
+  @@map("users")
+}
+
+model Category {
+  id   Int    @id @default(autoincrement())
+  name String @unique
+
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id            Int      @id @default(autoincrement())
+  name          String
+  barcode       String?  @unique
+  categoryId    Int?     @map("category_id")
+  unit          String   @default("علبة")
+  salePrice     Decimal  @default(0) @map("sale_price") @db.Decimal(12, 2)
+  purchasePrice Decimal  @default(0) @map("purchase_price") @db.Decimal(12, 2)
+  reorderLevel  Int      @default(0) @map("reorder_level")
+  imageFilename String?  @map("image_filename")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  // Selling a sub-unit of the package (e.g. one "شريط" out of a box of 3) is
+  // opt-in: NULL/unset on any of these three means the product is sold as a
+  // whole `unit` only, exactly as before this feature existed.
+  unitsPerPackage Int?     @map("units_per_package")
+  subUnitName     String?  @map("sub_unit_name")
+  subUnitPrice    Decimal? @map("sub_unit_price") @db.Decimal(12, 2)
+
+  activeIngredient String? @map("active_ingredient")
+  dosageForm       String? @map("dosage_form")
+  strength         String?
+
+  category      Category?      @relation(fields: [categoryId], references: [id])
+  batches       Batch[]
+  saleItems     SaleItem[]
+  purchaseItems PurchaseItem[]
+
+  @@index([name])
+  @@index([activeIngredient])
+  @@map("products")
+}
+
+model Batch {
+  id             Int       @id @default(autoincrement())
+  productId      Int       @map("product_id")
+  batchNumber    String?   @map("batch_number")
+  expiryDate     DateTime? @map("expiry_date") @db.Date
+  quantity       Int       @default(0)
+  purchasePrice  Decimal   @default(0) @map("purchase_price") @db.Decimal(12, 2)
+  receivedAt     DateTime  @default(now()) @map("received_at")
+  openedSubUnits Int       @default(0) @map("opened_sub_units")
+
+  product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  saleItems     SaleItem[]
+  purchaseItems PurchaseItem[]
+
+  @@index([productId, expiryDate])
+  @@map("batches")
+}
+
+model Supplier {
+  id      Int     @id @default(autoincrement())
+  name    String
+  phone   String?
+  address String?
+
+  purchases Purchase[]
+
+  @@index([name])
+  @@map("suppliers")
+}
+
+model Purchase {
+  id         Int            @id @default(autoincrement())
+  supplierId Int            @map("supplier_id")
+  userId     Int            @map("user_id")
+  date       DateTime       @default(now())
+  total      Decimal        @default(0) @db.Decimal(12, 2)
+  status     PurchaseStatus @default(pending)
+
+  supplier Supplier       @relation(fields: [supplierId], references: [id])
+  user     User           @relation(fields: [userId], references: [id])
+  items    PurchaseItem[]
+
+  @@index([date])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id          Int       @id @default(autoincrement())
+  purchaseId  Int       @map("purchase_id")
+  productId   Int       @map("product_id")
+  batchId     Int?      @map("batch_id")
+  quantity    Int
+  unitPrice   Decimal   @map("unit_price") @db.Decimal(12, 2)
+  batchNumber String?   @map("batch_number")
+  expiryDate  DateTime? @map("expiry_date") @db.Date
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+  batch    Batch?   @relation(fields: [batchId], references: [id])
+
+  @@map("purchase_items")
+}
+
+model Sale {
+  id              Int      @id @default(autoincrement())
+  userId          Int      @map("user_id")
+  date            DateTime @default(now())
+  total           Decimal  @default(0) @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(12, 2)
+  idempotencyKey  String?  @unique @map("idempotency_key")
+
+  user    User       @relation(fields: [userId], references: [id])
+  items   SaleItem[]
+  returns Return[]
+
+  @@index([date])
+  @@map("sales")
+}
+
+model SaleItem {
+  id                 Int      @id @default(autoincrement())
+  saleId             Int      @map("sale_id")
+  productId          Int      @map("product_id")
+  batchId            Int?     @map("batch_id")
+  quantity           Int
+  unitPrice          Decimal  @map("unit_price") @db.Decimal(12, 2)
+  isSubUnit          Boolean  @default(false) @map("is_sub_unit")
+  // The package size at the moment of sale, snapshotted so a later change to
+  // the product's own unitsPerPackage can't retroactively change what an old
+  // invoice's sub-unit line meant.
+  subUnitsPerPackage Int?     @map("sub_units_per_package")
+
+  sale        Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product     Product      @relation(fields: [productId], references: [id])
+  batch       Batch?       @relation(fields: [batchId], references: [id])
+  returnItems ReturnItem[]
+
+  @@map("sale_items")
+}
+
+model Return {
+  id     Int      @id @default(autoincrement())
+  saleId Int      @map("sale_id")
+  userId Int      @map("user_id")
+  date   DateTime @default(now())
+  total  Decimal  @default(0) @db.Decimal(12, 2)
+  reason String?
+
+  sale  Sale         @relation(fields: [saleId], references: [id])
+  user  User         @relation(fields: [userId], references: [id])
+  items ReturnItem[]
+
+  @@index([date])
+  @@map("returns")
+}
+
+model ReturnItem {
+  id         Int     @id @default(autoincrement())
+  returnId   Int     @map("return_id")
+  saleItemId Int     @map("sale_item_id")
+  quantity   Int
+  unitPrice  Decimal @map("unit_price") @db.Decimal(12, 2)
+  isSubUnit  Boolean @default(false) @map("is_sub_unit")
+
+  return   Return   @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  saleItem SaleItem @relation(fields: [saleItemId], references: [id])
+
+  @@map("return_items")
+}

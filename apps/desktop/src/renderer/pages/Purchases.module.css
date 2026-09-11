@@ -1,0 +1,75 @@
+.layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.form {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 16rem 1fr;
+  gap: var(--space-4);
+  margin-block-end: var(--space-4);
+}
+
+.picker {
+  align-self: end;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-block-end: var(--space-4);
+}
+
+.table th {
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.cellInput {
+  width: 100%;
+  height: 2rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.removeLine {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  background: none;
+  border: none;
+  color: var(--danger-11);
+  cursor: pointer;
+}
+
+.footerBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.total {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}

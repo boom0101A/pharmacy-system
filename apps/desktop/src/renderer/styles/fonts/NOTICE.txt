@@ -1,0 +1,9 @@
+Cairo — Copyright (c) The Cairo Project Authors
+https://github.com/googlefonts/cairo
+
+Licensed under the SIL Open Font License, Version 1.1.
+https://openfontlicense.org
+
+Files here are the woff2 subsets published by Google Fonts (Cairo v31),
+vendored locally because this app runs on a LAN with no internet access.
+Each file is a variable font covering weights 400-700.

@@ -1,0 +1,178 @@
+/*
+ * Design tokens for the whole app.
+ *
+ * Colour steps follow the Radix scale convention:
+ *   1-2 backgrounds · 3-5 component fills · 6-8 borders
+ *   9-10 solid fills · 11 low-contrast text · 12 high-contrast text
+ *
+ * The palette is deliberately green (health, trust) with a blue accent for
+ * actions, amber for low stock and red for expiry/out-of-stock. There is no
+ * purple/violet family anywhere in this file, by design.
+ */
+
+@import '@radix-ui/colors/gray.css';
+@import '@radix-ui/colors/green.css';
+@import '@radix-ui/colors/green-alpha.css';
+@import '@radix-ui/colors/blue.css';
+@import '@radix-ui/colors/cyan.css';
+@import '@radix-ui/colors/amber.css';
+@import '@radix-ui/colors/red.css';
+@import '@radix-ui/colors/white-alpha.css';
+@import '@radix-ui/colors/black-alpha.css';
+
+:root {
+  /* ---- Brand ---------------------------------------------------------- */
+  --brand-1: var(--green-1);
+  --brand-2: var(--green-2);
+  --brand-3: var(--green-3);
+  --brand-4: var(--green-4);
+  --brand-6: var(--green-6);
+  --brand-7: var(--green-7);
+  --brand-9: var(--green-9);
+  --brand-10: var(--green-10);
+  --brand-11: var(--green-11);
+  --brand-12: var(--green-12);
+
+  /* ---- Accent (links, secondary actions) ------------------------------ */
+  --accent-3: var(--blue-3);
+  --accent-6: var(--blue-6);
+  --accent-9: var(--blue-9);
+  --accent-10: var(--blue-10);
+  --accent-11: var(--blue-11);
+
+  /*
+   * ---- Highlight (signature) -------------------------------------------
+   * Cyan, and used deliberately sparingly: the brand mark and the one hero
+   * figure on the dashboard. It carries no state meaning — green still means
+   * success, blue action, amber low stock, red expiry/danger. Spending it on
+   * anything routine is what would stop it reading as a signature at all.
+   */
+  --highlight-3: var(--cyan-3);
+  --highlight-6: var(--cyan-6);
+  --highlight-9: var(--cyan-9);
+  --highlight-10: var(--cyan-10);
+  --highlight-11: var(--cyan-11);
+
+  /* ---- Status --------------------------------------------------------- */
+  --warn-3: var(--amber-3);
+  --warn-6: var(--amber-6);
+  --warn-9: var(--amber-9);
+  --warn-11: var(--amber-11);
+
+  --danger-3: var(--red-3);
+  --danger-6: var(--red-6);
+  --danger-9: var(--red-9);
+  --danger-10: var(--red-10);
+  --danger-11: var(--red-11);
+
+  /* ---- Surfaces ------------------------------------------------------- */
+  --surface-page: var(--gray-2);
+  --surface-card: #fff;
+  --surface-sunken: var(--gray-3);
+  --surface-hover: var(--gray-4);
+
+  --border-subtle: var(--gray-5);
+  --border-default: var(--gray-7);
+  --border-strong: var(--gray-8);
+
+  --text-primary: var(--gray-12);
+  --text-secondary: var(--gray-11);
+  --text-muted: var(--gray-10);
+  --text-on-solid: #fff;
+
+  /* ---- Typography ------------------------------------------------------ */
+  --font-sans: 'Cairo', 'Tajawal', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /*
+   * Cairo again, not a separate face: its digits are already fixed-width
+   * (measured — "111111" and "000000" take the same advance), so prices stay
+   * aligned in a column while matching the Arabic they sit beside. The
+   * monospace fallbacks only apply on a machine where Cairo failed to load.
+   */
+  --font-numeric: 'Cairo', ui-monospace, 'Segoe UI', sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-display: 3rem;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.55;
+
+  /* ---- Space (4px base) ------------------------------------------------ */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* ---- Radius ---------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* ---- Elevation ------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px var(--black-a3);
+  --shadow-md: 0 2px 4px var(--black-a3), 0 4px 12px var(--black-a2);
+  --shadow-lg: 0 8px 24px var(--black-a4), 0 2px 6px var(--black-a3);
+  --shadow-focus: 0 0 0 3px var(--brand-4);
+  /*
+   * A green-tinted lift for the few elements that are themselves green
+   * (primary buttons, a hovered product card). Neutral black under a
+   * saturated colour reads as grey haze; a shadow carrying a little of the
+   * element's own hue is what makes the lift look intentional.
+   */
+  --shadow-brand: 0 2px 6px var(--green-a5), 0 8px 20px var(--green-a4);
+
+  /* ---- Layering ----------------------------------------------------------
+   * Anything positioned states its layer from this scale. A positioned element
+   * with a z-index paints above one with `z-index: auto` no matter which comes
+   * later in the document — which is exactly how a sticky table header ended
+   * up drawn over a modal that renders in a portal at the end of the body.
+   */
+  --z-sticky: 1;
+  --z-dropdown: 20;
+  --z-dialog: 50;
+  --z-toast: 100;
+
+  /* ---- Motion ---------------------------------------------------------- */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /*
+   * Overshoots slightly past its target before settling. Reserved for the two
+   * moments that confirm the till did what the cashier asked — an item landing
+   * in the cart, a sale completing. Everyday feedback stays on --ease-out:
+   * a bounce on every button is what makes an interface feel restless.
+   */
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  /* Only for the once-per-launch splash entrance; UI feedback stays fast. */
+  --duration-slow: 480ms;
+
+  /* ---- Layout ---------------------------------------------------------- */
+  --sidebar-width: 15rem;
+  --topbar-height: 4rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

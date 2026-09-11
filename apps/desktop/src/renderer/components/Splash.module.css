@@ -1,0 +1,163 @@
+/*
+ * Launch screen. Deep brand green like the sidebar, so the app introduces
+ * itself with its own identity before handing over to the light login form.
+ */
+
+.page {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  overflow: hidden;
+  background:
+    radial-gradient(58rem 32rem at 50% -10%, var(--brand-11), transparent 60%),
+    radial-gradient(
+      34rem 22rem at 4% 114%,
+      color-mix(in srgb, var(--accent-9) 34%, transparent),
+      transparent 62%
+    ),
+    var(--brand-12);
+}
+
+.leaving {
+  animation: splashOut var(--duration-normal) var(--ease-out) forwards;
+}
+
+@keyframes splashOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  text-align: center;
+}
+
+.mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  height: 6rem;
+  /* Same green-into-green tile as the installer icon, so launch and desktop
+     shortcut read as the same mark. */
+  background: linear-gradient(160deg, var(--brand-9), var(--brand-11));
+  border-radius: var(--radius-xl);
+  color: #fff;
+  box-shadow: var(--shadow-lg);
+  animation: markIn var(--duration-slow) var(--ease-out) backwards;
+}
+
+/* A slow ripple so the screen is not completely static while it waits. */
+.mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  animation: halo 2.6s var(--ease-out) infinite;
+}
+
+@keyframes markIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes halo {
+  from {
+    box-shadow: 0 0 0 0 var(--white-a6);
+  }
+  to {
+    box-shadow: 0 0 0 1.75rem transparent;
+  }
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: riseIn var(--duration-normal) var(--ease-out) 160ms backwards;
+}
+
+.wordmark {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  color: #fff;
+}
+
+.tagline {
+  font-size: var(--text-sm);
+  color: var(--white-a10);
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.progress {
+  width: 11rem;
+  height: 3px;
+  overflow: hidden;
+  background: var(--white-a4);
+  border-radius: var(--radius-full);
+  animation: riseIn var(--duration-normal) var(--ease-out) 280ms backwards;
+}
+
+.progressFill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  /* Green into the cyan signature — the mark above it uses the same pair. */
+  background: linear-gradient(to left, var(--brand-9), var(--highlight-9));
+  /*
+   * Scaled rather than widened: `width` is a layout property, so animating it
+   * makes the browser re-lay-out the bar on every frame, while a transform is
+   * handed to the compositor. RTL, so it grows from its right edge.
+   */
+  transform-origin: right center;
+  animation: progressFill var(--splash-dwell) var(--ease-out) forwards;
+}
+
+@keyframes progressFill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/*
+ * The global override in tokens.css only zeroes durations. Delays and infinite
+ * loops need saying explicitly, or the text would still be held back by its
+ * delay on a screen that is already leaving.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .text,
+  .progress {
+    animation-delay: 0ms !important;
+  }
+
+  .mark::after {
+    animation: none;
+  }
+}

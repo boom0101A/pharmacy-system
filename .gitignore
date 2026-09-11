@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-electron/
+release/
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+
+# Business data with its own backup mechanism (apps/server/backup.ts writes
+# these to BACKUP_DIR on a schedule) — kept out of git so the repo stays a
+# record of the *code*, not a growing pile of database dumps and photos.
+apps/server/uploads/
+apps/server/backups/
+apps/server/logs/

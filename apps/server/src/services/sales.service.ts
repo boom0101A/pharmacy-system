@@ -1,0 +1,184 @@
+import type { Sale, SaleInput } from '@pharmacy/shared-types';
+import { prisma, toNumber } from '../prisma.js';
+import { AppError } from '../middleware/errors.js';
+import { broadcastStockChanged } from '../sockets/stock.js';
+
+function mapSale(row: {
+  id: number;
+  userId: number;
+  date: Date;
+  total: unknown;
+  discount: unknown;
+  items: {
+    id: number;
+    saleId: number;
+    productId: number;
+    batchId: number | null;
+    quantity: number;
+    unitPrice: unknown;
+    isSubUnit: boolean;
+  }[];
+}): Sale {
+  return {
+    id: row.id,
+    userId: row.userId,
+    date: row.date.toISOString(),
+    total: toNumber(row.total as Parameters<typeof toNumber>[0]),
+    discount: toNumber(row.discount as Parameters<typeof toNumber>[0]),
+    items: row.items.map((i) => ({
+      id: i.id,
+      saleId: i.saleId,
+      productId: i.productId,
+      batchId: i.batchId,
+      quantity: i.quantity,
+      unitPrice: toNumber(i.unitPrice as Parameters<typeof toNumber>[0]),
+      isSubUnit: i.isSubUnit,
+    })),
+  };
+}
+
+/**
+ * Rings up a sale inside one transaction: locks every batch it touches
+ * (`SELECT ... FOR UPDATE`) so two tills can never both sell the last unit,
+ * then draws from the nearest-expiring batch first (FEFO) — a single line
+ * can span more than one batch if the first one doesn't have enough left.
+ */
+export async function createSale(userId: number, input: SaleInput): Promise<Sale> {
+  if (input.items.length === 0) {
+    throw new AppError(400, 'الفاتورة فارغة');
+  }
+
+  // A retried checkout carries the same key — hand back the invoice that
+  // already exists instead of selling everything twice.
+  if (input.idempotencyKey) {
+    const existing = await prisma.sale.findUnique({
+      where: { idempotencyKey: input.idempotencyKey },
+      include: { items: true },
+    });
+    if (existing) return mapSale(existing);
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const affectedProductIds = new Set<number>();
+    const lineData: {
+      productId: number;
+      batchId: number | null;
+      quantity: number;
+      unitPrice: number;
+      isSubUnit: boolean;
+    }[] = [];
+
+    for (const line of input.items) {
+      const product = await tx.product.findUnique({ where: { id: line.productId } });
+      if (!product) {
+        throw new AppError(404, `الصنف رقم ${line.productId} غير موجود`);
+      }
+      affectedProductIds.add(product.id);
+
+      const unitPrice = line.isSubUnit
+        ? toNumber(product.subUnitPrice ?? product.salePrice)
+        : toNumber(product.salePrice);
+
+      // Lock every batch of this product up front, oldest expiry first —
+      // this is the FEFO order the draw-down loop below follows.
+      const batches = await tx.$queryRaw<
+        { id: number; quantity: number; opened_sub_units: number }[]
+      >`SELECT id, quantity, opened_sub_units FROM batches
+         WHERE product_id = ${product.id}
+         ORDER BY expiry_date ASC NULLS LAST, received_at ASC
+         FOR UPDATE`;
+
+      let remaining = line.quantity;
+
+      if (line.isSubUnit) {
+        if (!product.unitsPerPackage) {
+          throw new AppError(400, `"${product.name}" لا يُباع بالتجزئة`);
+        }
+        for (const batch of batches) {
+          if (remaining <= 0) break;
+
+          // Loose units already opened from this batch go first.
+          const fromLoose = Math.min(batch.opened_sub_units, remaining);
+          if (fromLoose > 0) {
+            await tx.batch.update({
+              where: { id: batch.id },
+              data: { openedSubUnits: { decrement: fromLoose } },
+            });
+            lineData.push({
+              productId: product.id,
+              batchId: batch.id,
+              quantity: fromLoose,
+              unitPrice,
+              isSubUnit: true,
+            });
+            remaining -= fromLoose;
+          }
+          if (remaining <= 0) break;
+
+          // Not enough loose stock — open whole packages one at a time.
+          while (remaining > 0 && batch.quantity > 0) {
+            batch.quantity -= 1;
+            const fromThisPackage = Math.min(product.unitsPerPackage, remaining);
+            await tx.batch.update({
+              where: { id: batch.id },
+              data: {
+                quantity: { decrement: 1 },
+                openedSubUnits: { increment: product.unitsPerPackage - fromThisPackage },
+              },
+            });
+            lineData.push({
+              productId: product.id,
+              batchId: batch.id,
+              quantity: fromThisPackage,
+              unitPrice,
+              isSubUnit: true,
+            });
+            remaining -= fromThisPackage;
+          }
+        }
+      } else {
+        for (const batch of batches) {
+          if (remaining <= 0) break;
+          const take = Math.min(batch.quantity, remaining);
+          if (take <= 0) continue;
+
+          await tx.batch.update({ where: { id: batch.id }, data: { quantity: { decrement: take } } });
+          lineData.push({
+            productId: product.id,
+            batchId: batch.id,
+            quantity: take,
+            unitPrice,
+            isSubUnit: false,
+          });
+          remaining -= take;
+        }
+      }
+
+      if (remaining > 0) {
+        throw new AppError(409, `الكمية المتوفرة من "${product.name}" غير كافية`);
+      }
+    }
+
+    // Total is computed from the actual line quantities/prices, not the
+    // requested ones — matters when a line was split across batches above.
+    const subtotal = lineData.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0);
+    const discount = input.discount ?? 0;
+    const total = Math.max(0, subtotal - discount);
+
+    const sale = await tx.sale.create({
+      data: {
+        userId,
+        total,
+        discount,
+        idempotencyKey: input.idempotencyKey,
+        items: { createMany: { data: lineData } },
+      },
+      include: { items: true },
+    });
+
+    return { sale, affectedProductIds: [...affectedProductIds] };
+  });
+
+  broadcastStockChanged(result.affectedProductIds);
+  return mapSale(result.sale);
+}

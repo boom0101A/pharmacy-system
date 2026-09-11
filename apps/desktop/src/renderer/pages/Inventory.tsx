@@ -1,0 +1,360 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Package, Pencil, Plus, Trash2 } from 'lucide-react';
+import type { Product } from '@pharmacy/shared-types';
+import styles from './Inventory.module.css';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { EmptyState } from '../components/ui/EmptyState';
+import { SkeletonRows } from '../components/ui/Skeleton';
+import { ProductDialog } from './ProductDialog';
+import { ReceiveStockDialog } from './ReceiveStockDialog';
+import { api } from '../lib/api';
+import { useAuth } from '../store/auth';
+import { useStockVersion } from '../store/stockSync';
+import { useToast } from '../components/ui/Toast';
+import { formatDate, formatMoney } from '../lib/cx';
+
+const PAGE_SIZE = 40;
+const LOW_STOCK_ALERT_MS = 8000;
+
+type StatusFilter = 'all' | 'low' | 'expiring' | 'out';
+
+export function Inventory() {
+  const toast = useToast();
+  const { can } = useAuth();
+  const canEdit = can('admin', 'pharmacist');
+  const canDelete = can('admin');
+  const stockVersion = useStockVersion((s) => s.version);
+
+  const [products, setProducts] = useState<Product[]>([]);
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [counts, setCounts] = useState({ total: 0, low: 0, expiring: 0, out: 0 });
+  const [editing, setEditing] = useState<Product | null>(null);
+  const [productDialogOpen, setProductDialogOpen] = useState(false);
+  const [receivingFor, setReceivingFor] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  // The low-stock banner greets you on arrival and then gets out of the way.
+  const [lowStockAlertDone, setLowStockAlertDone] = useState(false);
+
+  const load = useCallback(
+    async (term: string, status: StatusFilter) => {
+      try {
+        const query = term.trim() || undefined;
+        const [page, stats] = await Promise.all([
+          api.products(query, {
+            status: status === 'all' ? undefined : status,
+            limit: PAGE_SIZE,
+          }),
+          api.productStats(query),
+        ]);
+        setProducts(page);
+        setCounts(stats);
+      } catch (err) {
+        toast.error('تعذّر تحميل المخزون', (err as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [toast],
+  );
+
+  useEffect(() => {
+    const timer = setTimeout(() => load(search, statusFilter), 200);
+    return () => clearTimeout(timer);
+  }, [search, statusFilter, load, stockVersion]);
+
+  useEffect(() => {
+    // The banner's fade is CSS, but what removes it is this timer — and a
+    // timer is something the global reduced-motion override in tokens.css
+    // cannot reach. Without this check the banner would sit there, frozen
+    // mid-animation, for the full eight seconds.
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer = window.setTimeout(
+      () => setLowStockAlertDone(true),
+      reduced ? 0 : LOW_STOCK_ALERT_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const more = await api.products(search.trim() || undefined, {
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        limit: PAGE_SIZE,
+        offset: products.length,
+      });
+      setProducts((prev) => [...prev, ...more]);
+    } catch (err) {
+      toast.error('تعذّر تحميل المزيد', (err as Error).message);
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  // Lets the dashboard's stat cards deep-link straight into a filtered view.
+  const [searchParams] = useSearchParams();
+  useEffect(() => {
+    const requested = searchParams.get('filter');
+    if (requested === 'low' || requested === 'expiring' || requested === 'out') {
+      setStatusFilter(requested);
+    }
+  }, [searchParams]);
+
+  /**
+   * F1 opens the new-medicine form, the same as the button. Held back while any
+   * dialog is already up: it would stack a second one over an edit in progress
+   * and throw away whatever had been typed into it.
+   */
+  useEffect(() => {
+    if (!canEdit) return;
+    const busy = productDialogOpen || receivingFor !== null || deletingProduct !== null;
+    if (busy) return;
+
+    function onKeyDown(event: globalThis.KeyboardEvent) {
+      if (event.key !== 'F1') return;
+      event.preventDefault();
+      setEditing(null);
+      setProductDialogOpen(true);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [canEdit, productDialogOpen, receivingFor, deletingProduct]);
+
+  const FILTERS = [
+    { key: 'all', label: 'الكل', count: counts.total },
+    { key: 'low', label: 'يحتاج إعادة طلب', count: counts.low },
+    { key: 'expiring', label: 'قارب على الانتهاء', count: counts.expiring },
+    { key: 'out', label: 'نفد', count: counts.out },
+  ] as const;
+
+  const visible = products;
+
+  /**
+   * Built only when the rows themselves change, not on every keystroke in the
+   * search box above — "load more" appends without any upper bound, so by late
+   * in a shift this table can be long enough for that to matter.
+   *
+   * Safe to leave the handlers out of the dependency list: everything they
+   * close over is either the row's own product or a `useState` setter, whose
+   * identity React guarantees is stable.
+   */
+  const rows = useMemo(
+    () =>
+      visible.map((product) => (
+        <tr key={product.id}>
+          <td className={styles.name}>
+            {product.name}
+            {product.barcode && <div className={styles.barcode}>{product.barcode}</div>}
+          </td>
+          <td>{product.categoryName ?? '—'}</td>
+          <td className="numeric">{product.stock}</td>
+          <td className="numeric">{formatMoney(product.salePrice)}</td>
+          <td>
+            {product.stock <= 0 ? (
+              <Badge tone="danger" pulse>
+                نفد
+              </Badge>
+            ) : product.stock <= product.reorderLevel ? (
+              <Badge tone="warning">يحتاج إعادة طلب</Badge>
+            ) : (
+              <Badge tone="success">متوفر</Badge>
+            )}
+          </td>
+          <td>{formatDate(product.nearestExpiry)}</td>
+          <td>
+            <div className={styles.actions}>
+              {canEdit && (
+                <Button variant="outline" size="sm" onClick={() => setReceivingFor(product)}>
+                  إدخال كمية
+                </Button>
+              )}
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setEditing(product);
+                    setProductDialogOpen(true);
+                  }}
+                  aria-label={`تعديل ${product.name}`}
+                >
+                  <Pencil size={15} />
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDeletingProduct(product)}
+                  aria-label={`حذف ${product.name}`}
+                >
+                  <Trash2 size={15} />
+                </Button>
+              )}
+            </div>
+          </td>
+        </tr>
+      )),
+    [visible, canEdit, canDelete],
+  );
+  const shownCount = statusFilter === 'all' ? counts.total : counts[statusFilter];
+
+  async function remove(product: Product) {
+    try {
+      await api.deleteProduct(product.id);
+      toast.success('تم حذف الصنف');
+      load(search, statusFilter);
+    } catch (err) {
+      toast.error('تعذّر الحذف', (err as Error).message);
+    } finally {
+      setDeletingProduct(null);
+    }
+  }
+
+  return (
+    <>
+      {!lowStockAlertDone && counts.low > 0 && (
+        <div className={styles.lowStockBanner}>
+          {counts.low} صنف يحتاج إعادة طلب
+          <button type="button" onClick={() => setLowStockAlertDone(true)} aria-label="إغلاق">
+            ×
+          </button>
+        </div>
+      )}
+
+      <div className={styles.page}>
+        <div className={styles.toolbar}>
+          <input
+            className={styles.search}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ابحث بالاسم أو الباركود…"
+            aria-label="بحث في المخزون"
+          />
+          {canEdit && (
+            <div className={styles.spacer}>
+              <Button
+                onClick={() => {
+                  setEditing(null);
+                  setProductDialogOpen(true);
+                }}
+                title="F1"
+              >
+                <Plus size={16} />
+                دواء جديد
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <div className={styles.filters}>
+          {FILTERS.map((filter) => (
+            <button
+              key={filter.key}
+              type="button"
+              className={filter.key === statusFilter ? styles.filterActive : styles.filter}
+              onClick={() => setStatusFilter(filter.key)}
+            >
+              {filter.label}
+              <span className={styles.filterCount}>{filter.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {loading ? (
+          <table className={styles.table}>
+            <tbody>
+              <SkeletonRows rows={6} columns={6} />
+            </tbody>
+          </table>
+        ) : visible.length === 0 ? (
+          <EmptyState
+            icon={<Package size={26} />}
+            title="لا توجد أدوية"
+            description={search ? 'لا نتائج مطابقة لبحثك' : 'ابدأ بإضافة أول دواء للمخزون'}
+            action={
+              search ? (
+                <Button variant="outline" onClick={() => setSearch('')}>
+                  مسح البحث
+                </Button>
+              ) : statusFilter !== 'all' ? (
+                <Button variant="outline" onClick={() => setStatusFilter('all')}>
+                  عرض كل الأدوية
+                </Button>
+              ) : (
+                canEdit && (
+                  <Button
+                    onClick={() => {
+                      setEditing(null);
+                      setProductDialogOpen(true);
+                    }}
+                  >
+                    <Plus size={16} />
+                    دواء جديد
+                  </Button>
+                )
+              )
+            }
+          />
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>الصنف</th>
+                <th>التصنيف</th>
+                <th>الكمية</th>
+                <th>السعر</th>
+                <th>الحالة</th>
+                <th>أقرب انتهاء</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>{rows}</tbody>
+          </table>
+        )}
+
+        {!loading && visible.length > 0 && visible.length < shownCount && (
+          <div className={styles.loadMoreRow}>
+            <span className={styles.shownCount}>
+              عرض {visible.length} من {shownCount}
+            </span>
+            <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+              {loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <ProductDialog
+        open={productDialogOpen}
+        product={editing}
+        onOpenChange={setProductDialogOpen}
+        onSaved={() => load(search, statusFilter)}
+      />
+
+      <ReceiveStockDialog
+        product={receivingFor}
+        onClose={() => setReceivingFor(null)}
+        onSaved={() => load(search, statusFilter)}
+      />
+
+      <ConfirmDialog
+        open={deletingProduct !== null}
+        onOpenChange={(open) => !open && setDeletingProduct(null)}
+        title={`حذف "${deletingProduct?.name ?? ''}"؟`}
+        description={
+          deletingProduct && deletingProduct.stock > 0
+            ? `سيُحذف الدواء وكل دفعاته (${deletingProduct.stock} ${deletingProduct.unit} بالمخزون). لا يمكن التراجع. الدواء الذي بِيع سابقاً سيرفض النظام حذفه حفاظاً على سجلّ الفواتير.`
+            : 'لا يمكن التراجع عن هذا الإجراء.'
+        }
+        onConfirm={() => deletingProduct && remove(deletingProduct)}
+      />
+    </>
+  );
+}

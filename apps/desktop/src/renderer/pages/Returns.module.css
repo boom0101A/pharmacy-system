@@ -1,0 +1,261 @@
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 22rem;
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.form {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+}
+
+.lookupRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  max-width: 24rem;
+  margin-block-end: var(--space-5);
+}
+
+.lookupInput {
+  flex: 1;
+}
+
+.saleInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  margin-block-end: var(--space-4);
+  background: var(--surface-page);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+}
+
+.saleInfoMeta {
+  color: var(--text-secondary);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  margin-block-end: var(--space-4);
+}
+
+.table th {
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-block-end: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-block-end: none;
+}
+
+.qtyInput {
+  width: 5rem;
+  height: 2.25rem;
+  padding: 0 var(--space-2);
+  text-align: center;
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.qtyInput:focus {
+  outline: none;
+  border-color: var(--brand-9);
+  box-shadow: var(--shadow-focus);
+}
+
+.qtyInput:disabled {
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+}
+
+.footerBar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--border-subtle);
+}
+
+.reasonField {
+  flex: 1;
+  max-width: 22rem;
+}
+
+.totalBlock {
+  text-align: end;
+}
+
+.grandTotal {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  color: var(--danger-11);
+}
+
+.empty {
+  padding: var(--space-8);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ---- Browse-by-date (finding an invoice without its printed number) ---- */
+.browseSection {
+  padding-block-end: var(--space-4);
+  margin-block-end: var(--space-4);
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.browseHeader {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block-end: var(--space-3);
+}
+
+.browseTitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.browseDateInput {
+  width: 12rem;
+}
+
+.browseList {
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.browseItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  background: none;
+  border: none;
+  border-block-end: 1px solid var(--border-subtle);
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.browseItem:last-child {
+  border-block-end: none;
+}
+
+.browseItem:hover:not(:disabled) {
+  background: var(--surface-page);
+}
+
+.browseItem:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.browseMeta {
+  display: flex;
+  gap: var(--space-3);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.browseEmpty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.browseSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* ---- History side panel ---- */
+.history {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.historyTitle {
+  font-size: var(--text-lg);
+  margin-block-end: var(--space-4);
+}
+
+.historyEmpty {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+.historySkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.historyItem {
+  padding: var(--space-3) 0;
+  border-block-end: 1px solid var(--border-subtle);
+  font-size: var(--text-sm);
+}
+
+.historyItem:last-child {
+  border-block-end: none;
+}
+
+.historyMeta {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  margin-block-start: var(--space-1);
+}
+
+.name {
+  font-weight: var(--weight-medium);
+}
+
+/* Marks a sub-unit line so it can't be mistaken for the package line of the
+   same product sitting next to it. Same pill as Pos.module.css .lineUnitBadge. */
+.unitBadge {
+  margin-inline-start: var(--space-2);
+  padding: 1px var(--space-2);
+  background: var(--brand-3);
+  color: var(--brand-11);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}

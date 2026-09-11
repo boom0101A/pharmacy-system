@@ -1,0 +1,26 @@
+.banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--danger-9);
+  color: #fff;
+  font-size: var(--text-sm);
+  position: relative;
+  z-index: var(--z-toast);
+}
+
+.retry {
+  background: none;
+  border: 1px solid var(--white-a8);
+  border-radius: var(--radius-sm);
+  padding: 2px var(--space-3);
+  color: #fff;
+  cursor: pointer;
+  font-size: var(--text-xs);
+}
+
+.retry:hover {
+  background: var(--white-a4);
+}

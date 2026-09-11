@@ -1,0 +1,174 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.lowStockBanner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  margin-block-end: var(--space-4);
+  background: var(--warn-3);
+  color: var(--warn-11);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  animation: alertCycle 8s var(--ease-out) forwards;
+}
+
+@keyframes alertCycle {
+  0%,
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lowStockBanner {
+    animation: none;
+  }
+}
+
+.lowStockBanner button {
+  background: none;
+  border: none;
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
+  color: inherit;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-end: var(--space-4);
+}
+
+.search {
+  flex: 1;
+  max-width: 24rem;
+  height: 2.5rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+}
+
+.search:focus {
+  outline: none;
+  border-color: var(--brand-9);
+  box-shadow: var(--shadow-focus);
+}
+
+.spacer {
+  margin-inline-start: auto;
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-2);
+  margin-block-end: var(--space-4);
+}
+
+.filter,
+.filterActive {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+}
+
+.filterActive {
+  background: var(--brand-9);
+  border-color: var(--brand-9);
+  color: #fff;
+}
+
+.filterCount {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--white-a4);
+  font-size: var(--text-xs);
+}
+
+.filterActive .filterCount {
+  background: var(--white-a4);
+}
+
+.filter .filterCount {
+  background: var(--surface-sunken);
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.formGridFull {
+  grid-column: 1 / -1;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.table th {
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+  font-weight: var(--weight-semibold);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-block-end: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-3);
+  border-block-end: 1px solid var(--border-subtle);
+  vertical-align: middle;
+}
+
+.name {
+  font-weight: var(--weight-medium);
+}
+
+.barcode {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  direction: ltr;
+  text-align: start;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.loadMoreRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4) 0;
+}
+
+.shownCount {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
