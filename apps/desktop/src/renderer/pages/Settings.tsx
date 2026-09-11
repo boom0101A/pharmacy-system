@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, Download, Printer, Save, Server, Trash2, Upload } from 'lucide-react';
+import { Building2, Download, Printer, Save, Server, ShieldCheck, Trash2, Upload } from 'lucide-react';
 import type { BackupFile } from '@pharmacy/shared-types';
 import styles from './Settings.module.css';
 import { Button } from '../components/ui/Button';
@@ -33,6 +33,8 @@ export function Settings() {
   const [backups, setBackups] = useState<BackupFile[]>([]);
   const [downloadingBackup, setDownloadingBackup] = useState<string | null>(null);
 
+  const [license, setLicense] = useState<LicenseCheck | null>(null);
+
   useEffect(() => {
     window.pharmacy.getSettings().then((s) => {
       setPrinterPath(s.printerPath ?? '');
@@ -41,6 +43,9 @@ export function Settings() {
       setPharmacyPhone(s.pharmacyPhone ?? '');
     });
     api.backups().then(setBackups).catch(() => setBackups([]));
+    // App.tsx already gated the whole app on this being valid to get here —
+    // this call is purely to display who it's licensed to, not to re-decide access.
+    window.pharmacy.getLicenseStatus().then(setLicense);
   }, []);
 
   function saveServer() {
@@ -265,6 +270,22 @@ export function Settings() {
         )}
         <p className={styles.hint}>الاستعادة تتم من جهاز الخادم فقط عبر سطر الأوامر — راجع دليل التشغيل.</p>
       </section>
+
+      {license?.valid && (
+        <section className={styles.card}>
+          <h2 className={styles.title}>
+            <ShieldCheck size={18} />
+            الترخيص
+          </h2>
+          <p className={styles.hint}>
+            مرخَّص لـ: <strong>{license.payload.licensedTo}</strong>
+            {' — '}
+            {license.payload.expiresAt
+              ? `صالح حتى ${formatDate(license.payload.expiresAt)}`
+              : 'ترخيص دائم'}
+          </p>
+        </section>
+      )}
 
       <ConfirmDialog
         open={confirmDeleteLogo}

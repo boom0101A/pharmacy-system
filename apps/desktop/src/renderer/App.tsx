@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import styles from './App.module.css';
+import { Activation } from './pages/Activation';
 import { AppShell } from './components/AppShell';
 import { Splash } from './components/Splash';
 import { ToastProvider } from './components/ui/Toast';
@@ -27,6 +28,9 @@ export function App() {
   useStockSync(user !== null);
   const recheckConnection = useConnectionPing();
   const [showSplash, setShowSplash] = useState(true);
+  // null = not checked yet. Purely local (no network), so this resolves in a
+  // few milliseconds — well before the splash's own dwell time ends.
+  const [licensed, setLicensed] = useState<boolean | null>(null);
   // Stable so a connection ping re-rendering mid-fade can't restart its timer.
   const finishSplash = useCallback(() => setShowSplash(false), []);
 
@@ -38,10 +42,25 @@ export function App() {
     // Unauthenticated, like the auth check above — the login screen needs the
     // logo before anyone has signed in.
     useBranding.getState().refresh();
+    window.pharmacy.getLicenseStatus().then((status) => setLicensed(status.valid));
   }, []);
 
   if (showSplash) {
     return <Splash onFinish={finishSplash} />;
+  }
+
+  if (licensed === null) {
+    return (
+      <div className={styles.bootLoading}>
+        <span className={styles.spinner} aria-hidden="true" />
+      </div>
+    );
+  }
+
+  // Blocks everything else — a stale/mismatched/expired license means the
+  // rest of the app (including the server login itself) never renders.
+  if (!licensed) {
+    return <Activation onActivated={() => setLicensed(true)} />;
   }
 
   // Only reached on a slow network where /auth/me hasn't answered yet — most

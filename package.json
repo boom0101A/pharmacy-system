@@ -9,7 +9,9 @@
   "scripts": {
     "dev:server": "npm run dev --workspace=@pharmacy/server",
     "dev:desktop": "npm run dev --workspace=@pharmacy/desktop",
-    "backup": "node scripts/backup.mjs"
+    "backup": "node scripts/backup.mjs",
+    "license:setup": "node scripts/generate-license-keypair.mjs",
+    "license:generate": "node scripts/generate-license.mjs"
   },
   "allowScripts": {
     "@prisma/client@5.22.0": true,

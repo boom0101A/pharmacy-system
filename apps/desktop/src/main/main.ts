@@ -4,6 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { printReceipt } from './printer.js';
 import { settingsStore } from './settings-store.js';
+import { getMachineId } from './license.js';
+import { licenseStore } from './licenseStore.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
@@ -111,3 +113,7 @@ ipcMain.handle(
     await fs.writeFile(filePath, Buffer.from(data));
   },
 );
+
+ipcMain.handle('license:getMachineId', () => getMachineId());
+ipcMain.handle('license:getStatus', () => licenseStore.getStatus());
+ipcMain.handle('license:activate', (_event, key: string) => licenseStore.activate(key));

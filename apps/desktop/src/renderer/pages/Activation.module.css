@@ -1,0 +1,142 @@
+.page {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, var(--brand-3), transparent 70%),
+    var(--surface-page);
+}
+
+.card {
+  animation: cardIn var(--duration-normal) var(--ease-out) 60ms backwards;
+  width: min(90vw, 26rem);
+  padding: var(--space-8);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    animation-delay: 0ms !important;
+  }
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block-end: var(--space-6);
+  text-align: center;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  background: linear-gradient(135deg, var(--brand-9), var(--highlight-9));
+  border-radius: var(--radius-lg);
+  color: #fff;
+  box-shadow: var(--shadow-brand);
+}
+
+.title {
+  font-size: var(--text-2xl);
+}
+
+.subtitle {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.machineBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-block-end: var(--space-6);
+  padding: var(--space-4);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+}
+
+.machineLabel {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.machineRow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/*
+ * Stacked above the copy button rather than beside it: this is a 36-character
+ * GUID, and this card is only 26rem wide — sharing a row with a button never
+ * leaves enough room to show it in full, which matters here specifically
+ * because a partially visible code is one the client could copy by hand
+ * wrong. `word-break` wraps it instead of clipping it, whatever the width.
+ */
+.machineId {
+  padding: var(--space-2) var(--space-3);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+  direction: ltr;
+  text-align: center;
+  word-break: break-all;
+}
+
+.machineRow > button {
+  align-self: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.alert {
+  padding: var(--space-3);
+  background: var(--danger-3);
+  border: 1px solid var(--danger-6);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--danger-11);
+}
+
+.fileToggle {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-block-start: calc(-1 * var(--space-2));
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.fileToggle:hover {
+  color: var(--text-secondary);
+}

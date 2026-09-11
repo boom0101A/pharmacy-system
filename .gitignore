@@ -1,10 +1,12 @@
 node_modules/
 dist/
+dist-ts/
 dist-electron/
 release/
 .env
 .env.local
 *.log
+*.tsbuildinfo
 .DS_Store
 Thumbs.db
 
@@ -14,3 +16,10 @@ Thumbs.db
 apps/server/uploads/
 apps/server/backups/
 apps/server/logs/
+
+# The private half of the license-signing keypair, and the record of who has
+# been issued a key. Never shipped, never committed — see
+# scripts/generate-license-keypair.mjs. Only the public key (a short string
+# pasted into apps/desktop/src/main/license.ts) is meant to leave this machine.
+license-private-key.pem
+/licenses/
