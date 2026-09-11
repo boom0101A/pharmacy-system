@@ -8,7 +8,8 @@
   ],
   "scripts": {
     "dev:server": "npm run dev --workspace=@pharmacy/server",
-    "dev:desktop": "npm run dev --workspace=@pharmacy/desktop"
+    "dev:desktop": "npm run dev --workspace=@pharmacy/desktop",
+    "backup": "node scripts/backup.mjs"
   },
   "allowScripts": {
     "@prisma/client@5.22.0": true,
