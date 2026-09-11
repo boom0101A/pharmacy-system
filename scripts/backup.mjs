@@ -26,7 +26,7 @@ const stamp = new Date().toLocaleString('sv-SE'); // YYYY-MM-DD HH:mm:ss, sorts 
 
 run('git add', ['add', '-A']);
 
-const hasChanges = (() => {
+const hasUncommitted = (() => {
   try {
     git(['diff', '--cached', '--quiet']);
     return false; // exit 0 = no staged differences
@@ -35,14 +35,25 @@ const hasChanges = (() => {
   }
 })();
 
-if (!hasChanges) {
+if (hasUncommitted) {
+  run('git commit', ['commit', '-m', `نسخة احتياطية: ${stamp}`]);
+  console.log('✓ حُفظ التغيير محلياً.');
+}
+
+run('git fetch', ['fetch', 'origin']);
+
+// Not just "did this run just commit something": a commit made earlier by a
+// plain `git commit` (outside this script) is just as stuck on this one
+// machine until something pushes it — which is the exact failure mode this
+// script exists to prevent.
+const ahead = git(['rev-list', '--count', '@{u}..HEAD']).trim() !== '0';
+
+if (!hasUncommitted && !ahead) {
   console.log('لا توجد تغييرات جديدة — كل شيء محفوظ فعلاً على GitHub.');
   process.exit(0);
 }
 
-run('git commit', ['commit', '-m', `نسخة احتياطية: ${stamp}`]);
-console.log('✓ حُفظ التغيير محلياً، جارٍ الرفع إلى GitHub…');
-
+console.log('جارٍ الرفع إلى GitHub…');
 run('git push', ['push', 'origin', 'HEAD']);
 
 const hash = git(['rev-parse', '--short', 'HEAD']).trim();
