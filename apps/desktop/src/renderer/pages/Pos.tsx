@@ -21,7 +21,8 @@ import { AlternativesDialog } from '../components/ui/AlternativesDialog';
 import { ProductDialog } from './ProductDialog';
 import { subUnitAvailability, useCart } from '../store/cart';
 import { api, ApiError } from '../lib/api';
-import { cleanIpcError, cx, formatMoney, playWarningBeep, productImageUrl } from '../lib/cx';
+import { cleanIpcError, cx, formatMoney, productImageUrl } from '../lib/cx';
+import { playSaleComplete, playWarningBeep } from '../lib/sounds.js';
 import { useAuth } from '../store/auth';
 import { useStockVersion } from '../store/stockSync';
 import { useConnection } from '../store/connection';
@@ -248,7 +249,8 @@ export function Pos() {
         discount: cart.discount,
         idempotencyKey: attemptKey.current,
       });
-      toast.success(`تمت الفاتورة رقم ${sale.id}`, `الإجمالي ${formatMoney(sale.total)}`);
+      toast.success(`تمت الفاتورة رقم ${sale.id}`, `الإجمالي ${formatMoney(sale.total)}`, { silent: true });
+      playSaleComplete();
       setLastReceipt({
         saleId: sale.id,
         date: sale.date,

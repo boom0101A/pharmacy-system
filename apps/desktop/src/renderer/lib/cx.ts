@@ -20,6 +20,20 @@ export function formatMoney(value: number): string {
   return new Intl.NumberFormat(LOCALE_WESTERN_DIGITS, { maximumFractionDigits: 0 }).format(value);
 }
 
+// Iraq has kept a fixed UTC+3 offset with no DST since 2007 — matches the
+// same constant the server uses (apps/server/src/lib/dateRange.ts).
+const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * "Today" as Baghdad sees it, not UTC. Plain `new Date().toISOString()`
+ * still reports *yesterday's* date for the first ~3 hours after Baghdad
+ * midnight — a default report/return-browse range built from that quietly
+ * excludes everything sold so far today until well past 3am.
+ */
+export function baghdadToday(): string {
+  return new Date(Date.now() + BAGHDAD_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 /**
  * Electron wraps a thrown main-process error as
  * `Error invoking remote method '<channel>': Error: <message>` — strips that
@@ -61,31 +75,3 @@ export function daysUntil(value: string | null): number | null {
   return Math.ceil(diff / 86_400_000);
 }
 
-// One shared context: creating a fresh AudioContext per beep leaks a handle
-// every scan and some browsers cap how many can exist at once.
-let sharedAudioCtx: AudioContext | null = null;
-
-/**
- * A short warning tone — the only way a busy cashier notices a scan that got
- * silently capped at the remaining stock instead of adding another unit.
- * Best-effort: a test/jsdom environment or blocked autoplay just stays silent.
- */
-export function playWarningBeep(): void {
-  try {
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctx) return;
-    sharedAudioCtx ??= new Ctx();
-    const ctx = sharedAudioCtx;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = 660;
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.18);
-  } catch {
-    // Silence is an acceptable fallback for a tone whose only job is a hint.
-  }
-}

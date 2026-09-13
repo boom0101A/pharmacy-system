@@ -37,7 +37,7 @@ export function Suppliers() {
   async function remove(supplier: Supplier) {
     try {
       await api.deleteSupplier(supplier.id);
-      toast.success('تم حذف المورّد');
+      toast.success('تم حذف المورّد', undefined, { kind: 'delete' });
       load();
     } catch (err) {
       toast.error('تعذّر الحذف', (err as Error).message);

@@ -5,6 +5,16 @@
   max-width: 28rem;
 }
 
+.error {
+  padding: var(--space-3);
+  margin-block-end: var(--space-4);
+  background: var(--danger-3);
+  border: 1px solid var(--danger-6);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--danger-11);
+}
+
 .summary {
   display: flex;
   gap: var(--space-4);

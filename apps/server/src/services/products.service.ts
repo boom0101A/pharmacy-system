@@ -157,7 +157,7 @@ export async function productAlternatives(id: number): Promise<ProductAlternativ
   if (!product?.activeIngredient) return [];
 
   const rows = await productWithAggregates({
-    activeIngredient: product.activeIngredient,
+    activeIngredient: { equals: product.activeIngredient, mode: 'insensitive' },
     id: { not: id },
   });
   return rows

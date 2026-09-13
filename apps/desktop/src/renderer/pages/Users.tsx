@@ -50,7 +50,7 @@ export function Users() {
   async function remove(user: User) {
     try {
       await api.deleteUser(user.id);
-      toast.success('تم حذف المستخدم');
+      toast.success('تم حذف المستخدم', undefined, { kind: 'delete' });
       load();
     } catch (err) {
       // A user with prior sales/purchases can't be deleted (server enforces this).
@@ -151,7 +151,13 @@ export function Users() {
         )}
       </div>
 
-      <UserDialog open={dialogOpen} onOpenChange={setDialogOpen} user={editing} onSaved={load} />
+      <UserDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        user={editing}
+        isSelf={editing !== null && editing.id === currentUserId}
+        onSaved={load}
+      />
 
       <ConfirmDialog
         open={deleting !== null}

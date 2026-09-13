@@ -1,4 +1,4 @@
-import type { KeyboardEvent, ReactNode } from 'react';
+import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import {
   BarChart3,
@@ -106,8 +106,29 @@ export function AppShell() {
   const { user, logout } = useAuth();
   const logoUrl = useBranding((s) => s.logoUrl);
   const { pathname } = useLocation();
+  const navRef = useRef<HTMLElement>(null);
+  const indicatorRef = useRef<HTMLDivElement>(null);
 
   const visible = NAV.filter((entry) => user && entry.roles.includes(user.role));
+
+  /**
+   * The active-item highlight used to just vanish from the old link and
+   * reappear on the new one — correct but not smooth. Measuring the active
+   * link's own box and sliding one shared indicator there (instead of each
+   * item painting its own background) is what makes it glide between them.
+   * useLayoutEffect, not useEffect: it runs before the browser paints, so the
+   * very first render already lands the indicator in the right place with no
+   * visible jump from position (0,0).
+   */
+  useLayoutEffect(() => {
+    const nav = navRef.current;
+    const indicator = indicatorRef.current;
+    if (!nav || !indicator) return;
+    const active = nav.querySelector<HTMLElement>('a[aria-current="page"]');
+    if (!active) return;
+    indicator.style.transform = `translateY(${active.offsetTop}px)`;
+    indicator.style.height = `${active.offsetHeight}px`;
+  }, [pathname]);
 
   /**
    * Arrow keys walk the sidebar, wrapping at both ends. Scoped to the nav
@@ -144,7 +165,8 @@ export function AppShell() {
           </div>
         </div>
 
-        <nav className={styles.nav} onKeyDown={handleNavKeys}>
+        <nav className={styles.nav} onKeyDown={handleNavKeys} ref={navRef}>
+          <div className={styles.navIndicator} ref={indicatorRef} aria-hidden="true" />
           {visible.map((entry) => (
             <NavLink
               key={entry.to}
@@ -176,7 +198,7 @@ export function AppShell() {
 
       <div className={styles.main}>
         <header className={styles.topbar}>
-          <h1 className={styles.pageTitle}>{TITLES[pathname] ?? ''}</h1>
+          <h1 key={pathname} className={styles.pageTitle}>{TITLES[pathname] ?? ''}</h1>
           <span className={styles.topbarDate}>{formatDate(new Date().toISOString())}</span>
         </header>
         {/* Keyed by route so the fade replays on navigation. Keying the <main>

@@ -103,3 +103,9 @@
   font-size: var(--text-sm);
   cursor: pointer;
 }
+
+.hint {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}

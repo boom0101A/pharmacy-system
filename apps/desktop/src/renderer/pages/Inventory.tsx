@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Clock, Package, PackageMinus, PackageX, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Clock,
+  Package,
+  PackageMinus,
+  PackageX,
+  Pencil,
+  Plus,
+  Search,
+  ShoppingCart,
+  Trash2,
+} from 'lucide-react';
 import type { Product } from '@pharmacy/shared-types';
 import styles from './Inventory.module.css';
 import { Button } from '../components/ui/Button';
@@ -30,6 +40,7 @@ type StatusFilter = 'all' | 'low' | 'expiring' | 'out';
 
 export function Inventory() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { can } = useAuth();
   const canEdit = can('admin', 'pharmacist');
   const canDelete = can('admin');
@@ -223,7 +234,7 @@ export function Inventory() {
   async function remove(product: Product) {
     try {
       await api.deleteProduct(product.id);
-      toast.success('تم حذف الصنف');
+      toast.success('تم حذف الصنف', undefined, { kind: 'delete' });
       load(search, statusFilter);
     } catch (err) {
       toast.error('تعذّر الحذف', (err as Error).message);
@@ -281,6 +292,17 @@ export function Inventory() {
             </div>
             {canEdit && (
               <div className={styles.spacer}>
+                {statusFilter === 'low' && visible.length > 0 && (
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      navigate('/purchases', { state: { reorderProducts: visible } })
+                    }
+                  >
+                    <ShoppingCart size={16} />
+                    إضافة للمشتريات
+                  </Button>
+                )}
                 <Button
                   onClick={() => {
                     setEditing(null);

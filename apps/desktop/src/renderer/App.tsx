@@ -4,6 +4,7 @@ import styles from './App.module.css';
 import { Activation } from './pages/Activation';
 import { AppShell } from './components/AppShell';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { ExpiryAlertWatcher } from './components/ExpiryAlertWatcher';
 import { Splash } from './components/Splash';
 import { Button } from './components/ui/Button';
 import { ToastProvider } from './components/ui/Toast';
@@ -21,6 +22,7 @@ import { useAuth } from './store/auth';
 import { useBranding } from './store/branding';
 import { useStockSync } from './lib/useStockSync';
 import { useConnectionPing } from './lib/useConnectionPing';
+import { useExpiryAlert } from './lib/useExpiryAlert';
 import { useLicenseCheck } from './lib/useLicenseCheck';
 import { ConnectionBanner } from './components/ConnectionBanner';
 
@@ -30,6 +32,7 @@ export function App() {
   const canManageStock = user?.role === 'admin' || user?.role === 'pharmacist';
   useStockSync(user !== null);
   const recheckConnection = useConnectionPing();
+  useExpiryAlert(user !== null);
   const [showSplash, setShowSplash] = useState(true);
   // Purely local (no network), so this resolves in a few milliseconds — well
   // before the splash's own dwell time ends.
@@ -98,6 +101,7 @@ export function App() {
   return (
     <ErrorBoundary>
       <ToastProvider>
+        <ExpiryAlertWatcher />
         {/* Outside the router: a dead server is worth saying on the login screen
             too, where it is the actual reason the password "isn't working". */}
         <ConnectionBanner onRetry={recheckConnection} />

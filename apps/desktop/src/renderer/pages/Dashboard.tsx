@@ -71,7 +71,7 @@ export function Dashboard() {
   async function removeCategory(category: Category) {
     try {
       await api.deleteCategory(category.id);
-      toast.success('تم حذف التصنيف');
+      toast.success('تم حذف التصنيف', undefined, { kind: 'delete' });
       loadCategories();
     } catch (err) {
       toast.error('تعذّر الحذف', (err as Error).message);

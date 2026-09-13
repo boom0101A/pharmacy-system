@@ -5,6 +5,8 @@ import type { LicenseCheck } from './license.js';
 
 contextBridge.exposeInMainWorld('pharmacy', {
   printReceipt: (receipt: ReceiptData): Promise<void> => ipcRenderer.invoke('print-receipt', receipt),
+  printBarcodeLabel: (label: { barcode: string; productName: string }): Promise<void> =>
+    ipcRenderer.invoke('print-barcode-label', label),
   getSettings: (): Promise<Settings> => ipcRenderer.invoke('settings:get'),
   setSettings: (patch: Partial<Settings>): Promise<void> => ipcRenderer.invoke('settings:set', patch),
   saveFile: (suggestedName: string, data: ArrayBuffer): Promise<void> =>

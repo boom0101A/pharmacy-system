@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import type { Product, Purchase, PurchaseLineInput, Supplier } from '@pharmacy/shared-types';
 import styles from './Purchases.module.css';
@@ -10,6 +11,8 @@ import { SkeletonRows } from '../components/ui/Skeleton';
 import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
 import { formatDate, formatMoney } from '../lib/cx';
+import { findInvalidPurchaseLine } from '../lib/purchaseValidation.js';
+import { suggestedReorderQuantity } from '../lib/reorder.js';
 
 interface DraftLine extends PurchaseLineInput {
   key: number;
@@ -20,6 +23,8 @@ let nextKey = 1;
 
 export function Purchases() {
   const toast = useToast();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [supplierId, setSupplierId] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([]);
@@ -29,8 +34,47 @@ export function Purchases() {
   const [loadingPurchases, setLoadingPurchases] = useState(true);
 
   useEffect(() => {
-    api.suppliers().then(setSuppliers).catch(() => setSuppliers([]));
+    api
+      .suppliers()
+      .then(setSuppliers)
+      .catch((err: Error) => {
+        setSuppliers([]);
+        toast.error('تعذّر تحميل الموردين', err.message);
+      });
     loadPurchases();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // React (in development, under StrictMode) invokes a mount effect twice for
+  // one commit — without this guard, both invocations would see the same
+  // still-unconsumed router state and prefill the lines (and raise the
+  // toast) twice. A ref survives that double-invoke since only the effect
+  // re-runs, not the component's own state/refs.
+  const reorderHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (reorderHandledRef.current) return;
+    const reorderProducts = (location.state as { reorderProducts?: Product[] } | null)
+      ?.reorderProducts;
+    if (!reorderProducts || reorderProducts.length === 0) return;
+    reorderHandledRef.current = true;
+
+    setLines(
+      reorderProducts.map((product) => ({
+        key: nextKey++,
+        productId: product.id,
+        productName: product.name,
+        quantity: suggestedReorderQuantity(product.reorderLevel, product.stock),
+        unitPrice: product.purchasePrice,
+        batchNumber: null,
+        expiryDate: null,
+      })),
+    );
+    toast.success(`أُضيف ${reorderProducts.length} صنف من المخزون المنخفض`);
+    // Clears the router state so navigating back to this page later (browser
+    // back/forward, or a plain link) never silently replays the same prefill.
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function loadPurchases() {
@@ -71,6 +115,8 @@ export function Purchases() {
   async function submit() {
     if (!supplierId) return toast.error('اختر المورّد أولاً');
     if (lines.length === 0) return toast.error('أضف صنفاً واحداً على الأقل');
+    const invalidLineMessage = findInvalidPurchaseLine(lines);
+    if (invalidLineMessage) return toast.error(invalidLineMessage);
 
     setSaving(true);
     try {

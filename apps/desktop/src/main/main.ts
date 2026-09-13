@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { printReceipt } from './printer.js';
+import { printBarcodeLabel, printReceipt } from './printer.js';
 import { settingsStore } from './settings-store.js';
 import { getMachineId } from './license.js';
 import { licenseStore } from './licenseStore.js';
@@ -68,6 +68,14 @@ ipcMain.handle('print-receipt', async (_event, receipt) => {
     },
     hasLogo ? logoCachePath() : null,
   );
+});
+
+ipcMain.handle('print-barcode-label', async (_event, label: { barcode: string; productName: string }) => {
+  const settings = settingsStore.getAll();
+  if (!settings.printerPath) {
+    throw new Error('لم يُضبط منفذ الطابعة بعد — افتح الإعدادات');
+  }
+  await printBarcodeLabel(settings.printerPath, label);
 });
 
 /**

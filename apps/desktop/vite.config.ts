@@ -18,6 +18,7 @@ export default defineConfig({
   },
   server: { port: 5173 },
   test: {
+    setupFiles: ['./vitest.setup.ts'],
     // Vitest's own default `exclude` doesn't know about this project's
     // `tsc -b` output directory (`dist-ts`, per tsconfig's `outDir`) — without
     // this, every *.test.ts file gets picked up a second time as a compiled

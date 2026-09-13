@@ -12,6 +12,12 @@
   color: var(--white-a11);
   padding: var(--space-5) var(--space-3);
   overflow-y: auto;
+  /* Separates the sidebar from the content beside it — this app is RTL-only
+     (dir="rtl" is hardcoded, never mirrors), so the sidebar always sits on
+     the visual right and the shadow always needs to fall to its left. */
+  box-shadow: -2px 0 12px var(--black-a4);
+  position: relative;
+  z-index: 1;
 }
 
 .brand {
@@ -59,6 +65,26 @@
   flex-direction: column;
   gap: var(--space-1);
   flex: 1;
+  position: relative;
+}
+
+/*
+ * One shared pill instead of each item painting its own background: sliding
+ * this between measured positions (AppShell.tsx, useLayoutEffect) is what
+ * makes the active state glide from item to item instead of vanishing and
+ * reappearing. Sits behind the items (z-index 0 vs. their 1) so their icon
+ * and text are never obscured mid-slide.
+ */
+.navIndicator {
+  position: absolute;
+  inset-inline: 0;
+  top: 0;
+  z-index: 0;
+  border-radius: var(--radius-md);
+  background: var(--brand-9);
+  transition:
+    transform var(--duration-normal) var(--ease-out),
+    height var(--duration-normal) var(--ease-out);
 }
 
 .navItem {
@@ -71,43 +97,26 @@
   font-weight: var(--weight-medium);
   color: var(--white-a10);
   text-decoration: none;
+  position: relative;
+  z-index: 1;
   transition:
     background-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out);
+    color var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
 }
 
 .navItem:hover {
   background: var(--white-a3);
   color: #fff;
+  /* Content sits to the sidebar's left in this RTL-only layout — a small
+     shift that direction reads as the item reaching toward it. */
+  transform: translateX(-3px);
 }
 
 .navItemActive,
 .navItemActive:hover {
-  background: var(--brand-9);
   color: #fff;
-  position: relative;
-}
-
-/* A shape as well as a colour: the current page stays identifiable to anyone
-   who can't separate the green fill from the dark sidebar behind it. */
-.navItemActive::before {
-  content: '';
-  position: absolute;
-  inset-inline-start: 0;
-  inset-block: 22%;
-  width: 3px;
-  border-radius: var(--radius-full);
-  background: #fff;
-  animation: activeBarIn var(--duration-fast) var(--ease-out);
-}
-
-@keyframes activeBarIn {
-  from {
-    transform: scaleY(0);
-  }
-  to {
-    transform: scaleY(1);
-  }
+  transform: none;
 }
 
 .userBox {
@@ -182,6 +191,18 @@
 
 .pageTitle {
   font-size: var(--text-xl);
+  animation: titleIn var(--duration-fast) var(--ease-out);
+}
+
+/* Text needs less motion than a whole page to read as smooth, not busy —
+   opacity only, no slide. */
+@keyframes titleIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .topbarDate {

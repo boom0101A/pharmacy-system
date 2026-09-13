@@ -100,3 +100,32 @@ export async function printReceipt(
   printer.cut();
   await printer.execute();
 }
+
+export interface BarcodeLabelData {
+  barcode: string;
+  productName: string;
+}
+
+/**
+ * Prints a Code128 label using the printer's own native barcode command —
+ * the firmware renders the bars, so no image generation is needed on our
+ * side. Mirrors printReceipt's exact connection-check pattern.
+ */
+export async function printBarcodeLabel(printerPath: string, label: BarcodeLabelData): Promise<void> {
+  const printer = new ThermalPrinter({
+    type: PrinterTypes.EPSON,
+    interface: printerPath,
+    removeSpecialCharacters: false,
+  });
+
+  const connected = await printer.isPrinterConnected();
+  if (!connected) {
+    throw new Error('الطابعة غير متصلة — تحقّق من الاتصال والمنفذ');
+  }
+
+  printer.alignCenter();
+  printer.code128(label.barcode, { width: 'MEDIUM', height: 80, text: 1 });
+  printer.println(label.productName);
+  printer.cut();
+  await printer.execute();
+}

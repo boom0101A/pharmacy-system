@@ -12,6 +12,8 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   /** null means "create a new user". */
   user: User | null;
+  /** Editing your own account — the server rejects a role/active change on yourself, so the fields are disabled here instead of letting the request round-trip just to fail. */
+  isSelf?: boolean;
   onSaved: () => void;
 }
 
@@ -23,7 +25,7 @@ const ROLE_LABEL: Record<Role, string> = {
 
 const EMPTY = { name: '', username: '', password: '', role: 'cashier' as Role, isActive: true };
 
-export function UserDialog({ open, onOpenChange, user, onSaved }: Props) {
+export function UserDialog({ open, onOpenChange, user, isSelf = false, onSaved }: Props) {
   const toast = useToast();
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
@@ -137,6 +139,7 @@ export function UserDialog({ open, onOpenChange, user, onSaved }: Props) {
             className={styles.select}
             value={form.role}
             onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as Role }))}
+            disabled={isSelf}
           >
             {Object.entries(ROLE_LABEL).map(([value, label]) => (
               <option key={value} value={value}>
@@ -144,6 +147,7 @@ export function UserDialog({ open, onOpenChange, user, onSaved }: Props) {
               </option>
             ))}
           </select>
+          {isSelf && <span className={styles.hint}>لا يمكنك تغيير دور حسابك الخاص</span>}
         </div>
 
         {user && (
@@ -153,9 +157,11 @@ export function UserDialog({ open, onOpenChange, user, onSaved }: Props) {
                 type="checkbox"
                 checked={form.isActive}
                 onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.checked }))}
+                disabled={isSelf}
               />
               حساب نشط (يمكنه تسجيل الدخول)
             </label>
+            {isSelf && <span className={styles.hint}>لا يمكنك تعطيل حسابك الخاص</span>}
           </div>
         )}
       </form>

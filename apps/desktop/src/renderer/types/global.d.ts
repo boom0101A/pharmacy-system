@@ -23,6 +23,7 @@ declare global {
   interface Window {
     pharmacy: {
       printReceipt: (receipt: ReceiptData) => Promise<void>;
+      printBarcodeLabel: (label: { barcode: string; productName: string }) => Promise<void>;
       getSettings: () => Promise<PharmacySettings>;
       setSettings: (patch: Partial<PharmacySettings>) => Promise<void>;
       saveFile: (suggestedName: string, data: ArrayBuffer) => Promise<void>;

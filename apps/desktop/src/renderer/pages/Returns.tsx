@@ -8,11 +8,7 @@ import { useToast } from '../components/ui/Toast';
 import { Skeleton } from '../components/ui/Skeleton';
 import { api } from '../lib/api';
 import { useAuth } from '../store/auth';
-import { formatDate, formatMoney, formatTime } from '../lib/cx';
-
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
+import { baghdadToday, formatDate, formatMoney, formatTime } from '../lib/cx';
 
 export function Returns() {
   const toast = useToast();
@@ -27,7 +23,7 @@ export function Returns() {
   const [history, setHistory] = useState<Return[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
 
-  const [browseDate, setBrowseDate] = useState(() => isoDate(new Date()));
+  const [browseDate, setBrowseDate] = useState(baghdadToday);
   const [browseSales, setBrowseSales] = useState<SaleListItem[]>([]);
   const [loadingBrowse, setLoadingBrowse] = useState(false);
 

@@ -80,11 +80,16 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
         : toNumber(product.salePrice);
 
       // Lock every batch of this product up front, oldest expiry first —
-      // this is the FEFO order the draw-down loop below follows.
+      // this is the FEFO order the draw-down loop below follows. A batch
+      // that has already expired is excluded entirely rather than just
+      // sorted first: FEFO means "soonest valid expiry first", not "sell
+      // expired stock before anything else" — an expiry date entered
+      // wrong at receiving must never make a batch more likely to sell.
       const batches = await tx.$queryRaw<
         { id: number; quantity: number; opened_sub_units: number }[]
       >`SELECT id, quantity, opened_sub_units FROM batches
          WHERE product_id = ${product.id}
+           AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
          ORDER BY expiry_date ASC NULLS LAST, received_at ASC
          FOR UPDATE`;
 

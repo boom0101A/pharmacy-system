@@ -16,6 +16,15 @@ interface Props {
   onSaved: () => void;
 }
 
+/** Local calendar date, not UTC — a plain day-level comparison has no business shifting a day at the UTC boundary. */
+function todayIsoDate(): string {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 /**
  * Receiving stock creates a batch, not a bare quantity bump — each intake keeps
  * its own expiry date so the till can sell earliest-expiring stock first.
@@ -30,6 +39,12 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
   const canDeleteBatch = useAuth((s) => s.can('admin'));
   const [batches, setBatches] = useState<Batch[]>([]);
   const [savingBatchId, setSavingBatchId] = useState<number | null>(null);
+
+  // A warning, not a block — a batch might genuinely be received already
+  // expired (e.g. to log it before returning it to the supplier). The sale
+  // side (sales.service.ts) is what actually refuses to sell an expired
+  // batch; this is just a heads-up in case the date was a typo.
+  const isPastExpiry = expiryDate !== '' && expiryDate < todayIsoDate();
 
   const loadBatches = useCallback(async (productId: number) => {
     try {
@@ -97,7 +112,7 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
   async function deleteBatch(batch: Batch) {
     try {
       await api.deleteBatch(batch.id);
-      toast.success('تم حذف الدفعة');
+      toast.success('تم حذف الدفعة', undefined, { kind: 'delete' });
       if (product) loadBatches(product.id);
       onSaved();
     } catch (err) {
@@ -135,6 +150,7 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
           type="date"
           value={expiryDate}
           onChange={(e) => setExpiryDate(e.target.value)}
+          error={isPastExpiry ? 'هذا تاريخ في الماضي — تأكد أنه صحيح' : undefined}
         />
         <Input
           label="رقم الدفعة"

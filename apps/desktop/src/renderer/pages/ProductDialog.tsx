@@ -1,5 +1,5 @@
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { Camera, Upload } from 'lucide-react';
+import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { Barcode, Camera, Printer, Upload } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Category, Product } from '@pharmacy/shared-types';
 import styles from './ProductDialog.module.css';
@@ -8,7 +8,9 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
-import { digitsOnly, productImageUrl } from '../lib/cx';
+import { generateInternalBarcode } from '../lib/barcode.js';
+import { cleanIpcError, digitsOnly, productImageUrl } from '../lib/cx';
+import { reformatPriceInput } from '../lib/priceInput.js';
 
 interface Props {
   open: boolean;
@@ -46,6 +48,7 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
   const [imageFilename, setImageFilename] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [phoneCaptureOpen, setPhoneCaptureOpen] = useState(false);
+  const [printingBarcode, setPrintingBarcode] = useState(false);
   // Only used while creating: the chosen picture and its local preview URL.
   const [pendingImage, setPendingImage] = useState<Blob | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -64,8 +67,8 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
             barcode: product.barcode ?? '',
             categoryId: product.categoryId ? String(product.categoryId) : '',
             unit: product.unit,
-            salePrice: String(product.salePrice),
-            purchasePrice: String(product.purchasePrice),
+            salePrice: reformatPriceInput(String(product.salePrice), 0).formatted,
+            purchasePrice: reformatPriceInput(String(product.purchasePrice), 0).formatted,
             reorderLevel: String(product.reorderLevel),
             activeIngredient: product.activeIngredient ?? '',
             dosageForm: product.dosageForm ?? '',
@@ -105,6 +108,25 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
     return (value: (typeof EMPTY)[K]) => setForm((f) => ({ ...f, [key]: value }));
   }
 
+  /**
+   * Live thousands-separator formatting (see lib/priceInput.ts) — the only
+   * fiddly part is that reformatting on every keystroke would otherwise
+   * throw the cursor to the end of the field each time a comma shifts;
+   * restoring the caret has to wait until the browser has actually painted
+   * the newly-formatted value, hence the rAF instead of doing it inline.
+   */
+  function handlePriceChange(key: 'salePrice' | 'purchasePrice') {
+    return (e: ChangeEvent<HTMLInputElement>) => {
+      const input = e.target;
+      const cursorPos = input.selectionStart ?? input.value.length;
+      const { formatted, cursorPos: newCursorPos } = reformatPriceInput(input.value, cursorPos);
+      set(key)(formatted);
+      requestAnimationFrame(() => {
+        input.setSelectionRange(newCursorPos, newCursorPos);
+      });
+    };
+  }
+
   function pickImage(file: File) {
     setPendingImage(file);
     setImagePreview(URL.createObjectURL(file));
@@ -113,8 +135,8 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    const salePrice = Number(form.salePrice);
-    const purchasePrice = Number(form.purchasePrice);
+    const salePrice = Number(form.salePrice.replace(/,/g, ''));
+    const purchasePrice = Number(form.purchasePrice.replace(/,/g, ''));
     const reorderLevel = Number(form.reorderLevel);
     if (!Number.isFinite(salePrice) || salePrice < 0) return toast.error('سعر البيع غير صالح', 'أدخل رقماً صحيحاً');
     if (!Number.isFinite(purchasePrice) || purchasePrice < 0) return toast.error('سعر الشراء غير صالح', 'أدخل رقماً صحيحاً');
@@ -173,14 +195,32 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
     }
   }
 
-  async function startPhoneCapture() {
+  function startPhoneCapture() {
     if (!product) return;
+    // PhoneCaptureNotice mints its own token (it needs the URL and TTL
+    // anyway) — minting a second one here just to check for an error was
+    // pointless, and its result was thrown away either way.
     setPhoneCaptureOpen(true);
+  }
+
+  function generateBarcode() {
+    if (!product) return;
+    set('barcode')(generateInternalBarcode(product.id));
+  }
+
+  async function printBarcode() {
+    // Reads the product's own saved barcode, not the (possibly unsaved)
+    // draft field — printing a code the product doesn't actually carry yet
+    // would hand out a label nothing in the system recognizes.
+    if (!product?.barcode) return;
+    setPrintingBarcode(true);
     try {
-      await api.createCaptureToken(product.id);
+      await window.pharmacy.printBarcodeLabel({ barcode: product.barcode, productName: product.name });
+      toast.success('أُرسلت الطباعة');
     } catch (err) {
-      toast.error('تعذّر إنشاء رمز الالتقاط', (err as Error).message);
-      setPhoneCaptureOpen(false);
+      toast.error('تعذّر الطباعة', cleanIpcError((err as Error).message));
+    } finally {
+      setPrintingBarcode(false);
     }
   }
 
@@ -249,13 +289,37 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
         />
 
         <div className={styles.row}>
-          <Input
-            label="الباركود"
-            value={form.barcode}
-            onChange={(e) => set('barcode')(e.target.value)}
-            dir="ltr"
-            hint="امسح الباركود بالقارئ مباشرة"
-          />
+          <div className={styles.field}>
+            <Input
+              label="الباركود"
+              value={form.barcode}
+              onChange={(e) => set('barcode')(e.target.value)}
+              dir="ltr"
+              hint="امسح الباركود بالقارئ مباشرة"
+            />
+            {product && (
+              <div className={styles.barcodeActions}>
+                {!form.barcode && (
+                  <Button type="button" variant="outline" size="sm" onClick={generateBarcode}>
+                    <Barcode size={14} />
+                    توليد باركود
+                  </Button>
+                )}
+                {product.barcode && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={printingBarcode}
+                    onClick={printBarcode}
+                  >
+                    <Printer size={14} />
+                    طباعة الباركود
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
           <div className={styles.field}>
             <label className={styles.label} htmlFor="product-category">
               التصنيف
@@ -362,16 +426,18 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
           />
           <Input
             label="سعر الشراء"
-            inputMode="decimal"
+            inputMode="numeric"
+            dir="ltr"
             value={form.purchasePrice}
-            onChange={(e) => set('purchasePrice')(e.target.value)}
+            onChange={handlePriceChange('purchasePrice')}
             required
           />
           <Input
             label="سعر البيع"
-            inputMode="decimal"
+            inputMode="numeric"
+            dir="ltr"
             value={form.salePrice}
-            onChange={(e) => set('salePrice')(e.target.value)}
+            onChange={handlePriceChange('salePrice')}
             required
           />
         </div>
@@ -391,8 +457,15 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
   );
 }
 
-/** Polls the product record until its image shows up — the phone uploads straight to the server, this window never talks to the phone directly. */
-function PhoneCaptureNotice({
+/**
+ * Polls the product record until its image shows up — the phone uploads
+ * straight to the server, this window never talks to the phone directly.
+ * The capture token is short-lived (server-defined TTL, ~10 minutes); this
+ * used to fetch that TTL and discard it, polling forever even after the QR
+ * on screen was already dead — the phone would get a clear "expired" error,
+ * but nothing here ever told the person standing at the till.
+ */
+export function PhoneCaptureNotice({
   productId,
   onClose,
   onCaptured,
@@ -403,20 +476,46 @@ function PhoneCaptureNotice({
 }) {
   const [qrUrl, setQrUrl] = useState<string | null>(null);
   const [qrImage, setQrImage] = useState<string | null>(null);
+  const [expired, setExpired] = useState(false);
+  const [mintError, setMintError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    api.createCaptureToken(productId).then((r) => setQrUrl(r.url));
-    const timer = window.setInterval(async () => {
-      const rows = await api.products().catch(() => []);
-      const fresh = rows.find((p) => p.id === productId);
-      if (fresh?.imageFilename) {
-        window.clearInterval(timer);
-        onCaptured(fresh.imageFilename);
-      }
-    }, 3000);
-    return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId]);
+    let cancelled = false;
+    let pollTimer: number | undefined;
+    setExpired(false);
+    setMintError(null);
+    setQrUrl(null);
+
+    api.createCaptureToken(productId).then(
+      (token) => {
+        if (cancelled) return;
+        setQrUrl(token.url);
+        const expiresAt = Date.now() + token.expiresInSeconds * 1000;
+        pollTimer = window.setInterval(async () => {
+          if (Date.now() >= expiresAt) {
+            window.clearInterval(pollTimer);
+            setExpired(true);
+            return;
+          }
+          const rows = await api.products().catch(() => []);
+          const fresh = rows.find((p) => p.id === productId);
+          if (fresh?.imageFilename) {
+            window.clearInterval(pollTimer);
+            onCaptured(fresh.imageFilename);
+          }
+        }, 3000);
+      },
+      (err: Error) => {
+        if (!cancelled) setMintError(err.message);
+      },
+    );
+
+    return () => {
+      cancelled = true;
+      if (pollTimer !== undefined) window.clearInterval(pollTimer);
+    };
+  }, [productId, attempt]);
 
   useEffect(() => {
     if (!qrUrl) return;
@@ -435,9 +534,23 @@ function PhoneCaptureNotice({
 
   return (
     <div className={styles.captureOverlay}>
-      <p>امسح الرمز بكاميرا الهاتف لالتقاط صورة الصنف</p>
-      {qrImage && <img src={qrImage} alt="رمز QR لالتقاط الصورة" className={styles.captureQr} />}
-      {qrUrl && <code className={styles.captureUrl}>{qrUrl}</code>}
+      {mintError ? (
+        <>
+          <p>{mintError}</p>
+          <Button onClick={() => setAttempt((a) => a + 1)}>إعادة المحاولة</Button>
+        </>
+      ) : expired ? (
+        <>
+          <p>انتهت صلاحية رمز الالتقاط</p>
+          <Button onClick={() => setAttempt((a) => a + 1)}>توليد رمز جديد</Button>
+        </>
+      ) : (
+        <>
+          <p>امسح الرمز بكاميرا الهاتف لالتقاط صورة الصنف</p>
+          {qrImage && <img src={qrImage} alt="رمز QR لالتقاط الصورة" className={styles.captureQr} />}
+          {qrUrl && <code className={styles.captureUrl}>{qrUrl}</code>}
+        </>
+      )}
       <Button variant="ghost" onClick={onClose}>
         إغلاق
       </Button>

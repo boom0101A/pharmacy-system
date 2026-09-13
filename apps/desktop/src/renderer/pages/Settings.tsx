@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, Download, Printer, Save, Server, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import { Building2, Download, Printer, Save, Server, ShieldCheck, Trash2, Upload, Volume2 } from 'lucide-react';
 import type { BackupFile } from '@pharmacy/shared-types';
 import styles from './Settings.module.css';
 import { Button } from '../components/ui/Button';
@@ -9,6 +9,7 @@ import { useToast } from '../components/ui/Toast';
 import { api, getServerUrl, setServerUrl } from '../lib/api';
 import { useBranding } from '../store/branding';
 import { cleanIpcError, formatDate } from '../lib/cx';
+import { isSoundEnabled, setSoundEnabled } from '../lib/sounds.js';
 
 const MAX_LOGO_BYTES = 8 * 1024 * 1024;
 
@@ -34,6 +35,12 @@ export function Settings() {
   const [downloadingBackup, setDownloadingBackup] = useState<string | null>(null);
 
   const [license, setLicense] = useState<LicenseCheck | null>(null);
+  const [soundsOn, setSoundsOn] = useState(() => isSoundEnabled());
+
+  function toggleSounds(enabled: boolean) {
+    setSoundsOn(enabled);
+    setSoundEnabled(enabled);
+  }
 
   useEffect(() => {
     window.pharmacy.getSettings().then((s) => {
@@ -79,7 +86,7 @@ export function Settings() {
     try {
       await api.deleteLogo();
       await refreshLogo();
-      toast.success('تم حذف الشعار');
+      toast.success('تم حذف الشعار', undefined, { kind: 'delete' });
     } catch (err) {
       toast.error('تعذّر حذف الشعار', (err as Error).message);
     }
@@ -243,6 +250,21 @@ export function Settings() {
         <Button variant="outline" onClick={testPrint} disabled={testing}>
           {testing ? 'جارٍ الطباعة…' : 'طباعة تجريبية'}
         </Button>
+      </section>
+
+      <section className={styles.card}>
+        <h2 className={styles.title}>
+          <Volume2 size={18} />
+          الأصوات
+        </h2>
+        <label className={styles.checkboxRow}>
+          <input
+            type="checkbox"
+            checked={soundsOn}
+            onChange={(e) => toggleSounds(e.target.checked)}
+          />
+          تفعيل أصوات التنبيه (إتمام بيع، حفظ، حذف)
+        </label>
       </section>
 
       <section className={styles.card}>
