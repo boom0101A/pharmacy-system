@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { prisma } from './prisma.js';
 import { config } from './config.js';
 import { logger } from './lib/logger.js';
@@ -56,6 +57,31 @@ function backupFilename(date: Date): string {
   return `backup-${date.toISOString().replace(/:/g, '-')}.json`;
 }
 
+function defaultUploadsDir(): string {
+  return path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
+}
+
+/**
+ * The JSON backup above only ever covered the 11 database tables — product
+ * photos and the pharmacy logo live on disk under uploads/ and were never
+ * copied anywhere, so a disk failure lost them permanently even with a
+ * perfect DB restore. Takes the source dir as a parameter (defaulting to the
+ * real uploads/ folder) so a test can point it at a throwaway directory
+ * instead of the server's actual upload files.
+ */
+export async function backupUploads(uploadsSrc: string = defaultUploadsDir()): Promise<string | null> {
+  try {
+    await fs.access(uploadsSrc);
+  } catch {
+    return null; // Nothing uploaded yet — not an error, just nothing to do.
+  }
+
+  await fs.mkdir(config.backupDir, { recursive: true });
+  const dest = path.join(config.backupDir, `uploads-${new Date().toISOString().replace(/:/g, '-')}`);
+  await fs.cp(uploadsSrc, dest, { recursive: true });
+  return dest;
+}
+
 async function pruneOldBackups() {
   const files = (await fs.readdir(config.backupDir))
     .filter((f) => f.startsWith('backup-') && f.endsWith('.json'))
@@ -76,7 +102,7 @@ async function pruneOldBackups() {
  * pre-wipe safety snapshot failing silently is exactly the one case where
  * swallowing the error would be dangerous.
  */
-export async function writeBackup(): Promise<string> {
+export async function writeBackup(uploadsSrc?: string): Promise<string> {
   await fs.mkdir(config.backupDir, { recursive: true });
 
   const createdAt = new Date();
@@ -85,6 +111,7 @@ export async function writeBackup(): Promise<string> {
   const file = path.join(config.backupDir, backupFilename(createdAt));
   await fs.writeFile(file, JSON.stringify(data));
 
+  await backupUploads(uploadsSrc);
   await pruneOldBackups();
   return file;
 }

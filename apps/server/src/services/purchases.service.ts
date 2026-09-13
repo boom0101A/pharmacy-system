@@ -1,6 +1,7 @@
 import type { Purchase, PurchaseInput } from '@pharmacy/shared-types';
 import { prisma, toNumber } from '../prisma.js';
 import { AppError } from '../middleware/errors.js';
+import { broadcastStockChanged } from '../sockets/stock.js';
 
 function present(row: {
   id: number;
@@ -105,6 +106,12 @@ export async function createPurchase(userId: number, input: PurchaseInput): Prom
 
     return tx.purchase.findUniqueOrThrow({ where: { id: created.id }, include });
   });
+
+  // Same notification "استلام دفعة" already sends via batches.routes.ts —
+  // without it, other open tills kept showing the pre-purchase quantity
+  // until something else happened to trigger a refetch.
+  const productIds = [...new Set(input.items.map((line) => line.productId))];
+  broadcastStockChanged(productIds);
 
   return present(purchase);
 }

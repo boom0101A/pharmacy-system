@@ -3,7 +3,9 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import styles from './App.module.css';
 import { Activation } from './pages/Activation';
 import { AppShell } from './components/AppShell';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Splash } from './components/Splash';
+import { Button } from './components/ui/Button';
 import { ToastProvider } from './components/ui/Toast';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
@@ -19,6 +21,7 @@ import { useAuth } from './store/auth';
 import { useBranding } from './store/branding';
 import { useStockSync } from './lib/useStockSync';
 import { useConnectionPing } from './lib/useConnectionPing';
+import { useLicenseCheck } from './lib/useLicenseCheck';
 import { ConnectionBanner } from './components/ConnectionBanner';
 
 export function App() {
@@ -28,9 +31,12 @@ export function App() {
   useStockSync(user !== null);
   const recheckConnection = useConnectionPing();
   const [showSplash, setShowSplash] = useState(true);
-  // null = not checked yet. Purely local (no network), so this resolves in a
-  // few milliseconds — well before the splash's own dwell time ends.
-  const [licensed, setLicensed] = useState<boolean | null>(null);
+  // Purely local (no network), so this resolves in a few milliseconds — well
+  // before the splash's own dwell time ends.
+  const { licensed: checkedLicensed, error: licenseError } = useLicenseCheck();
+  // Activation resolves the same run without waiting for a re-check.
+  const [activated, setActivated] = useState(false);
+  const licensed = activated || checkedLicensed;
   // Stable so a connection ping re-rendering mid-fade can't restart its timer.
   const finishSplash = useCallback(() => setShowSplash(false), []);
 
@@ -42,11 +48,26 @@ export function App() {
     // Unauthenticated, like the auth check above — the login screen needs the
     // logo before anyone has signed in.
     useBranding.getState().refresh();
-    window.pharmacy.getLicenseStatus().then((status) => setLicensed(status.valid));
   }, []);
 
   if (showSplash) {
     return <Splash onFinish={finishSplash} />;
+  }
+
+  // A genuine failure to even check (e.g. the machine-id registry read
+  // throwing) used to leave `licensed` stuck at null forever — an endless
+  // spinner with no error shown. This is distinct from a normal "not
+  // licensed yet" result, which resolves licensed=false with no error and
+  // falls through to the Activation screen below as always.
+  if (licenseError) {
+    return (
+      <div className={styles.bootLoading}>
+        <div className={styles.bootErrorBox}>
+          <p className={styles.bootErrorMessage}>{licenseError}</p>
+          <Button onClick={() => window.location.reload()}>إعادة المحاولة</Button>
+        </div>
+      </div>
+    );
   }
 
   if (licensed === null) {
@@ -60,7 +81,7 @@ export function App() {
   // Blocks everything else — a stale/mismatched/expired license means the
   // rest of the app (including the server login itself) never renders.
   if (!licensed) {
-    return <Activation onActivated={() => setLicensed(true)} />;
+    return <Activation onActivated={() => setActivated(true)} />;
   }
 
   // Only reached on a slow network where /auth/me hasn't answered yet — most
@@ -75,33 +96,35 @@ export function App() {
   }
 
   return (
-    <ToastProvider>
-      {/* Outside the router: a dead server is worth saying on the login screen
-          too, where it is the actual reason the password "isn't working". */}
-      <ConnectionBanner onRetry={recheckConnection} />
-      {/* HashRouter: Electron loads the app from a file:// URL in production. */}
-      <HashRouter>
-        {!user ? (
-          <Routes>
-            <Route path="*" element={<Login />} />
-          </Routes>
-        ) : (
-          <Routes>
-            <Route element={<AppShell />}>
-              <Route index element={<Dashboard />} />
-              <Route path="pos" element={<Pos />} />
-              <Route path="returns" element={<Returns />} />
-              <Route path="inventory" element={<Inventory />} />
-              {canManageStock && <Route path="suppliers" element={<Suppliers />} />}
-              {canManageStock && <Route path="purchases" element={<Purchases />} />}
-              {canManageStock && <Route path="reports" element={<Reports />} />}
-              {user.role === 'admin' && <Route path="users" element={<Users />} />}
-              {user.role === 'admin' && <Route path="settings" element={<Settings />} />}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        )}
-      </HashRouter>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        {/* Outside the router: a dead server is worth saying on the login screen
+            too, where it is the actual reason the password "isn't working". */}
+        <ConnectionBanner onRetry={recheckConnection} />
+        {/* HashRouter: Electron loads the app from a file:// URL in production. */}
+        <HashRouter>
+          {!user ? (
+            <Routes>
+              <Route path="*" element={<Login />} />
+            </Routes>
+          ) : (
+            <Routes>
+              <Route element={<AppShell />}>
+                <Route index element={<Dashboard />} />
+                <Route path="pos" element={<Pos />} />
+                <Route path="returns" element={<Returns />} />
+                <Route path="inventory" element={<Inventory />} />
+                {canManageStock && <Route path="suppliers" element={<Suppliers />} />}
+                {canManageStock && <Route path="purchases" element={<Purchases />} />}
+                {canManageStock && <Route path="reports" element={<Reports />} />}
+                {user.role === 'admin' && <Route path="users" element={<Users />} />}
+                {user.role === 'admin' && <Route path="settings" element={<Settings />} />}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Route>
+            </Routes>
+          )}
+        </HashRouter>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }

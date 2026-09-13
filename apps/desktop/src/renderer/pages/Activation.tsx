@@ -23,7 +23,10 @@ export function Activation({ onActivated }: ActivationProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    window.pharmacy.getMachineId().then(setMachineId);
+    window.pharmacy
+      .getMachineId()
+      .then(setMachineId)
+      .catch((err: Error) => setError(err.message || 'تعذّر قراءة معرّف الجهاز'));
   }, []);
 
   async function copyMachineId() {

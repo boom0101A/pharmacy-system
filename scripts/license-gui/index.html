@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>توليد مفتاح ترخيص</title>
+<style>
+  :root {
+    --brand-9: #30a46c;
+    --brand-10: #2b9a66;
+    --brand-11: #218358;
+    --highlight-9: #00a2c7;
+    --highlight-11: #107d98;
+    --gray-2: #f9f9f9;
+    --gray-5: #e0e0e0;
+    --gray-7: #b4b4b4;
+    --gray-11: #646464;
+    --gray-12: #202020;
+    --danger-3: #fff7f7;
+    --danger-6: #ffcdce;
+    --danger-11: #ce2c31;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    font-family: 'Segoe UI', Tahoma, system-ui, sans-serif;
+    color: var(--gray-12);
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #e4f5ec, transparent 70%),
+      var(--gray-2);
+  }
+
+  .card {
+    width: min(92vw, 30rem);
+    margin: 2.5rem 0;
+    padding: 2rem;
+    background: #fff;
+    border: 1px solid var(--gray-5);
+    border-radius: 20px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+  }
+
+  .mark {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--brand-9), var(--highlight-9));
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(48, 164, 108, 0.25), 0 8px 20px rgba(48, 164, 108, 0.18);
+  }
+
+  .title { font-size: 1.375rem; font-weight: 700; margin: 0; }
+  .subtitle { font-size: 0.875rem; color: var(--gray-11); margin: 0; }
+
+  .field { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.1rem; }
+  .field label { font-size: 0.875rem; font-weight: 600; color: var(--gray-12); }
+
+  input[type='text'],
+  input[type='date'] {
+    padding: 0.6rem 0.75rem;
+    font-size: 0.95rem;
+    border: 1px solid var(--gray-7);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--gray-12);
+    font-family: inherit;
+  }
+
+  input[type='text']:focus,
+  input[type='date']:focus {
+    outline: none;
+    border-color: var(--brand-9);
+    box-shadow: 0 0 0 3px rgba(48, 164, 108, 0.18);
+  }
+
+  #machineId { direction: ltr; text-align: left; font-family: ui-monospace, Consolas, monospace; }
+
+  .checkboxRow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.1rem;
+    font-size: 0.9rem;
+  }
+  .checkboxRow input { width: 1.1rem; height: 1.1rem; }
+
+  input:disabled { background: var(--gray-2); color: var(--gray-11); }
+
+  button#submitBtn {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, var(--brand-9), var(--brand-10));
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  button#submitBtn:hover { opacity: 0.92; }
+  button#submitBtn:disabled { opacity: 0.6; cursor: default; }
+
+  .alert {
+    display: none;
+    margin-bottom: 1.1rem;
+    padding: 0.75rem 1rem;
+    background: var(--danger-3);
+    border: 1px solid var(--danger-6);
+    border-radius: 10px;
+    font-size: 0.875rem;
+    color: var(--danger-11);
+    white-space: pre-line;
+  }
+
+  .result {
+    display: none;
+    margin-top: 1.25rem;
+    padding: 1.1rem;
+    background: #f4fbf6;
+    border: 1px solid #c4e8d1;
+    border-radius: 14px;
+  }
+
+  .result h2 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    color: var(--brand-11);
+  }
+
+  .resultRow { margin-bottom: 0.6rem; font-size: 0.85rem; color: var(--gray-11); }
+  .resultRow b { color: var(--gray-12); }
+
+  .keyBox {
+    padding: 0.75rem;
+    background: #fff;
+    border: 1px solid var(--gray-5);
+    border-radius: 10px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.78rem;
+    direction: ltr;
+    text-align: left;
+    word-break: break-all;
+    max-height: 8rem;
+    overflow-y: auto;
+    margin-bottom: 0.75rem;
+  }
+
+  button#copyBtn {
+    width: 100%;
+    padding: 0.55rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--brand-11);
+    background: #fff;
+    border: 1px solid #c4e8d1;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  button#copyBtn:hover { background: #eaf7ef; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <div class="mark">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0L19 4m-3.5 3.5L19 11"></path>
+        </svg>
+      </div>
+      <h1 class="title">توليد مفتاح ترخيص</h1>
+      <p class="subtitle">أداة داخلية لإصدار تراخيص الصيدليات — مربوطة ببصمة الجهاز</p>
+    </div>
+
+    <div class="alert" id="errorAlert"></div>
+
+    <form id="form">
+      <div class="field">
+        <label for="machineId">رمز الجهاز (من شاشة التفعيل عند العميل)</label>
+        <input type="text" id="machineId" required autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <label for="licensedTo">اسم الصيدلية / العميل</label>
+        <input type="text" id="licensedTo" required autocomplete="off" />
+      </div>
+
+      <div class="checkboxRow">
+        <input type="checkbox" id="perpetual" checked />
+        <label for="perpetual">ترخيص دائم (بلا تاريخ انتهاء)</label>
+      </div>
+
+      <div class="field">
+        <label for="expiresAt">تاريخ الانتهاء</label>
+        <input type="date" id="expiresAt" disabled />
+      </div>
+
+      <button type="submit" id="submitBtn">توليد المفتاح</button>
+    </form>
+
+    <div class="result" id="result">
+      <h2>✓ تم إصدار الترخيص بنجاح</h2>
+      <div class="resultRow">مرخَّص لـ: <b id="resLicensedTo"></b></div>
+      <div class="resultRow">الانتهاء: <b id="resExpiresAt"></b></div>
+      <div class="resultRow">نسخة محفوظة في: <b id="resRecordPath"></b></div>
+      <div class="keyBox" id="resKey"></div>
+      <button type="button" id="copyBtn">نسخ المفتاح</button>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const perpetual = document.getElementById('perpetual');
+    const expiresAt = document.getElementById('expiresAt');
+    const submitBtn = document.getElementById('submitBtn');
+    const errorAlert = document.getElementById('errorAlert');
+    const result = document.getElementById('result');
+    const copyBtn = document.getElementById('copyBtn');
+    let lastKey = '';
+
+    perpetual.addEventListener('change', () => {
+      expiresAt.disabled = perpetual.checked;
+      if (perpetual.checked) expiresAt.value = '';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorAlert.style.display = 'none';
+      result.style.display = 'none';
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'جارٍ التوليد…';
+
+      try {
+        const res = await fetch('/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            machineId: document.getElementById('machineId').value,
+            licensedTo: document.getElementById('licensedTo').value,
+            expiresAtInput: perpetual.checked ? '' : expiresAt.value,
+          }),
+        });
+        const data = await res.json();
+
+        if (!data.ok) {
+          errorAlert.textContent = data.error;
+          errorAlert.style.display = 'block';
+          return;
+        }
+
+        lastKey = data.licenseKey;
+        document.getElementById('resLicensedTo').textContent = data.payload.licensedTo;
+        document.getElementById('resExpiresAt').textContent = data.payload.expiresAt ?? 'دائم';
+        document.getElementById('resRecordPath').textContent = data.recordPath;
+        document.getElementById('resKey').textContent = data.licenseKey;
+        result.style.display = 'block';
+      } catch (err) {
+        errorAlert.textContent = 'تعذّر الاتصال بالأداة. أعد تشغيلها وحاول مجدداً.';
+        errorAlert.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'توليد المفتاح';
+      }
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(lastKey);
+      copyBtn.textContent = 'تم النسخ ✓';
+      setTimeout(() => (copyBtn.textContent = 'نسخ المفتاح'), 1500);
+    });
+  </script>
+</body>
+</html>

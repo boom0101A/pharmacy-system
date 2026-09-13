@@ -37,11 +37,16 @@ export type LicenseCheck =
  * elevated privileges.
  */
 export function getMachineId(): string {
-  const output = execFileSync(
-    'reg',
-    ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
-    { encoding: 'utf8' },
-  );
+  let output: string;
+  try {
+    output = execFileSync(
+      'reg',
+      ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
+      { encoding: 'utf8' },
+    );
+  } catch {
+    throw new Error('تعذّر قراءة معرّف الجهاز من سجل ويندوز');
+  }
   const match = output.match(/MachineGuid\s+REG_SZ\s+([0-9a-fA-F-]+)/);
   if (!match) {
     throw new Error('تعذّر قراءة معرّف الجهاز من سجل ويندوز');

@@ -1,0 +1,30 @@
+.page {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  background: var(--surface-page);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: 24rem;
+  padding: var(--space-8);
+  text-align: center;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+
+.title {
+  font-size: var(--text-xl);
+  margin: 0;
+}
+
+.message {
+  color: var(--text-secondary);
+  margin: 0;
+}

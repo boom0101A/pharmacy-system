@@ -241,7 +241,7 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
         </div>
 
         <Input
-          label="اسم الصنف"
+          label="اسم الدواء"
           value={form.name}
           onChange={(e) => set('name')(e.target.value)}
           required

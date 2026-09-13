@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Package, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Clock, Package, PackageMinus, PackageX, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import type { Product } from '@pharmacy/shared-types';
 import styles from './Inventory.module.css';
 import { Button } from '../components/ui/Button';
@@ -14,7 +14,14 @@ import { api } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { useStockVersion } from '../store/stockSync';
 import { useToast } from '../components/ui/Toast';
-import { formatDate, formatMoney } from '../lib/cx';
+import { cx, formatDate, formatMoney } from '../lib/cx';
+
+const TONE_CLASS = {
+  brand: styles.toneBrand,
+  warn: styles.toneWarn,
+  accent: styles.toneAccent,
+  danger: styles.toneDanger,
+} as const;
 
 const PAGE_SIZE = 40;
 const LOW_STOCK_ALERT_MS = 8000;
@@ -126,11 +133,11 @@ export function Inventory() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [canEdit, productDialogOpen, receivingFor, deletingProduct]);
 
-  const FILTERS = [
-    { key: 'all', label: 'الكل', count: counts.total },
-    { key: 'low', label: 'يحتاج إعادة طلب', count: counts.low },
-    { key: 'expiring', label: 'قارب على الانتهاء', count: counts.expiring },
-    { key: 'out', label: 'نفد', count: counts.out },
+  const STAT_TILES = [
+    { key: 'all', label: 'الكل', count: counts.total, icon: Package, tone: 'brand' },
+    { key: 'low', label: 'يحتاج إعادة طلب', count: counts.low, icon: PackageMinus, tone: 'warn' },
+    { key: 'expiring', label: 'قارب على الانتهاء', count: counts.expiring, icon: Clock, tone: 'accent' },
+    { key: 'out', label: 'نفد', count: counts.out, icon: PackageX, tone: 'danger' },
   ] as const;
 
   const visible = products;
@@ -146,61 +153,69 @@ export function Inventory() {
    */
   const rows = useMemo(
     () =>
-      visible.map((product) => (
-        <tr key={product.id}>
-          <td className={styles.name}>
-            {product.name}
-            {product.barcode && <div className={styles.barcode}>{product.barcode}</div>}
-          </td>
-          <td>{product.categoryName ?? '—'}</td>
-          <td className="numeric">{product.stock}</td>
-          <td className="numeric">{formatMoney(product.salePrice)}</td>
-          <td>
-            {product.stock <= 0 ? (
-              <Badge tone="danger" pulse>
-                نفد
-              </Badge>
-            ) : product.stock <= product.reorderLevel ? (
-              <Badge tone="warning">يحتاج إعادة طلب</Badge>
-            ) : (
-              <Badge tone="success">متوفر</Badge>
-            )}
-          </td>
-          <td>{formatDate(product.nearestExpiry)}</td>
-          <td>
-            <div className={styles.actions}>
-              {canEdit && (
-                <Button variant="outline" size="sm" onClick={() => setReceivingFor(product)}>
-                  إدخال كمية
-                </Button>
+      visible.map((product) => {
+        const rowTone =
+          product.stock <= 0
+            ? styles.rowDanger
+            : product.stock <= product.reorderLevel
+              ? styles.rowWarn
+              : styles.rowBrand;
+        return (
+          <tr key={product.id} className={rowTone}>
+            <td className={styles.name}>
+              {product.name}
+              {product.barcode && <div className={styles.barcode}>{product.barcode}</div>}
+            </td>
+            <td>{product.categoryName ?? '—'}</td>
+            <td className="numeric">{product.stock}</td>
+            <td className="numeric">{formatMoney(product.salePrice)}</td>
+            <td>
+              {product.stock <= 0 ? (
+                <Badge tone="danger" pulse>
+                  نفد
+                </Badge>
+              ) : product.stock <= product.reorderLevel ? (
+                <Badge tone="warning">يحتاج إعادة طلب</Badge>
+              ) : (
+                <Badge tone="success">متوفر</Badge>
               )}
-              {canEdit && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setEditing(product);
-                    setProductDialogOpen(true);
-                  }}
-                  aria-label={`تعديل ${product.name}`}
-                >
-                  <Pencil size={15} />
-                </Button>
-              )}
-              {canDelete && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDeletingProduct(product)}
-                  aria-label={`حذف ${product.name}`}
-                >
-                  <Trash2 size={15} />
-                </Button>
-              )}
-            </div>
-          </td>
-        </tr>
-      )),
+            </td>
+            <td>{formatDate(product.nearestExpiry)}</td>
+            <td>
+              <div className={styles.actions}>
+                {canEdit && (
+                  <Button variant="outline" size="sm" onClick={() => setReceivingFor(product)}>
+                    إدخال كمية
+                  </Button>
+                )}
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setEditing(product);
+                      setProductDialogOpen(true);
+                    }}
+                    aria-label={`تعديل ${product.name}`}
+                  >
+                    <Pencil size={15} />
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeletingProduct(product)}
+                    aria-label={`حذف ${product.name}`}
+                  >
+                    <Trash2 size={15} />
+                  </Button>
+                )}
+              </div>
+            </td>
+          </tr>
+        );
+      }),
     [visible, canEdit, canDelete],
   );
   const shownCount = statusFilter === 'all' ? counts.total : counts[statusFilter];
@@ -229,106 +244,124 @@ export function Inventory() {
       )}
 
       <div className={styles.page}>
-        <div className={styles.toolbar}>
-          <input
-            className={styles.search}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="ابحث بالاسم أو الباركود…"
-            aria-label="بحث في المخزون"
-          />
-          {canEdit && (
-            <div className={styles.spacer}>
-              <Button
-                onClick={() => {
-                  setEditing(null);
-                  setProductDialogOpen(true);
-                }}
-                title="F1"
+        <div className={styles.statGrid}>
+          {STAT_TILES.map((tile) => {
+            const Icon = tile.icon;
+            const active = tile.key === statusFilter;
+            return (
+              <button
+                key={tile.key}
+                type="button"
+                className={cx(styles.statTile, TONE_CLASS[tile.tone], active && styles.statTileActive)}
+                onClick={() => setStatusFilter(tile.key)}
               >
-                <Plus size={16} />
-                دواء جديد
+                <span className={styles.statIcon}>
+                  <Icon size={20} />
+                </span>
+                <span className={styles.statText}>
+                  <span className={styles.statValue}>{tile.count}</span>
+                  <span className={styles.statLabel}>{tile.label}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className={styles.card}>
+          <div className={styles.toolbar}>
+            <div className={styles.searchBox}>
+              <Search size={16} className={styles.searchIcon} />
+              <input
+                className={styles.search}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ابحث بالاسم أو الباركود…"
+                aria-label="بحث في المخزون"
+              />
+            </div>
+            {canEdit && (
+              <div className={styles.spacer}>
+                <Button
+                  onClick={() => {
+                    setEditing(null);
+                    setProductDialogOpen(true);
+                  }}
+                  title="F1"
+                >
+                  <Plus size={16} />
+                  دواء جديد
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {loading ? (
+            <table className={styles.table}>
+              <tbody>
+                <SkeletonRows rows={6} columns={6} />
+              </tbody>
+            </table>
+          ) : visible.length === 0 ? (
+            <EmptyState
+              icon={<Package size={26} />}
+              title="لا توجد أدوية"
+              description={search ? 'لا نتائج مطابقة لبحثك' : 'ابدأ بإضافة أول دواء للمخزون'}
+              action={
+                search ? (
+                  <Button variant="outline" onClick={() => setSearch('')}>
+                    مسح البحث
+                  </Button>
+                ) : statusFilter !== 'all' ? (
+                  <Button variant="outline" onClick={() => setStatusFilter('all')}>
+                    عرض كل الأدوية
+                  </Button>
+                ) : (
+                  canEdit && (
+                    <Button
+                      onClick={() => {
+                        setEditing(null);
+                        setProductDialogOpen(true);
+                      }}
+                    >
+                      <Plus size={16} />
+                      دواء جديد
+                    </Button>
+                  )
+                )
+              }
+            />
+          ) : (
+            <div className={styles.tableScroll}>
+              <table className={styles.table}>
+                <thead>
+                  <tr>
+                    <th>الأدوية</th>
+                    <th>التصنيف</th>
+                    <th>الكمية</th>
+                    <th>السعر</th>
+                    <th>الحالة</th>
+                    <th>أقرب انتهاء</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody key={`${statusFilter}:${search}`} className={styles.tbodyFade}>
+                  {rows}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!loading && visible.length > 0 && visible.length < shownCount && (
+            <div className={styles.loadMoreRow}>
+              <span className={styles.shownCount}>
+                عرض {visible.length} من {shownCount}
+              </span>
+              <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+                {loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'}
               </Button>
             </div>
           )}
         </div>
-
-        <div className={styles.filters}>
-          {FILTERS.map((filter) => (
-            <button
-              key={filter.key}
-              type="button"
-              className={filter.key === statusFilter ? styles.filterActive : styles.filter}
-              onClick={() => setStatusFilter(filter.key)}
-            >
-              {filter.label}
-              <span className={styles.filterCount}>{filter.count}</span>
-            </button>
-          ))}
-        </div>
-
-        {loading ? (
-          <table className={styles.table}>
-            <tbody>
-              <SkeletonRows rows={6} columns={6} />
-            </tbody>
-          </table>
-        ) : visible.length === 0 ? (
-          <EmptyState
-            icon={<Package size={26} />}
-            title="لا توجد أدوية"
-            description={search ? 'لا نتائج مطابقة لبحثك' : 'ابدأ بإضافة أول دواء للمخزون'}
-            action={
-              search ? (
-                <Button variant="outline" onClick={() => setSearch('')}>
-                  مسح البحث
-                </Button>
-              ) : statusFilter !== 'all' ? (
-                <Button variant="outline" onClick={() => setStatusFilter('all')}>
-                  عرض كل الأدوية
-                </Button>
-              ) : (
-                canEdit && (
-                  <Button
-                    onClick={() => {
-                      setEditing(null);
-                      setProductDialogOpen(true);
-                    }}
-                  >
-                    <Plus size={16} />
-                    دواء جديد
-                  </Button>
-                )
-              )
-            }
-          />
-        ) : (
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>الصنف</th>
-                <th>التصنيف</th>
-                <th>الكمية</th>
-                <th>السعر</th>
-                <th>الحالة</th>
-                <th>أقرب انتهاء</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>{rows}</tbody>
-          </table>
-        )}
-
-        {!loading && visible.length > 0 && visible.length < shownCount && (
-          <div className={styles.loadMoreRow}>
-            <span className={styles.shownCount}>
-              عرض {visible.length} من {shownCount}
-            </span>
-            <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
-              {loadingMore ? 'جارٍ التحميل…' : 'تحميل المزيد'}
-            </Button>
-          </div>
-        )}
       </div>
 
       <ProductDialog

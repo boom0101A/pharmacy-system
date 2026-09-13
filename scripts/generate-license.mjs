@@ -5,15 +5,9 @@
  * only exists on the machine that ran generate-license-keypair.mjs; never
  * copy that file anywhere the client could reach it.
  */
-import { createPrivateKey, randomUUID, sign } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import path from 'node:path';
+import { existsSync } from 'node:fs';
 import readline from 'node:readline';
-import { fileURLToPath } from 'node:url';
-
-const repoRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const privateKeyPath = path.join(repoRoot, 'license-private-key.pem');
-const licensesDir = path.join(repoRoot, 'licenses');
+import { issueLicense, LicenseIssueError, privateKeyPath } from './lib/issue-license.mjs';
 
 if (!existsSync(privateKeyPath)) {
   console.error(
@@ -22,8 +16,6 @@ if (!existsSync(privateKeyPath)) {
   );
   process.exit(1);
 }
-
-const privateKey = createPrivateKey(readFileSync(privateKeyPath, 'utf8'));
 
 /*
  * A hand-rolled question queue instead of `readline/promises`'s built-in
@@ -68,49 +60,21 @@ if (!licensedTo) {
   process.exit(1);
 }
 
-const expiresInput = (
-  await ask('تاريخ الانتهاء (YYYY-MM-DD)، أو اتركه فارغاً لترخيص دائم: ')
-).trim();
-let expiresAt = null;
-if (expiresInput) {
-  const parsed = new Date(expiresInput);
-  if (Number.isNaN(parsed.getTime())) {
-    console.error('تاريخ غير صالح — استخدم الصيغة YYYY-MM-DD.');
-    process.exit(1);
-  }
-  expiresAt = parsed.toISOString();
-}
+const expiresAtInput = await ask('تاريخ الانتهاء (YYYY-MM-DD)، أو اتركه فارغاً لترخيص دائم: ');
 
 rl.close();
 
-const payload = {
-  licenseId: randomUUID(),
-  licensedTo,
-  machineId,
-  issuedAt: new Date().toISOString(),
-  expiresAt,
-};
+try {
+  const { licenseKey, recordPath, payload } = issueLicense({ machineId, licensedTo, expiresAtInput });
 
-// Signed as the exact string below — the app verifies these same bytes
-// before ever parsing them, so no re-serialization step can drift from this.
-const payloadJson = JSON.stringify(payload);
-const signature = sign(null, Buffer.from(payloadJson, 'utf8'), privateKey).toString('base64');
-
-const licenseKey = Buffer.from(JSON.stringify({ payload: payloadJson, signature }), 'utf8').toString(
-  'base64',
-);
-
-mkdirSync(licensesDir, { recursive: true });
-const recordPath = path.join(
-  licensesDir,
-  `${licensedTo.replace(/[^\p{L}\p{N}]+/gu, '-')}-${payload.issuedAt.slice(0, 10)}.lic.txt`,
-);
-writeFileSync(recordPath, licenseKey);
-
-console.log('\n✓ تم إصدار الترخيص.\n');
-console.log(`مرخَّص لـ: ${licensedTo}`);
-console.log(`الجهاز: ${machineId}`);
-console.log(`الانتهاء: ${expiresAt ?? 'دائم'}`);
-console.log(`نسخة محفوظة عندك في: ${recordPath}\n`);
-console.log('المفتاح — أرسله للعميل ليلصقه في شاشة التفعيل:\n');
-console.log(licenseKey);
+  console.log('\n✓ تم إصدار الترخيص.\n');
+  console.log(`مرخَّص لـ: ${payload.licensedTo}`);
+  console.log(`الجهاز: ${payload.machineId}`);
+  console.log(`الانتهاء: ${payload.expiresAt ?? 'دائم'}`);
+  console.log(`نسخة محفوظة عندك في: ${recordPath}\n`);
+  console.log('المفتاح — أرسله للعميل ليلصقه في شاشة التفعيل:\n');
+  console.log(licenseKey);
+} catch (err) {
+  console.error(err instanceof LicenseIssueError ? err.message : `خطأ غير متوقع: ${err.message}`);
+  process.exit(1);
+}

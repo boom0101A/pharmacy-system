@@ -86,21 +86,38 @@ export function setConnectionResultHandler(handler: (online: boolean) => void) {
   onConnectionResult = handler;
 }
 
+/**
+ * A cable pulled mid-request (as opposed to an immediate connection refusal)
+ * doesn't reject on its own — plain `fetch` with no signal just hangs. That
+ * used to leave a checkout stuck on "جارٍ التنفيذ…" forever, with the sale
+ * never recorded and no error shown, recoverable only by restarting the app.
+ */
+const REQUEST_TIMEOUT_MS = 15000;
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
   let res: Response;
   try {
     res = await fetch(`${getServerUrl()}/api${path}`, {
       ...options,
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
     });
-  } catch {
+  } catch (err) {
     onConnectionResult?.(false);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiError(0, 'انتهت مهلة الاتصال بالخادم — تحقّق من الشبكة');
+    }
     throw new ApiError(0, 'تعذّر الاتصال بالخادم — تحقّق من الشبكة أو عنوان الخادم');
+  } finally {
+    clearTimeout(timeout);
   }
 
   onConnectionResult?.(true);
