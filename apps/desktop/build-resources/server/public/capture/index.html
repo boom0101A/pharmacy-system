@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f172a" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./style.css" />
+  <title>التقاط صورة الصنف</title>
+</head>
+<body>
+  <main class="card">
+    <h1>التقاط صورة الصنف</h1>
+
+    <div id="stateInvalid" class="state" hidden>
+      <p class="message error">الرابط غير صالح. أعد عرض رمز QR من التطبيق.</p>
+    </div>
+
+    <div id="stateReady" class="state" hidden>
+      <p class="hint">اختر صورة من الكاميرا أو المعرض ثم اضغط "رفع الصورة".</p>
+
+      <label class="pickButton" for="fileInput">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M4 8a2 2 0 0 1 2-2h1.5l1-1.5h7l1 1.5H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8Z" />
+          <circle cx="12" cy="13" r="3.5" />
+        </svg>
+        <span id="pickLabel">اختيار صورة</span>
+      </label>
+      <input id="fileInput" type="file" accept="image/*" capture="environment" hidden />
+
+      <img id="preview" class="preview" hidden alt="معاينة الصورة" />
+
+      <p id="fileError" class="message error" hidden></p>
+
+      <button id="uploadButton" class="primaryButton" type="button" disabled>رفع الصورة</button>
+    </div>
+
+    <div id="stateUploading" class="state" hidden>
+      <div class="spinner" aria-hidden="true"></div>
+      <p class="hint">جارٍ رفع الصورة…</p>
+    </div>
+
+    <div id="stateSuccess" class="state" hidden>
+      <div class="successIcon" aria-hidden="true">✓</div>
+      <p class="message success">تم حفظ الصورة بنجاح</p>
+      <p class="hint">يمكنك إغلاق هذه الصفحة الآن.</p>
+      <button id="retakeButton" class="secondaryButton" type="button">التقاط صورة أخرى</button>
+    </div>
+
+    <div id="stateError" class="state" hidden>
+      <p class="message error" id="uploadErrorText">تعذّر رفع الصورة</p>
+      <button id="retryButton" class="primaryButton" type="button">إعادة المحاولة</button>
+    </div>
+  </main>
+
+  <script src="./app.js"></script>
+</body>
+</html>

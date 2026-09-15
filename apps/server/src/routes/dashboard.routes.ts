@@ -3,6 +3,8 @@ import { prisma, toNumber } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { requireAuth } from '../middleware/auth.js';
 import { productStats } from '../services/products.service.js';
+import { maskSalesForRole } from '../services/dashboard.service.js';
+import { startOfTodayBaghdad } from '../lib/dateRange.js';
 
 export const dashboardRouter = Router();
 dashboardRouter.use(requireAuth);
@@ -11,9 +13,8 @@ const EXPIRY_WARNING_DAYS = 30;
 
 dashboardRouter.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+  asyncHandler(async (req, res) => {
+    const startOfDay = startOfTodayBaghdad();
 
     const [todaySales, stats, lowStockRows, expiringRows] = await Promise.all([
       prisma.sale.aggregate({
@@ -48,9 +49,17 @@ dashboardRouter.get(
       .sort((a, b) => a.stock - b.stock)
       .slice(0, 6);
 
+    const sales = maskSalesForRole(
+      {
+        total: todaySales._sum.total ? toNumber(todaySales._sum.total) : 0,
+        count: todaySales._count,
+      },
+      req.auth!.role,
+    );
+
     res.json({
-      todaySalesTotal: todaySales._sum.total ? toNumber(todaySales._sum.total) : 0,
-      todaySalesCount: todaySales._count,
+      todaySalesTotal: sales.total,
+      todaySalesCount: sales.count,
       lowStockCount: stats.low,
       expiringSoonCount: stats.expiring,
       lowStock: lowStock.map((p) => ({ id: p.id, name: p.name, value: p.stock })),

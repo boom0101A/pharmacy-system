@@ -6,6 +6,7 @@ import styles from './Purchases.module.css';
 import dataPageStyles from '../styles/dataPage.module.css';
 import { Button } from '../components/ui/Button';
 import { ProductPicker } from '../components/ui/ProductPicker';
+import { NumberCellInput } from '../components/ui/NumberCellInput';
 import { EmptyState } from '../components/ui/EmptyState';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { useToast } from '../components/ui/Toast';
@@ -185,21 +186,19 @@ export function Purchases() {
                 <tr key={line.key}>
                   <td>{line.productName}</td>
                   <td>
-                    <input
-                      type="number"
+                    <NumberCellInput
                       min={1}
                       className={styles.cellInput}
                       value={line.quantity}
-                      onChange={(e) => updateLine(line.key, { quantity: Number(e.target.value) || 1 })}
+                      onCommit={(quantity) => updateLine(line.key, { quantity })}
                     />
                   </td>
                   <td>
-                    <input
-                      type="number"
+                    <NumberCellInput
                       min={0}
                       className={styles.cellInput}
                       value={line.unitPrice}
-                      onChange={(e) => updateLine(line.key, { unitPrice: Number(e.target.value) || 0 })}
+                      onCommit={(unitPrice) => updateLine(line.key, { unitPrice })}
                     />
                   </td>
                   <td>

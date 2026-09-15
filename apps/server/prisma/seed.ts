@@ -4,7 +4,7 @@
  *
  * Usage: npm run db:seed --workspace=@pharmacy/server
  */
-import { pathToFileURL } from 'node:url';
+import { isDirectCliRun } from '../src/lib/directRun.js';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../src/prisma.js';
 
@@ -43,10 +43,11 @@ async function main() {
 }
 
 // Only runs when this file is executed directly (`tsx prisma/seed.ts`) —
-// seedDefaultAccounts above is also imported directly by seed.test.ts, which
-// must not trigger a second, unwanted CLI run as a side effect of that
-// import. Same comparison restore.ts already uses for the same reason.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+// seedDefaultAccounts above is imported both by seed.test.ts and by the
+// server's own startup, and neither may trigger a second, concurrent CLI run
+// as a side effect. isDirectCliRun also holds inside the bundled desktop
+// build, where a naive url comparison would be true for every inlined module.
+if (isDirectCliRun(import.meta.url, process.argv[1], 'seed')) {
   main()
     .catch((err) => {
       console.error(err);

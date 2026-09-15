@@ -11,7 +11,8 @@ import { CAPTURE_TOKEN_TTL_SECONDS } from '../middleware/auth.js';
 import { lanOrigin } from '../lib/lanUrl.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { config } from '../config.js';
+import { parseIdParam } from '../lib/parseIdParam.js';
 
 export const productsRouter = Router();
 productsRouter.use(requireAuth);
@@ -19,24 +20,36 @@ productsRouter.use(requireAuth);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 
 function uploadDir() {
-  return path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'uploads', 'products');
+  return path.join(config.uploadsDir, 'products');
 }
 
-const productSchema = z.object({
-  name: z.string().min(1, 'الاسم مطلوب'),
-  barcode: z.string().trim().min(1).nullish(),
-  categoryId: z.number().int().positive().nullish(),
-  unit: z.string().min(1).default('علبة'),
-  salePrice: z.number().nonnegative(),
-  purchasePrice: z.number().nonnegative(),
-  reorderLevel: z.number().int().nonnegative().default(0),
-  unitsPerPackage: z.number().int().min(2).nullish(),
-  subUnitName: z.string().trim().min(1).nullish(),
-  subUnitPrice: z.number().nonnegative().nullish(),
-  activeIngredient: z.string().trim().min(1).nullish(),
-  dosageForm: z.string().trim().min(1).nullish(),
-  strength: z.string().trim().min(1).nullish(),
-});
+export const productSchema = z
+  .object({
+    name: z.string().min(1, 'الاسم مطلوب'),
+    barcode: z.string().trim().min(1).nullish(),
+    categoryId: z.number().int().positive().nullish(),
+    unit: z.string().min(1).default('علبة'),
+    salePrice: z.number().nonnegative().finite(),
+    purchasePrice: z.number().nonnegative().finite(),
+    reorderLevel: z.number().int().nonnegative().default(0),
+    unitsPerPackage: z.number().int().min(2).nullish(),
+    subUnitName: z.string().trim().min(1).nullish(),
+    subUnitPrice: z.number().nonnegative().finite().nullish(),
+    activeIngredient: z.string().trim().min(1).nullish(),
+    dosageForm: z.string().trim().min(1).nullish(),
+    strength: z.string().trim().min(1).nullish(),
+  })
+  .refine(
+    (data) => {
+      // subUnitPrice falls back to salePrice (the whole-package price)
+      // whenever it is null — selling "half a strip" at the full-box price is
+      // a silent ~10x overcharge, not something anyone would notice at
+      // checkout. All three together or none, nothing in between.
+      const fields = [data.unitsPerPackage, data.subUnitName, data.subUnitPrice];
+      return fields.every((f) => f == null) || fields.every((f) => f != null);
+    },
+    { message: 'عند تفعيل بيع الوحدة الفرعية، يجب ضبط عدد الوحدات واسم الوحدة وسعرها معاً' },
+  );
 
 function toCreateData(data: z.infer<typeof productSchema>): products.ProductCreateData {
   return {
@@ -101,7 +114,7 @@ productsRouter.get(
 productsRouter.get(
   '/:id/alternatives',
   asyncHandler(async (req, res) => {
-    res.json(await products.productAlternatives(Number(req.params.id)));
+    res.json(await products.productAlternatives(parseIdParam(req.params.id, 'معرّف الصنف')));
   }),
 );
 
@@ -119,7 +132,7 @@ productsRouter.put(
   '/:id',
   checkRole('admin', 'pharmacist'),
   asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
+    const id = parseIdParam(req.params.id, 'معرّف الصنف');
     const data = productSchema.parse(req.body);
 
     // Switching divisibility off would strand any loose sub-units: the POS
@@ -148,7 +161,7 @@ productsRouter.delete(
   '/:id',
   checkRole('admin'),
   asyncHandler(async (req, res) => {
-    const id = Number(req.params.id);
+    const id = parseIdParam(req.params.id, 'معرّف الصنف');
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) {
       throw new AppError(404, 'الدواء غير موجود');
@@ -217,7 +230,7 @@ productsRouter.post(
     if (!req.file) {
       throw new AppError(400, 'لم يُرفَع أي ملف');
     }
-    const filename = await saveProductImage(Number(req.params.id), req.file.buffer);
+    const filename = await saveProductImage(parseIdParam(req.params.id, 'معرّف الصنف'), req.file.buffer);
     res.status(201).json({ imageFilename: filename });
   }),
 );

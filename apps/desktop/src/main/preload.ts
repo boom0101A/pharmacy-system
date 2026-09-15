@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import type { ReceiptData } from '@pharmacy/shared-types';
 import type { Settings } from './settings-store.js';
 import type { LicenseCheck } from './license.js';
+import type { BackendStatus } from './backend/bootstrap.js';
 
 contextBridge.exposeInMainWorld('pharmacy', {
   printReceipt: (receipt: ReceiptData): Promise<void> => ipcRenderer.invoke('print-receipt', receipt),
@@ -13,6 +14,7 @@ contextBridge.exposeInMainWorld('pharmacy', {
     ipcRenderer.invoke('save-file', { suggestedName, data }),
   syncLogo: (serverUrl: string, updatedAt: string | null): Promise<void> =>
     ipcRenderer.invoke('logo:sync', { serverUrl, updatedAt }),
+  getBackendStatus: (): Promise<BackendStatus> => ipcRenderer.invoke('backend:status'),
   getMachineId: (): Promise<string> => ipcRenderer.invoke('license:getMachineId'),
   getLicenseStatus: (): Promise<LicenseCheck> => ipcRenderer.invoke('license:getStatus'),
   activateLicense: (key: string): Promise<LicenseCheck> => ipcRenderer.invoke('license:activate', key),

@@ -8,6 +8,7 @@ import type {
   DashboardSummary,
   ExpiryReportRow,
   LowStockReportRow,
+  WriteOffReportRow,
   LoginResponse,
   Product,
   ProductAlternative,
@@ -34,6 +35,8 @@ import type {
  * machine running the server (e.g. http://192.168.1.10:3000), which the user
  * sets once in Settings; it is kept in localStorage so it survives restarts.
  */
+import { serverModeForUrl } from './serverMode.js';
+
 const SERVER_KEY = 'pharmacy.serverUrl';
 const TOKEN_KEY = 'pharmacy.token';
 
@@ -42,7 +45,12 @@ export function getServerUrl(): string {
 }
 
 export function setServerUrl(url: string) {
-  localStorage.setItem(SERVER_KEY, url.replace(/\/$/, ''));
+  const clean = url.replace(/\/$/, '');
+  localStorage.setItem(SERVER_KEY, clean);
+  // The main process decides whether to start the bundled database from this,
+  // and it cannot read localStorage — so the choice is mirrored into settings
+  // the moment it is made, not on the next launch.
+  void window.pharmacy?.setSettings({ serverMode: serverModeForUrl(clean) }).catch(() => {});
 }
 
 export function getToken(): string | null {
@@ -135,6 +143,52 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return body as T;
 }
 
+/**
+ * Same timeout/abort/error-translation hardening as `request()`, but returns
+ * the raw `Response` instead of parsing it as JSON — for the handful of
+ * endpoints that send/receive something other than a JSON body (multipart
+ * uploads, a binary backup download, a DELETE with no body). Without this,
+ * these calls used a bare `fetch()` with no timeout and no try/catch, so a
+ * dropped connection either hung the UI on "جارٍ الحفظ…" forever or leaked a
+ * raw "Failed to fetch" — exactly the bug `request()` itself was hardened
+ * against earlier this project.
+ */
+async function rawFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const token = getToken();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${getServerUrl()}/api${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch (err) {
+    onConnectionResult?.(false);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new ApiError(0, 'انتهت مهلة الاتصال بالخادم — تحقّق من الشبكة');
+    }
+    throw new ApiError(0, 'تعذّر الاتصال بالخادم — تحقّق من الشبكة أو عنوان الخادم');
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  onConnectionResult?.(true);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    if (res.status === 401 && token) {
+      onUnauthorized?.();
+    }
+    throw new ApiError(res.status, body.error ?? 'تعذّر الاتصال بالخادم');
+  }
+  return res;
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<LoginResponse>('/auth/login', {
@@ -145,7 +199,7 @@ export const api = {
   me: () => request<User>('/auth/me'),
 
   /** Unauthenticated — the connection poll uses it before login too. */
-  health: () => request<{ ok: boolean }>('/health'),
+  health: () => request<{ ok: boolean; lanUrl?: string }>('/health'),
 
   dashboard: () => request<DashboardSummary>('/dashboard'),
 
@@ -194,17 +248,10 @@ export const api = {
     }),
   /** Multipart upload — bypasses the JSON-only `request()` helper on purpose. */
   uploadProductImage: async (id: number, blob: Blob): Promise<{ imageFilename: string }> => {
-    const token = getToken();
     const form = new FormData();
     form.append('image', blob, 'photo.jpg');
-    const res = await fetch(`${getServerUrl()}/api/products/${id}/image`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new ApiError(res.status, body.error ?? 'تعذّر رفع الصورة');
-    return body;
+    const res = await rawFetch(`/products/${id}/image`, { method: 'POST', body: form });
+    return res.json();
   },
 
   batches: (productId?: number) =>
@@ -215,6 +262,7 @@ export const api = {
   updateBatch: (id: number, data: { expiryDate: string | null; batchNumber: string | null }) =>
     request<Batch>(`/batches/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteBatch: (id: number) => request<void>(`/batches/${id}`, { method: 'DELETE' }),
+  writeOffBatch: (id: number) => request<Batch>(`/batches/${id}/write-off`, { method: 'POST' }),
 
   createSale: (data: SaleInput) =>
     request<Sale>('/sales', { method: 'POST', body: JSON.stringify(data) }),
@@ -256,44 +304,23 @@ export const api = {
   reportExpiry: (from?: string, to?: string) =>
     request<ExpiryReportRow[]>(`/reports/expiry${rangeQuery(from, to)}`),
   reportLowStock: () => request<LowStockReportRow[]>('/reports/low-stock'),
+  reportWriteOffs: () => request<WriteOffReportRow[]>('/reports/write-offs'),
 
   backups: () => request<BackupFile[]>('/backup'),
 
   branding: () => request<BrandingInfo>('/branding'),
   uploadLogo: async (blob: Blob): Promise<BrandingInfo> => {
-    const token = getToken();
     const form = new FormData();
     form.append('logo', blob, 'logo.png');
-    const res = await fetch(`${getServerUrl()}/api/branding/logo`, {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: form,
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) throw new ApiError(res.status, body.error ?? 'تعذّر رفع الشعار');
-    return body;
+    const res = await rawFetch('/branding/logo', { method: 'POST', body: form });
+    return res.json();
   },
   deleteLogo: async (): Promise<void> => {
-    const token = getToken();
-    const res = await fetch(`${getServerUrl()}/api/branding/logo`, {
-      method: 'DELETE',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(res.status, body.error ?? 'تعذّر حذف الشعار');
-    }
+    await rawFetch('/branding/logo', { method: 'DELETE' });
   },
   /** Streams one backup file down and hands it to the main process to save via a native "Save As" dialog. */
   downloadBackup: async (name: string): Promise<void> => {
-    const token = getToken();
-    const res = await fetch(`${getServerUrl()}/api/backup/${encodeURIComponent(name)}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      throw new ApiError(res.status, body.error ?? 'تعذّر تنزيل النسخة الاحتياطية');
-    }
+    const res = await rawFetch(`/backup/${encodeURIComponent(name)}`);
     await window.pharmacy.saveFile(name, await res.arrayBuffer());
   },
 };

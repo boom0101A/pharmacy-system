@@ -1,0 +1,33 @@
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--accent-3);
+  color: var(--accent-11);
+  border-block-end: 1px solid var(--accent-6);
+  font-size: var(--text-sm);
+}
+
+.notice[data-failed] {
+  background: var(--danger-3);
+  color: var(--danger-11);
+  border-block-end-color: var(--danger-6);
+}
+
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  border: 2px solid currentColor;
+  border-block-start-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}

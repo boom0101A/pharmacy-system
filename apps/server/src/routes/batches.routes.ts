@@ -4,22 +4,30 @@ import { prisma, toNumber } from '../prisma.js';
 import { AppError, asyncHandler } from '../middleware/errors.js';
 import { checkRole, requireAuth } from '../middleware/auth.js';
 import { broadcastStockChanged } from '../sockets/stock.js';
+import { deleteBatch, writeOffBatch } from '../services/batches.service.js';
+import { parseIdParam } from '../lib/parseIdParam.js';
 
 export const batchesRouter = Router();
 batchesRouter.use(requireAuth);
 
-const batchSchema = z.object({
+export const batchSchema = z.object({
   productId: z.number().int().positive(),
   batchNumber: z.string().trim().min(1).nullish(),
   expiryDate: z.coerce.date().nullish(),
   quantity: z.number().int().positive(),
-  purchasePrice: z.number().nonnegative().default(0),
+  purchasePrice: z.number().nonnegative().finite().default(0),
 });
 
 batchesRouter.get(
   '/',
   asyncHandler(async (req, res) => {
-    const productId = req.query.productId ? Number(req.query.productId) : undefined;
+    // A garbage ?productId= must not silently fall back to "no filter" and
+    // return every batch in the pharmacy — Number('abc') is NaN, which is
+    // falsy, so the old `productId ? ... : {}` check would have done exactly that.
+    const productId =
+      req.query.productId !== undefined
+        ? parseIdParam(String(req.query.productId), 'معرّف الصنف')
+        : undefined;
     const rows = await prisma.batch.findMany({
       where: productId ? { productId } : {},
       orderBy: [{ expiryDate: 'asc' }, { receivedAt: 'asc' }],
@@ -126,6 +134,31 @@ batchesRouter.put(
   }),
 );
 
+batchesRouter.post(
+  '/:id/write-off',
+  checkRole('admin', 'pharmacist'),
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) {
+      throw new AppError(400, 'معرّف الدفعة غير صالح');
+    }
+
+    const batch = await writeOffBatch(id, req.auth!.userId);
+    broadcastStockChanged([batch.productId]);
+
+    res.json({
+      id: batch.id,
+      productId: batch.productId,
+      batchNumber: batch.batchNumber,
+      expiryDate: batch.expiryDate?.toISOString() ?? null,
+      quantity: batch.quantity,
+      purchasePrice: toNumber(batch.purchasePrice),
+      receivedAt: batch.receivedAt.toISOString(),
+      openedSubUnits: batch.openedSubUnits,
+    });
+  }),
+);
+
 batchesRouter.delete(
   '/:id',
   checkRole('admin'),
@@ -135,20 +168,7 @@ batchesRouter.delete(
       throw new AppError(400, 'معرّف الدفعة غير صالح');
     }
 
-    // A batch already drawn from by a sale can't be deleted outright: the
-    // sale/return history points at it (sale_items.batch_id), and deleting it
-    // would either break that foreign key or silently orphan the invoice's
-    // cost/expiry trail. Zeroing its quantity keeps the row, its history, and
-    // FEFO's ordering intact while taking it out of what's sellable.
-    const saleCount = await prisma.saleItem.count({ where: { batchId } });
-    if (saleCount > 0) {
-      throw new AppError(
-        409,
-        'لا يمكن حذف دفعة بيع منها سابقاً — صفّر كميتها بدلاً من ذلك عبر التعديل',
-      );
-    }
-
-    const batch = await prisma.batch.delete({ where: { id: batchId } });
+    const batch = await deleteBatch(batchId);
     broadcastStockChanged([batch.productId]);
     res.status(204).end();
   }),

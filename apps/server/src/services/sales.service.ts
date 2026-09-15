@@ -75,9 +75,15 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
       }
       affectedProductIds.add(product.id);
 
-      const unitPrice = line.isSubUnit
-        ? toNumber(product.subUnitPrice ?? product.salePrice)
-        : toNumber(product.salePrice);
+      // productSchema.refine() requires subUnitPrice on every new write, but
+      // a row created before that fix can still have it null — falling back
+      // to salePrice (the whole-package price) would silently overcharge by
+      // roughly unitsPerPackage times at checkout.
+      if (line.isSubUnit && product.subUnitPrice === null) {
+        throw new AppError(400, `"${product.name}" بلا سعر محدد للوحدة الفرعية — راجع بيانات الصنف`);
+      }
+
+      const unitPrice = line.isSubUnit ? toNumber(product.subUnitPrice!) : toNumber(product.salePrice);
 
       // Lock every batch of this product up front, oldest expiry first —
       // this is the FEFO order the draw-down loop below follows. A batch

@@ -21,6 +21,7 @@ import { AlternativesDialog } from '../components/ui/AlternativesDialog';
 import { ProductDialog } from './ProductDialog';
 import { subUnitAvailability, useCart } from '../store/cart';
 import { api, ApiError } from '../lib/api';
+import { findAlternativeProduct } from '../lib/alternativePick';
 import { cleanIpcError, cx, formatMoney, productImageUrl } from '../lib/cx';
 import { playSaleComplete, playWarningBeep } from '../lib/sounds.js';
 import { useAuth } from '../store/auth';
@@ -584,12 +585,15 @@ export function Pos() {
         onPick={async (id) => {
           dialogOpenRef.current = false;
           setAlternativesFor(null);
-          // The alternatives list carries only display fields — fetch the
-          // full product record before it can be added to the cart.
-          const alreadyLoaded = products.find((p) => p.id === id);
-          const full = alreadyLoaded ?? (await api.products().then((rows) => rows.find((p) => p.id === id)));
-          if (full) addProduct(full);
-          refocus();
+          try {
+            const full = await findAlternativeProduct(id, products, () => api.products());
+            if (full) addProduct(full);
+            else toast.warning('تعذّر إيجاد الصنف المختار');
+          } catch (err) {
+            toast.error('تعذّر إيجاد الصنف المختار', cleanIpcError((err as Error).message));
+          } finally {
+            refocus();
+          }
         }}
       />
     </div>

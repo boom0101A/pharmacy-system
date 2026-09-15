@@ -67,7 +67,6 @@ function present(row: ProductRow): Product {
     activeIngredient: row.activeIngredient,
     dosageForm: row.dosageForm,
     strength: row.strength,
-    isActive: true,
   };
 }
 

@@ -8,8 +8,13 @@ import { writeBackup } from '../../backup.js';
 import { createPurchase } from '../../services/purchases.service.js';
 import { createSale } from '../../services/sales.service.js';
 import { createReturn } from '../../services/returns.service.js';
+import { writeOffBatch } from '../../services/batches.service.js';
 import { resetDatabase } from '../../../vitest.setup.js';
 import { applyRestore } from '../../../scripts/restore.js';
+
+function daysFromNow(days: number): Date {
+  return new Date(Date.now() + days * 86_400_000);
+}
 
 /**
  * This is the check the codebase's own comments say should exist
@@ -25,7 +30,7 @@ describe('backup + restore round-trip', () => {
     config.backupDir = await fs.mkdtemp(path.join(os.tmpdir(), 'backup-dest-'));
   });
 
-  it('reproduces every table exactly after a full wipe, including a purchase, sale, and return', async () => {
+  it('reproduces every table exactly after a full wipe, including a purchase, sale, return, and write-off', async () => {
     // Seed one row touching every table in the backup, through the same
     // service functions the real app uses (not raw fixtures) so the shapes
     // being backed up and restored are exactly what production ever writes.
@@ -55,6 +60,11 @@ describe('backup + restore round-trip', () => {
       items: [{ saleItemId: sale.items[0].id, quantity: 1 }],
     });
 
+    const expiredBatch = await prisma.batch.create({
+      data: { productId: product.id, quantity: 4, expiryDate: daysFromNow(-5) },
+    });
+    await writeOffBatch(expiredBatch.id, admin.id);
+
     const before = {
       users: await prisma.user.count(),
       categories: await prisma.category.count(),
@@ -67,9 +77,11 @@ describe('backup + restore round-trip', () => {
       saleItems: await prisma.saleItem.count(),
       returns: await prisma.return.count(),
       returnItems: await prisma.returnItem.count(),
+      batchWriteOffs: await prisma.batchWriteOff.count(),
     };
     const productBefore = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
-    const batchBefore = await prisma.batch.findFirstOrThrow({ where: { productId: product.id } });
+    const batchBefore = await prisma.batch.findUniqueOrThrow({ where: { id: expiredBatch.id } });
+    const writeOffBefore = await prisma.batchWriteOff.findFirstOrThrow({ where: { batchId: expiredBatch.id } });
 
     const backupFile = await writeBackup(uploadsSrc);
     const payload = JSON.parse(await fs.readFile(backupFile, 'utf8'));
@@ -93,13 +105,16 @@ describe('backup + restore round-trip', () => {
       saleItems: await prisma.saleItem.count(),
       returns: await prisma.return.count(),
       returnItems: await prisma.returnItem.count(),
+      batchWriteOffs: await prisma.batchWriteOff.count(),
     };
     expect(after).toEqual(before);
 
     const productAfter = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
     expect(productAfter).toEqual(productBefore);
-    const batchAfter = await prisma.batch.findFirstOrThrow({ where: { productId: product.id } });
+    const batchAfter = await prisma.batch.findUniqueOrThrow({ where: { id: expiredBatch.id } });
     expect(batchAfter).toEqual(batchBefore);
+    const writeOffAfter = await prisma.batchWriteOff.findFirstOrThrow({ where: { batchId: expiredBatch.id } });
+    expect(writeOffAfter).toEqual(writeOffBefore);
 
     // A fresh row must not collide with a restored id — proves the
     // per-table sequence reset in applyRestore actually ran.

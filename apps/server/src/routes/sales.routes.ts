@@ -5,6 +5,7 @@ import { AppError, asyncHandler } from '../middleware/errors.js';
 import { checkRole, requireAuth } from '../middleware/auth.js';
 import { createSale } from '../services/sales.service.js';
 import { resolveRange } from '../lib/dateRange.js';
+import { parseIdParam } from '../lib/parseIdParam.js';
 
 export const salesRouter = Router();
 salesRouter.use(requireAuth);
@@ -38,7 +39,7 @@ salesRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {
     const sale = await prisma.sale.findUnique({
-      where: { id: Number(req.params.id) },
+      where: { id: parseIdParam(req.params.id, 'معرّف الفاتورة') },
       include: {
         items: {
           include: { product: { select: { name: true, unit: true, subUnitName: true } } },

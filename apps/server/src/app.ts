@@ -1,5 +1,4 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import express from 'express';
 import cors from 'cors';
 import { authRouter } from './routes/auth.routes.js';
@@ -18,8 +17,9 @@ import { brandingRouter } from './routes/branding.routes.js';
 import { captureRouter } from './routes/capture.routes.js';
 import { captureLinkRouter } from './routes/captureLink.routes.js';
 import { errorHandler } from './middleware/errors.js';
+import { config } from './config.js';
+import { lanServerUrl } from './lib/lanUrl.js';
 
-const rootDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 export const app = express();
 
@@ -27,13 +27,15 @@ app.use(cors());
 app.use(express.json());
 
 // Product photos, served straight off disk.
-app.use('/uploads', express.static(path.join(rootDir, 'uploads')));
+app.use('/uploads', express.static(config.uploadsDir));
 // The phone-facing capture page (scanned from the desktop's QR code).
-app.use('/capture', express.static(path.join(rootDir, 'public', 'capture')));
+app.use('/capture', express.static(path.join(config.publicDir, 'capture')));
 // Short redirect a QR code can actually fit: /c/<code> -> the capture page + token.
 app.use('/c', captureLinkRouter);
 
-app.get('/api/health', (_req, res) => res.json({ ok: true }));
+// `lanUrl` is what the user reads off Settings and types into a second till —
+// the machine cannot discover its own network address from the other side.
+app.get('/api/health', (_req, res) => res.json({ ok: true, lanUrl: lanServerUrl() }));
 
 app.use('/api/auth', authRouter);
 app.use('/api/dashboard', dashboardRouter);

@@ -2,17 +2,32 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const logDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'logs');
+// Read straight from the environment rather than through config.ts: config
+// throws on an invalid JWT_SECRET, and the logger must stay usable while
+// reporting exactly that kind of startup failure.
+const logDir =
+  process.env.LOGS_DIR ?? path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'logs');
 const logFile = path.join(logDir, 'server.log');
 const MAX_LOG_BYTES = 5 * 1024 * 1024;
 
-fs.mkdirSync(logDir, { recursive: true });
+/**
+ * A log file is a convenience, never a reason to refuse to run. An install
+ * under a read-only folder used to kill the process right here, at import,
+ * before anything could report why — now it degrades to console-only.
+ */
+let fileLoggingAvailable = true;
+try {
+  fs.mkdirSync(logDir, { recursive: true });
+} catch {
+  fileLoggingAvailable = false;
+}
 
+/** Keeps exactly one previous log around — deleting it outright would throw away the one record of what the server was doing right before whatever someone is now trying to diagnose. */
 function rotateIfNeeded() {
   try {
     const { size } = fs.statSync(logFile);
     if (size >= MAX_LOG_BYTES) {
-      fs.rmSync(logFile, { force: true });
+      fs.renameSync(logFile, `${logFile}.1`);
     }
   } catch {
     // No file yet — nothing to rotate.
@@ -28,14 +43,22 @@ function serializeMeta(meta: unknown): unknown {
 }
 
 function write(level: 'info' | 'error', message: string, meta?: unknown) {
-  rotateIfNeeded();
-  const line = JSON.stringify({
-    time: new Date().toISOString(),
-    level,
-    message,
-    ...(meta !== undefined ? { meta: serializeMeta(meta) } : {}),
-  });
-  fs.appendFileSync(logFile, line + '\n');
+  if (fileLoggingAvailable) {
+    try {
+      rotateIfNeeded();
+      const line = JSON.stringify({
+        time: new Date().toISOString(),
+        level,
+        message,
+        ...(meta !== undefined ? { meta: serializeMeta(meta) } : {}),
+      });
+      fs.appendFileSync(logFile, line + '\n');
+    } catch {
+      // The disk filled up, the folder was removed mid-run, permissions
+      // changed — none of which should take the till offline. Stop trying.
+      fileLoggingAvailable = false;
+    }
+  }
   // eslint-disable-next-line no-console
   (level === 'error' ? console.error : console.log)(message, meta ?? '');
 }

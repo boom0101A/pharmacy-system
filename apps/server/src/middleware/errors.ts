@@ -59,6 +59,20 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
       return res.status(409).json({ error: 'تعارض مؤقت مع عملية أخرى — أعد محاولة البيع' });
     }
   }
+  // body-parser (via http-errors) throws a plain Error carrying its own
+  // status/statusCode for a request it refused before any route ever saw it
+  // — malformed JSON, a body over express.json()'s size limit. Without this,
+  // those report as "خطأ في الخادم", which sends the client looking for a
+  // server bug that does not exist; the request itself was the problem.
+  if (err instanceof Error) {
+    const status = (err as Error & { status?: unknown; statusCode?: unknown }).status ??
+      (err as Error & { statusCode?: unknown }).statusCode;
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      const message = status === 413 ? 'حجم الطلب كبير جداً' : 'طلب غير صالح';
+      return res.status(status).json({ error: message });
+    }
+  }
+
   logger.error('Unhandled request error', err);
   return res.status(500).json({ error: 'خطأ في الخادم' });
 }

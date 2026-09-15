@@ -9,14 +9,14 @@ purchasesRouter.use(requireAuth);
 // Purchasing power (and the cost data it reveals) stays with admin/pharmacist.
 purchasesRouter.use(checkRole('admin', 'pharmacist'));
 
-const purchaseSchema = z.object({
+export const purchaseSchema = z.object({
   supplierId: z.number().int().positive(),
   items: z
     .array(
       z.object({
         productId: z.number().int().positive(),
         quantity: z.number().int().positive(),
-        unitPrice: z.number().nonnegative(),
+        unitPrice: z.number().nonnegative().finite(),
         batchNumber: z.string().trim().min(1).nullish(),
         expiryDate: z.coerce.date().nullish(),
       }),

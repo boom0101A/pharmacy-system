@@ -13,6 +13,10 @@ const CODE_TTL_MS = 10 * 60 * 1000;
 export function createCaptureCode(productId: number): string {
   const code = randomBytes(6).toString('hex');
   codes.set(code, { productId, expiresAt: Date.now() + CODE_TTL_MS });
+  // A QR code that is generated but never scanned (the pharmacist changes
+  // their mind, closes the app) would otherwise sit in this Map forever —
+  // nothing else ever visits it to trigger the delete in resolveCaptureCode.
+  setTimeout(() => codes.delete(code), CODE_TTL_MS).unref();
   return code;
 }
 
@@ -22,4 +26,9 @@ export function resolveCaptureCode(code: string): { productId: number; token: st
   codes.delete(code);
   if (!entry || entry.expiresAt < Date.now()) return null;
   return { productId: entry.productId, token: signCaptureToken(entry.productId) };
+}
+
+/** How many capture codes are currently pending — exercised by tests, and a cheap signal if this ever needs watching in production. */
+export function pendingCaptureCodeCount(): number {
+  return codes.size;
 }

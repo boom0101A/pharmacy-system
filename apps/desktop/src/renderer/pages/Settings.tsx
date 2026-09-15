@@ -16,6 +16,9 @@ const MAX_LOGO_BYTES = 8 * 1024 * 1024;
 export function Settings() {
   const toast = useToast();
   const [server, setServer] = useState(getServerUrl());
+  // Comes from the server itself: a machine cannot see which of its own
+  // addresses the rest of the network can reach.
+  const [lanUrl, setLanUrl] = useState<string | null>(null);
   const logoUrl = useBranding((s) => s.logoUrl);
   const refreshLogo = useBranding((s) => s.refresh);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -43,16 +46,26 @@ export function Settings() {
   }
 
   useEffect(() => {
-    window.pharmacy.getSettings().then((s) => {
-      setPrinterPath(s.printerPath ?? '');
-      setPharmacyName(s.pharmacyName ?? '');
-      setPharmacyAddress(s.pharmacyAddress ?? '');
-      setPharmacyPhone(s.pharmacyPhone ?? '');
-    });
+    window.pharmacy
+      .getSettings()
+      .then((s) => {
+        setPrinterPath(s.printerPath ?? '');
+        setPharmacyName(s.pharmacyName ?? '');
+        setPharmacyAddress(s.pharmacyAddress ?? '');
+        setPharmacyPhone(s.pharmacyPhone ?? '');
+      })
+      .catch((err) => toast.error('تعذّر تحميل الإعدادات', cleanIpcError((err as Error).message)));
     api.backups().then(setBackups).catch(() => setBackups([]));
+    api
+      .health()
+      .then((h) => setLanUrl(h.lanUrl ?? null))
+      .catch(() => setLanUrl(null));
     // App.tsx already gated the whole app on this being valid to get here —
     // this call is purely to display who it's licensed to, not to re-decide access.
-    window.pharmacy.getLicenseStatus().then(setLicense);
+    window.pharmacy
+      .getLicenseStatus()
+      .then(setLicense)
+      .catch((err) => toast.error('تعذّر تحميل حالة الترخيص', cleanIpcError((err as Error).message)));
   }, []);
 
   function saveServer() {
@@ -227,6 +240,18 @@ export function Settings() {
             حفظ
           </Button>
         </div>
+        {lanUrl && (
+          <>
+            <p className={styles.hint}>
+              لربط جهاز كاشير آخر بهذا الجهاز، اكتب عنده هذا العنوان:{' '}
+              <strong dir="ltr">{lanUrl}</strong>
+            </p>
+            <p className={styles.hint}>
+              إذا تعذّر على جهاز آخر الاتصال بهذا العنوان، تأكد من السماح لهذا التطبيق عبر جدار حماية
+              ويندوز (لوحة التحكم ← جدار حماية Windows Defender ← السماح لتطبيق عبر جدار الحماية).
+            </p>
+          </>
+        )}
       </section>
 
       <section className={styles.card}>

@@ -1,6 +1,5 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { prisma } from './prisma.js';
 import { config } from './config.js';
 import { logger } from './lib/logger.js';
@@ -8,7 +7,7 @@ import { logger } from './lib/logger.js';
 /**
  * Every table, dumped verbatim (Prisma serializes Decimal/Date fields to
  * strings automatically through JSON.stringify) — restore.ts reloads these
- * same eleven arrays back in, in the reverse (parent-first) order.
+ * same twelve arrays back in, in the reverse (parent-first) order.
  */
 async function dumpTables() {
   const [
@@ -23,6 +22,7 @@ async function dumpTables() {
     saleItems,
     returns,
     returnItems,
+    batchWriteOffs,
   ] = await Promise.all([
     prisma.user.findMany(),
     prisma.category.findMany(),
@@ -35,6 +35,7 @@ async function dumpTables() {
     prisma.saleItem.findMany(),
     prisma.return.findMany(),
     prisma.returnItem.findMany(),
+    prisma.batchWriteOff.findMany(),
   ]);
 
   return {
@@ -49,6 +50,7 @@ async function dumpTables() {
     saleItems,
     returns,
     returnItems,
+    batchWriteOffs,
   };
 }
 
@@ -58,7 +60,7 @@ function backupFilename(date: Date): string {
 }
 
 function defaultUploadsDir(): string {
-  return path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'uploads');
+  return config.uploadsDir;
 }
 
 /**

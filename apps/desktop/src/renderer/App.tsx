@@ -25,6 +25,8 @@ import { useConnectionPing } from './lib/useConnectionPing';
 import { useExpiryAlert } from './lib/useExpiryAlert';
 import { useLicenseCheck } from './lib/useLicenseCheck';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { BackendNotice } from './components/BackendNotice';
+import { useBackendStatus } from './lib/useBackendStatus';
 
 export function App() {
   const user = useAuth((s) => s.user);
@@ -32,6 +34,7 @@ export function App() {
   const canManageStock = user?.role === 'admin' || user?.role === 'pharmacist';
   useStockSync(user !== null);
   const recheckConnection = useConnectionPing();
+  const backendStatus = useBackendStatus();
   useExpiryAlert(user !== null);
   const [showSplash, setShowSplash] = useState(true);
   // Purely local (no network), so this resolves in a few milliseconds — well
@@ -102,6 +105,10 @@ export function App() {
     <ErrorBoundary>
       <ToastProvider>
         <ExpiryAlertWatcher />
+        {/* Above the connection banner on purpose: while the bundled database
+            is still being created, "لا يوجد اتصال" is true but misleading —
+            this says what is actually happening. */}
+        <BackendNotice status={backendStatus} />
         {/* Outside the router: a dead server is worth saying on the login screen
             too, where it is the actual reason the password "isn't working". */}
         <ConnectionBanner onRetry={recheckConnection} />

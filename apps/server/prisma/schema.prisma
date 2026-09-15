@@ -3,6 +3,10 @@
 
 generator client {
   provider = "prisma-client-js"
+  // The desktop installer always ships a Windows engine regardless of which
+  // OS actually builds it — "native" alone would silently omit it if a build
+  // ever ran on a non-Windows machine (CI, a contributor's Mac/Linux laptop).
+  binaryTargets = ["native", "windows"]
 }
 
 datasource db {
@@ -33,6 +37,7 @@ model User {
   sales     Sale[]
   purchases Purchase[]
   returns   Return[]
+  writeOffs BatchWriteOff[]
 
   @@map("users")
 }
@@ -92,9 +97,26 @@ model Batch {
   product       Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
   saleItems     SaleItem[]
   purchaseItems PurchaseItem[]
+  writeOffs     BatchWriteOff[]
 
   @@index([productId, expiryDate])
   @@map("batches")
+}
+
+// Logs a batch write-off (expired stock pulled off the shelf) — the batch row
+// itself is kept, only its quantity is zeroed, so past SaleItem references
+// never dangle.
+model BatchWriteOff {
+  id        Int      @id @default(autoincrement())
+  batchId   Int      @map("batch_id")
+  quantity  Int
+  userId    Int      @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@map("batch_write_offs")
 }
 
 model Supplier {

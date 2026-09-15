@@ -7,6 +7,8 @@ interface PharmacySettings {
   pharmacyName: string | null;
   pharmacyAddress: string | null;
   pharmacyPhone: string | null;
+  /** Whether this machine runs the bundled database and server, or uses another computer's. */
+  serverMode: 'local' | 'remote';
 }
 
 declare global {
@@ -20,6 +22,13 @@ declare global {
 
   type LicenseCheck = { valid: true; payload: LicensePayload } | { valid: false; error: string };
 
+  /** Progress of the database and server this installation carries with it (see src/main/backend). */
+  type BackendStatus =
+    | { status: 'disabled' }
+    | { status: 'starting'; stage: 'database' | 'schema' | 'server' }
+    | { status: 'ready' }
+    | { status: 'failed'; message: string };
+
   interface Window {
     pharmacy: {
       printReceipt: (receipt: ReceiptData) => Promise<void>;
@@ -28,6 +37,7 @@ declare global {
       setSettings: (patch: Partial<PharmacySettings>) => Promise<void>;
       saveFile: (suggestedName: string, data: ArrayBuffer) => Promise<void>;
       syncLogo: (serverUrl: string, updatedAt: string | null) => Promise<void>;
+      getBackendStatus: () => Promise<BackendStatus>;
       getMachineId: () => Promise<string>;
       getLicenseStatus: () => Promise<LicenseCheck>;
       activateLicense: (key: string) => Promise<LicenseCheck>;

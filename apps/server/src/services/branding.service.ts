@@ -1,10 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import { config } from '../config.js';
 
 function brandingDir() {
-  return path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'uploads', 'pharmacy');
+  return path.join(config.uploadsDir, 'pharmacy');
 }
 
 function logoPath() {

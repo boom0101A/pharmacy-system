@@ -49,7 +49,6 @@ export interface Product {
   activeIngredient: string | null;
   dosageForm: string | null;
   strength: string | null;
-  isActive: boolean;
 }
 
 export interface ProductInput {
@@ -299,6 +298,15 @@ export interface LowStockReportRow {
   productName: string;
   stock: number;
   reorderLevel: number;
+}
+
+export interface WriteOffReportRow {
+  id: number;
+  productName: string;
+  quantity: number;
+  batchExpiryDate: string | null;
+  userName: string;
+  createdAt: string;
 }
 
 export interface ReceiptLine {

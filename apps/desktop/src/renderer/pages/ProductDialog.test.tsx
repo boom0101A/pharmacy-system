@@ -34,7 +34,6 @@ const BASE_PRODUCT: Product = {
   activeIngredient: null,
   dosageForm: null,
   strength: null,
-  isActive: true,
 };
 
 function renderDialog(product: Product | null) {

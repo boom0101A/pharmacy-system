@@ -1,14 +1,96 @@
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { printBarcodeLabel, printReceipt } from './printer.js';
 import { settingsStore } from './settings-store.js';
 import { getMachineId } from './license.js';
 import { licenseStore } from './licenseStore.js';
+import { resolveBackendPaths } from './backend/paths.js';
+import { startBundledBackend, type BackendStatus } from './backend/bootstrap.js';
+import { stopAllTrackedProcesses } from './backend/processRegistry.js';
+import { toErrorMessage } from './backend/errorMessage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL;
+
+/** The bundled database's port. Only ever reached over the loopback interface — other tills talk to the Express server, never to Postgres. */
+const BUNDLED_DB_PORT = 5433;
+/** Matches the app's own default server URL and the address other tills are told to use. */
+const SERVER_PORT = 3000;
+
+
+let backendState: BackendStatus = { status: 'disabled' };
+let mainWindow: BrowserWindow | undefined;
+
+// A second launch would otherwise race the first for the same database
+// cluster, the same port, and the same secrets.json — quit immediately and
+// let the first instance carry on.
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+}
+
+app.on('second-instance', () => {
+  if (!mainWindow) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+});
+
+/**
+ * A startup failure on a client's machine is otherwise invisible — the window
+ * just never connects. This file is the first thing to ask for when someone
+ * reports "تعذّر الاتصال بالخادم".
+ */
+function logBootstrap(message: string) {
+  try {
+    const dir = path.join(app.getPath('userData'), 'logs');
+    fsSync.mkdirSync(dir, { recursive: true });
+    fsSync.appendFileSync(
+      path.join(dir, 'bootstrap.log'),
+      `${new Date().toISOString()} ${message}\n`,
+    );
+  } catch {
+    // Logging must never be the thing that breaks startup.
+  }
+}
+
+/**
+ * Starts the database and server this installation carries with it, so a
+ * fresh machine needs nothing installed beforehand. Skipped when the user has
+ * pointed this till at another computer — then that computer is the server.
+ */
+async function startBackendIfLocal() {
+  if (settingsStore.get('serverMode') === 'remote') {
+    backendState = { status: 'disabled' };
+    return;
+  }
+
+  backendState = { status: 'starting', stage: 'database' };
+  logBootstrap(`starting (packaged=${app.isPackaged}, resources=${process.resourcesPath})`);
+  try {
+    await startBundledBackend(
+      resolveBackendPaths({
+        isPackaged: app.isPackaged,
+        resourcesPath: process.resourcesPath,
+        userDataPath: app.getPath('userData'),
+        repoRoot: path.join(__dirname, '..', '..', '..', '..'),
+      }),
+      process.execPath,
+      { dbPort: BUNDLED_DB_PORT, serverPort: SERVER_PORT },
+      (stage) => {
+        backendState = { status: 'starting', stage };
+        logBootstrap(`stage: ${stage}`);
+      },
+    );
+    backendState = { status: 'ready' };
+    logBootstrap('ready');
+  } catch (err) {
+    backendState = { status: 'failed', message: toErrorMessage(err) };
+    logBootstrap(`FAILED: ${err instanceof Error ? err.stack ?? err.message : toErrorMessage(err)}`);
+  }
+}
 
 /** Where this till's synced copy of the server's logo lives, for printing without a live network round-trip. */
 function logoCachePath(): string {
@@ -24,6 +106,29 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
+  mainWindow = win;
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = undefined;
+  });
+  // Closing the only window on the till that hosts the bundled database and
+  // server cuts off every other till on the network with no warning — this
+  // machine is a server as much as it is a cashier station.
+  win.on('close', (event) => {
+    if (BrowserWindow.getAllWindows().length > 1) return;
+    if (settingsStore.get('serverMode') !== 'local') return;
+    if (backendState.status !== 'ready') return;
+
+    const choice = dialog.showMessageBoxSync(win, {
+      type: 'warning',
+      buttons: ['إغلاق', 'إلغاء'],
+      defaultId: 1,
+      cancelId: 1,
+      title: 'تحذير',
+      message: 'هذا الجهاز هو الخادم لكل الأجهزة الأخرى على الشبكة',
+      detail: 'سيُقطَع الاتصال عن كل الأجهزة الأخرى المتصلة بهذا الجهاز إذا أغلقت التطبيق الآن. هل تريد الإغلاق؟',
+    });
+    if (choice === 1) event.preventDefault();
+  });
 
   // Nothing flashes an empty white window before React has anything to paint.
   win.once('ready-to-show', () => win.show());
@@ -35,16 +140,37 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
-  createWindow();
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (gotSingleInstanceLock) {
+  app.whenReady().then(() => {
+    // The window comes up first and shows the splash while this runs: a first
+    // launch has to create a database cluster, which takes tens of seconds, and
+    // a blank screen for that long looks like a hang.
+    void startBackendIfLocal();
+    createWindow();
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-});
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+// Without this the database keeps running after the app closes, holding its
+// port and its data directory lock against the next launch. Unconditional:
+// quitting mid-first-run (before startBundledBackend's promise ever settles)
+// would otherwise skip cleanup entirely, even though Postgres is already
+// tracked and running by that point.
+let quitting = false;
+app.on('will-quit', (event) => {
+  if (quitting) return;
+  quitting = true;
+  event.preventDefault();
+  stopAllTrackedProcesses().finally(() => app.quit());
+});
+
+ipcMain.handle('backend:status', () => backendState);
 
 ipcMain.handle('print-receipt', async (_event, receipt) => {
   const settings = settingsStore.getAll();

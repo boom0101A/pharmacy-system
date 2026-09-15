@@ -10,7 +10,7 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-type Tab = 'sales' | 'top-products' | 'by-category' | 'expiry' | 'low-stock';
+type Tab = 'sales' | 'top-products' | 'by-category' | 'expiry' | 'low-stock' | 'write-offs';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'sales', label: 'المبيعات' },
@@ -18,6 +18,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'by-category', label: 'حسب التصنيف' },
   { key: 'expiry', label: 'الصلاحية' },
   { key: 'low-stock', label: 'المخزون المنخفض' },
+  { key: 'write-offs', label: 'الخسائر' },
 ];
 
 /** Maps each tab to the report key that feeds it, for the per-tab error banner below. */
@@ -27,6 +28,7 @@ const TAB_REPORT_KEY = {
   'by-category': 'byCategory',
   expiry: 'expiry',
   'low-stock': 'lowStock',
+  'write-offs': 'writeOffs',
 } as const;
 
 const REPORT_LABEL: Record<string, string> = {
@@ -36,6 +38,7 @@ const REPORT_LABEL: Record<string, string> = {
   expiry: 'تقرير الصلاحية',
   lowStock: 'المخزون المنخفض',
   profit: 'تقرير الأرباح',
+  writeOffs: 'سجل الخسائر',
 };
 
 export function Reports() {
@@ -47,7 +50,7 @@ export function Reports() {
   const [to, setTo] = useState(today);
   const [tab, setTab] = useState<Tab>('sales');
 
-  const { sales, topProducts, byCategory, expiry, lowStock, profit, errors } = useReportsData(
+  const { sales, topProducts, byCategory, expiry, lowStock, profit, writeOffs, errors } = useReportsData(
     from,
     to,
     canSeeProfit,
@@ -61,18 +64,20 @@ export function Reports() {
 
   return (
     <div>
-      <div className={styles.filters}>
-        {tab !== 'expiry' && (
-          <Input label="من" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-        )}
-        <Input
-          label={tab === 'expiry' ? 'حتى تاريخ' : 'إلى'}
-          type="date"
-          value={to}
-          onChange={(e) => setTo(e.target.value)}
-          hint={tab === 'expiry' ? 'الدفعات المنتهية حتى هذا التاريخ' : undefined}
-        />
-      </div>
+      {tab !== 'write-offs' && (
+        <div className={styles.filters}>
+          {tab !== 'expiry' && (
+            <Input label="من" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+          )}
+          <Input
+            label={tab === 'expiry' ? 'حتى تاريخ' : 'إلى'}
+            type="date"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+            hint={tab === 'expiry' ? 'الدفعات المنتهية حتى هذا التاريخ' : undefined}
+          />
+        </div>
+      )}
 
       {canSeeProfit && errors.profit && (
         <p className={styles.error}>تعذّر تحميل {REPORT_LABEL.profit}: {errors.profit}</p>
@@ -189,6 +194,31 @@ export function Reports() {
                 <td>{row.productName}</td>
                 <td className="numeric">{row.stock}</td>
                 <td className="numeric">{row.reorderLevel}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {tab === 'write-offs' && (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>الصنف</th>
+              <th>الكمية</th>
+              <th>تاريخ انتهاء الدفعة</th>
+              <th>بواسطة</th>
+              <th>التاريخ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {writeOffs.map((row) => (
+              <tr key={row.id}>
+                <td>{row.productName}</td>
+                <td className="numeric">{row.quantity}</td>
+                <td>{formatDate(row.batchExpiryDate)}</td>
+                <td>{row.userName}</td>
+                <td>{formatDate(row.createdAt)}</td>
               </tr>
             ))}
           </tbody>

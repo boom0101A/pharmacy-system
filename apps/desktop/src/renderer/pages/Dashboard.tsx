@@ -18,6 +18,10 @@ export function Dashboard() {
   const toast = useToast();
   const { can } = useAuth();
   const canManageCategories = can('admin', 'pharmacist');
+  // The server already zeroes these two figures for a cashier (see
+  // maskSalesForRole), but showing a literal "0" would read as "no sales
+  // today" — actively misleading rather than merely withheld.
+  const canSeeSales = can('admin', 'pharmacist');
   const stockVersion = useStockVersion((s) => s.version);
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,25 +97,29 @@ export function Dashboard() {
   return (
     <div>
       <div className={styles.grid}>
-        <div className={cx(styles.stat, styles.statHero)}>
-          <span className={styles.statIcon}>
-            <DollarSign size={20} />
-          </span>
-          <div>
-            <div className={cx(styles.statValue, 'numeric')}>{formatMoney(salesTotal)}</div>
-            <div className={styles.statLabel}>مبيعات اليوم</div>
+        {canSeeSales && (
+          <div className={cx(styles.stat, styles.statHero)}>
+            <span className={styles.statIcon}>
+              <DollarSign size={20} />
+            </span>
+            <div>
+              <div className={cx(styles.statValue, 'numeric')}>{formatMoney(salesTotal)}</div>
+              <div className={styles.statLabel}>مبيعات اليوم</div>
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className={styles.stat}>
-          <span className={styles.statIcon}>
-            <Receipt size={20} />
-          </span>
-          <div>
-            <div className={cx(styles.statValue, 'numeric')}>{salesCount}</div>
-            <div className={styles.statLabel}>عدد الفواتير</div>
+        {canSeeSales && (
+          <div className={styles.stat}>
+            <span className={styles.statIcon}>
+              <Receipt size={20} />
+            </span>
+            <div>
+              <div className={cx(styles.statValue, 'numeric')}>{salesCount}</div>
+              <div className={styles.statLabel}>عدد الفواتير</div>
+            </div>
           </div>
-        </div>
+        )}
 
         <Link to="/inventory?filter=low" className={styles.stat}>
           <span className={styles.statIcon}>

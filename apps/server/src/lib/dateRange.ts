@@ -29,3 +29,20 @@ export function resolveRange(from?: Date, to?: Date) {
     : new Date(end.getTime() - 30 * 86_400_000);
   return { start, end };
 }
+
+/**
+ * Baghdad midnight for "now", as a UTC instant — for "today"'s totals
+ * (dashboard) where there is no `from`/`to` query input to anchor to.
+ * `new Date(); setHours(0,0,0,0)` instead reads the *server's own* system
+ * clock/timezone, which on a Windows till is whatever its OS locale happens
+ * to be set to, not necessarily Baghdad.
+ */
+export function startOfTodayBaghdad(now: Date = new Date()): Date {
+  const baghdadNow = new Date(now.getTime() + BAGHDAD_OFFSET_MS);
+  const baghdadMidnightAsUtc = Date.UTC(
+    baghdadNow.getUTCFullYear(),
+    baghdadNow.getUTCMonth(),
+    baghdadNow.getUTCDate(),
+  );
+  return new Date(baghdadMidnightAsUtc - BAGHDAD_OFFSET_MS);
+}

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { checkRole, requireAuth } from '../middleware/auth.js';
+import { parseIdParam } from '../lib/parseIdParam.js';
 
 export const suppliersRouter = Router();
 suppliersRouter.use(requireAuth);
@@ -37,10 +38,11 @@ suppliersRouter.put(
   '/:id',
   checkRole('admin', 'pharmacist'),
   asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id, 'معرّف المورّد');
     const data = supplierSchema.parse(req.body);
     res.json(
       await prisma.supplier.update({
-        where: { id: Number(req.params.id) },
+        where: { id },
         data: { name: data.name, phone: data.phone || null, address: data.address || null },
       }),
     );
@@ -51,7 +53,7 @@ suppliersRouter.delete(
   '/:id',
   checkRole('admin'),
   asyncHandler(async (req, res) => {
-    await prisma.supplier.delete({ where: { id: Number(req.params.id) } });
+    await prisma.supplier.delete({ where: { id: parseIdParam(req.params.id, 'معرّف المورّد') } });
     res.status(204).end();
   }),
 );

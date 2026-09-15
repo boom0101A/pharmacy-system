@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Batch, Product } from '@pharmacy/shared-types';
 import styles from './Inventory.module.css';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Dialog } from '../components/ui/Dialog';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -39,6 +40,9 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
   const canDeleteBatch = useAuth((s) => s.can('admin'));
   const [batches, setBatches] = useState<Batch[]>([]);
   const [savingBatchId, setSavingBatchId] = useState<number | null>(null);
+  const [deletingBatchId, setDeletingBatchId] = useState<number | null>(null);
+  const [writeOffTarget, setWriteOffTarget] = useState<Batch | null>(null);
+  const [writingOff, setWritingOff] = useState(false);
 
   // A warning, not a block — a batch might genuinely be received already
   // expired (e.g. to log it before returning it to the supplier). The sale
@@ -110,6 +114,8 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
   }
 
   async function deleteBatch(batch: Batch) {
+    if (deletingBatchId !== null) return;
+    setDeletingBatchId(batch.id);
     try {
       await api.deleteBatch(batch.id);
       toast.success('تم حذف الدفعة', undefined, { kind: 'delete' });
@@ -117,6 +123,24 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
       onSaved();
     } catch (err) {
       toast.error('تعذّر الحذف', (err as Error).message);
+    } finally {
+      setDeletingBatchId(null);
+    }
+  }
+
+  async function confirmWriteOff() {
+    if (!writeOffTarget) return;
+    setWritingOff(true);
+    try {
+      await api.writeOffBatch(writeOffTarget.id);
+      toast.success('تم إتلاف الدفعة', `${writeOffTarget.quantity} ${product?.unit ?? ''}`, { kind: 'delete' });
+      if (product) loadBatches(product.id);
+      onSaved();
+    } catch (err) {
+      toast.error('تعذّر الإتلاف', (err as Error).message);
+    } finally {
+      setWritingOff(false);
+      setWriteOffTarget(null);
     }
   }
 
@@ -186,30 +210,54 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
                   batch={batch}
                   canDelete={canDeleteBatch}
                   saving={savingBatchId === batch.id}
+                  deleting={deletingBatchId === batch.id}
                   onSave={(expiry, number) => saveBatchEdit(batch, expiry, number)}
                   onDelete={() => deleteBatch(batch)}
+                  onWriteOff={() => setWriteOffTarget(batch)}
                 />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      <ConfirmDialog
+        open={writeOffTarget !== null}
+        onOpenChange={(open) => !open && setWriteOffTarget(null)}
+        title="إتلاف الدفعة؟"
+        description={
+          writeOffTarget
+            ? `سيُصفَّر رصيد هذه الدفعة (${writeOffTarget.quantity} ${product?.unit ?? ''}) بعد إخراجها فعلياً من الرف. لا يمكن التراجع.`
+            : undefined
+        }
+        confirmLabel={writingOff ? 'جارٍ الإتلاف…' : 'نعم، أتلف الكمية'}
+        onConfirm={confirmWriteOff}
+      />
     </Dialog>
   );
+}
+
+/** Local calendar date string, matching todayIsoDate() above — a batch expiring today is still sellable and not yet write-off-eligible. */
+function isExpired(expiryDate: string | null): boolean {
+  return expiryDate !== null && expiryDate.slice(0, 10) < todayIsoDate();
 }
 
 function BatchRow({
   batch,
   canDelete,
   saving,
+  deleting,
   onSave,
   onDelete,
+  onWriteOff,
 }: {
   batch: Batch;
   canDelete: boolean;
   saving: boolean;
+  deleting: boolean;
   onSave: (expiry: string, number: string) => void;
   onDelete: () => void;
+  onWriteOff: () => void;
 }) {
   const [expiry, setExpiry] = useState(batch.expiryDate ? batch.expiryDate.slice(0, 10) : '');
   const [number, setNumber] = useState(batch.batchNumber ?? '');
@@ -231,8 +279,13 @@ function BatchRow({
               حفظ
             </Button>
           )}
+          {batch.quantity > 0 && isExpired(batch.expiryDate) && (
+            <Button variant="outline" size="sm" onClick={onWriteOff}>
+              إتلاف
+            </Button>
+          )}
           {canDelete && batch.quantity === 0 && (
-            <Button variant="outline" size="sm" onClick={onDelete} aria-label="حذف الدفعة">
+            <Button variant="outline" size="sm" disabled={deleting} onClick={onDelete} aria-label="حذف الدفعة">
               <Trash2 size={14} />
             </Button>
           )}

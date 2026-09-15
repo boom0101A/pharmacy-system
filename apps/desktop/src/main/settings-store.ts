@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
+import { writeFileAtomic } from './backend/atomicWrite.js';
 
 export interface Settings {
   printerPath: string | null;
@@ -10,6 +11,12 @@ export interface Settings {
   pharmacyPhone: string | null;
   /** The server's logo `updatedAt` last cached to disk here (see logo:sync in main.ts) — null means either no logo has ever synced, or the server has none. */
   logoCachedVersion: string | null;
+  /**
+   * `local` — this machine runs the bundled database and server, and serves
+   * any other till on the network. `remote` — another computer does, so
+   * starting a second server here would only compete for the same port.
+   */
+  serverMode: 'local' | 'remote';
 }
 
 const DEFAULTS: Settings = {
@@ -18,6 +25,9 @@ const DEFAULTS: Settings = {
   pharmacyAddress: null,
   pharmacyPhone: null,
   logoCachedVersion: null,
+  // A fresh install is a complete system on its own — that is the entire
+  // point of shipping the database inside the installer.
+  serverMode: 'local',
 };
 
 /**
@@ -42,7 +52,7 @@ function readAll(): Settings {
 
 function writeAll(settings: Settings) {
   fs.mkdirSync(path.dirname(filePath()), { recursive: true });
-  fs.writeFileSync(filePath(), JSON.stringify(settings, null, 2));
+  writeFileAtomic(filePath(), JSON.stringify(settings, null, 2));
 }
 
 export const settingsStore = {

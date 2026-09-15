@@ -6,6 +6,8 @@ vi.mock('../lib/api.js', () => ({
   api: {
     batches: vi.fn().mockResolvedValue([]),
     createBatch: vi.fn(),
+    writeOffBatch: vi.fn().mockResolvedValue({}),
+    deleteBatch: vi.fn(),
   },
 }));
 vi.mock('../store/auth.js', () => ({
@@ -14,6 +16,7 @@ vi.mock('../store/auth.js', () => ({
 
 const { ToastProvider } = await import('../components/ui/Toast');
 const { ReceiveStockDialog } = await import('./ReceiveStockDialog');
+const { api } = await import('../lib/api.js');
 
 const product = {
   id: 1,
@@ -62,5 +65,59 @@ describe('ReceiveStockDialog expiry warning', () => {
     renderDialog();
     await new Promise((r) => setTimeout(r, 0));
     expect(screen.queryByText(/تاريخ في الماضي/)).toBeNull();
+  });
+});
+
+describe('ReceiveStockDialog write-off', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows a write-off button only for a batch that has actually expired and still has stock', async () => {
+    vi.mocked(api.batches).mockResolvedValue([
+      { id: 10, productId: 1, batchNumber: null, expiryDate: isoDate(-5), quantity: 4, purchasePrice: 500, receivedAt: isoDate(-100), openedSubUnits: 0 },
+      { id: 11, productId: 1, batchNumber: null, expiryDate: isoDate(30), quantity: 4, purchasePrice: 500, receivedAt: isoDate(-1), openedSubUnits: 0 },
+      { id: 12, productId: 1, batchNumber: null, expiryDate: isoDate(-5), quantity: 0, purchasePrice: 500, receivedAt: isoDate(-200), openedSubUnits: 0 },
+    ] as never);
+    renderDialog();
+
+    const writeOffButtons = await screen.findAllByRole('button', { name: 'إتلاف' });
+    expect(writeOffButtons).toHaveLength(1);
+  });
+
+  it('calls api.writeOffBatch with the batch id after confirming', async () => {
+    vi.mocked(api.batches).mockResolvedValue([
+      { id: 10, productId: 1, batchNumber: null, expiryDate: isoDate(-5), quantity: 4, purchasePrice: 500, receivedAt: isoDate(-100), openedSubUnits: 0 },
+    ] as never);
+    renderDialog();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'إتلاف' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'نعم، أتلف الكمية' }));
+
+    await new Promise((r) => setTimeout(r, 0));
+    expect(api.writeOffBatch).toHaveBeenCalledWith(10);
+  });
+});
+
+describe('ReceiveStockDialog batch delete', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('does not send a second delete request while the first one is still in flight (a double-click race)', async () => {
+    vi.mocked(api.batches).mockResolvedValue([
+      { id: 20, productId: 1, batchNumber: null, expiryDate: null, quantity: 0, purchasePrice: 500, receivedAt: isoDate(-100), openedSubUnits: 0 },
+    ] as never);
+    let resolveDelete!: () => void;
+    vi.mocked(api.deleteBatch).mockReturnValue(new Promise<void>((resolve) => (resolveDelete = resolve)));
+    renderDialog();
+
+    const deleteButton = await screen.findByRole('button', { name: 'حذف الدفعة' });
+    fireEvent.click(deleteButton);
+    fireEvent.click(deleteButton);
+    fireEvent.click(deleteButton);
+
+    expect(api.deleteBatch).toHaveBeenCalledTimes(1);
+    resolveDelete();
   });
 });

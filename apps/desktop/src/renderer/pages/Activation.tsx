@@ -52,6 +52,11 @@ export function Activation({ onActivated }: ActivationProps) {
       } else {
         setError(result.error);
       }
+    } catch (err) {
+      // Distinct from an invalid key: the IPC call itself failed, so there is
+      // no `result` to read `.error` from — without this, the first screen
+      // the customer ever sees would fail with no explanation at all.
+      setError((err as Error).message || 'تعذّر التحقق من مفتاح الترخيص');
     } finally {
       setActivating(false);
     }

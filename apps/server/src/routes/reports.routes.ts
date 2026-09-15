@@ -5,6 +5,7 @@ import { asyncHandler } from '../middleware/errors.js';
 import { checkRole, requireAuth } from '../middleware/auth.js';
 import { resolveRange } from '../lib/dateRange.js';
 import { fromMinorUnits, toMinorUnits } from '../lib/money.js';
+import { getWriteOffsReport } from '../services/reports.service.js';
 
 export const reportsRouter = Router();
 reportsRouter.use(requireAuth);
@@ -147,6 +148,14 @@ reportsRouter.get(
         .filter((p) => p.stock <= p.reorderLevel)
         .sort((a, b) => a.stock - b.stock),
     );
+  }),
+);
+
+/** A simple audit log, not a bucketed chart — every entry is rare enough that no date range or pagination is needed yet. */
+reportsRouter.get(
+  '/write-offs',
+  asyncHandler(async (_req, res) => {
+    res.json(await getWriteOffsReport());
   }),
 );
 

@@ -11,7 +11,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import readline from 'node:readline/promises';
-import { pathToFileURL } from 'node:url';
+import { isDirectCliRun } from '../src/lib/directRun.js';
 import { prisma } from '../src/prisma.js';
 import { config } from '../src/config.js';
 import { writeBackup } from '../src/backup.js';
@@ -30,6 +30,7 @@ interface BackupPayload {
     saleItems: unknown[];
     returns: unknown[];
     returnItems: unknown[];
+    batchWriteOffs: unknown[];
   };
 }
 
@@ -65,6 +66,7 @@ export async function applyRestore(payload: BackupPayload): Promise<void> {
     await tx.sale.deleteMany();
     await tx.purchaseItem.deleteMany();
     await tx.purchase.deleteMany();
+    await tx.batchWriteOff.deleteMany();
     await tx.batch.deleteMany();
     await tx.product.deleteMany();
     await tx.supplier.deleteMany();
@@ -79,6 +81,7 @@ export async function applyRestore(payload: BackupPayload): Promise<void> {
     if (t.suppliers.length) await tx.supplier.createMany({ data: t.suppliers as never[] });
     if (t.products.length) await tx.product.createMany({ data: t.products as never[] });
     if (t.batches.length) await tx.batch.createMany({ data: t.batches as never[] });
+    if (t.batchWriteOffs.length) await tx.batchWriteOff.createMany({ data: t.batchWriteOffs as never[] });
     if (t.purchases.length) await tx.purchase.createMany({ data: t.purchases as never[] });
     if (t.purchaseItems.length) await tx.purchaseItem.createMany({ data: t.purchaseItems as never[] });
     if (t.sales.length) await tx.sale.createMany({ data: t.sales as never[] });
@@ -90,7 +93,7 @@ export async function applyRestore(payload: BackupPayload): Promise<void> {
     // autoincrement sequence — without this, the next INSERT with no
     // explicit id would collide with a restored row.
     const tables = [
-      'users', 'categories', 'suppliers', 'products', 'batches',
+      'users', 'categories', 'suppliers', 'products', 'batches', 'batch_write_offs',
       'purchases', 'purchase_items', 'sales', 'sale_items', 'returns', 'return_items',
     ];
     for (const table of tables) {
@@ -163,7 +166,7 @@ async function main() {
 // relative path as tsx hands it to us, not a URL — pathToFileURL resolves
 // and encodes it (drive letter, spaces, backslashes) the same way Node
 // resolves `import.meta.url`, so the two are actually comparable.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (isDirectCliRun(import.meta.url, process.argv[1], 'restore')) {
   main()
     .catch((err) => {
       console.error('\nفشلت الاستعادة — لم يُغيَّر شيء (المعاملة كاملة أُلغيت):');

@@ -5,6 +5,7 @@ import type { User } from '@pharmacy/shared-types';
 import { prisma } from '../prisma.js';
 import { AppError, asyncHandler } from '../middleware/errors.js';
 import { checkRole, requireAuth } from '../middleware/auth.js';
+import { parseIdParam } from '../lib/parseIdParam.js';
 
 export const usersRouter = Router();
 usersRouter.use(requireAuth);
@@ -74,7 +75,7 @@ usersRouter.post(
 usersRouter.put(
   '/:id',
   asyncHandler(async (req, res) => {
-    const targetId = Number(req.params.id);
+    const targetId = parseIdParam(req.params.id, 'معرّف المستخدم');
     const data = updateSchema.parse(req.body);
 
     // Guards against locking yourself out: you can't demote yourself off
@@ -104,7 +105,7 @@ usersRouter.put(
 usersRouter.delete(
   '/:id',
   asyncHandler(async (req, res) => {
-    const targetId = Number(req.params.id);
+    const targetId = parseIdParam(req.params.id, 'معرّف المستخدم');
     if (targetId === req.auth!.userId) {
       throw new AppError(400, 'لا يمكنك حذف حسابك الخاص');
     }

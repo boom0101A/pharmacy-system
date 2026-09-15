@@ -17,6 +17,11 @@ apps/server/uploads/
 apps/server/backups/
 apps/server/logs/
 
+# The trimmed PostgreSQL engine the installer ships with. Re-fetched on demand
+# by apps/desktop/scripts/fetch-postgres.mjs — ~60 MB of third-party binaries
+# that would bloat the repo for no benefit.
+apps/desktop/vendor/
+
 # The private half of the license-signing keypair, and the record of who has
 # been issued a key. Never shipped, never committed — see
 # scripts/generate-license-keypair.mjs. Only the public key (a short string
