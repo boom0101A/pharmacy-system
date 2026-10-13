@@ -188,6 +188,7 @@ export function Purchases() {
                   <td>
                     <NumberCellInput
                       min={1}
+                      aria-label={`كمية `}
                       className={styles.cellInput}
                       value={line.quantity}
                       onCommit={(quantity) => updateLine(line.key, { quantity })}
@@ -196,6 +197,7 @@ export function Purchases() {
                   <td>
                     <NumberCellInput
                       min={0}
+                      aria-label={`سعر شراء `}
                       className={styles.cellInput}
                       value={line.unitPrice}
                       onCommit={(unitPrice) => updateLine(line.key, { unitPrice })}
@@ -203,6 +205,7 @@ export function Purchases() {
                   </td>
                   <td>
                     <input
+                      aria-label={`رقم دفعة `}
                       className={styles.cellInput}
                       value={line.batchNumber ?? ''}
                       onChange={(e) => updateLine(line.key, { batchNumber: e.target.value || null })}
@@ -211,13 +214,19 @@ export function Purchases() {
                   <td>
                     <input
                       type="date"
+                      aria-label={`تاريخ انتهاء `}
                       className={styles.cellInput}
                       value={line.expiryDate?.slice(0, 10) ?? ''}
                       onChange={(e) => updateLine(line.key, { expiryDate: e.target.value || null })}
                     />
                   </td>
                   <td>
-                    <button type="button" className={styles.removeLine} onClick={() => removeLine(line.key)}>
+                    <button
+                      type="button"
+                      className={styles.removeLine}
+                      onClick={() => removeLine(line.key)}
+                      aria-label={`حذف `}
+                    >
                       <Trash2 size={14} />
                     </button>
                   </td>

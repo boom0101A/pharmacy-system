@@ -4,6 +4,7 @@ import styles from './Reports.module.css';
 import { Input } from '../components/ui/Input';
 import { baghdadToday, formatDate, formatMoney } from '../lib/cx';
 import { useReportsData } from '../lib/useReportsData.js';
+import { profitMargin } from '../lib/profitMargin';
 import { useAuth } from '../store/auth';
 
 function isoDate(d: Date): string {
@@ -58,7 +59,7 @@ export function Reports() {
 
   const totalRevenue = sales.reduce((sum, p) => sum + p.total, 0);
   const totalProfit = profit.reduce((sum, p) => sum + p.profit, 0);
-  const margin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0;
+  const margin = profitMargin(profit);
   const currentReportKey = TAB_REPORT_KEY[tab];
   const currentError = errors[currentReportKey];
 

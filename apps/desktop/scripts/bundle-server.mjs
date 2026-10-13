@@ -12,6 +12,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
+import os from 'node:os';
+import { spawnSync } from 'node:child_process';
+import { collectDependencyClosure } from './dependencyClosure.mjs';
 
 const desktopRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = path.join(desktopRoot, '..', '..');
@@ -24,7 +27,10 @@ const outDir = path.join(desktopRoot, 'build-resources', 'server');
  * binary or a platform-specific sub-package has to stay external — esbuild
  * would inline the JavaScript and leave the binary behind.
  */
-const NATIVE_PACKAGES = ['@prisma/client', '.prisma', 'sharp', '@img'];
+const NATIVE_PACKAGES = ['@prisma/client', 'sharp'];
+
+/** Prisma's generated client: not an npm package (no package.json of its own), so it is copied as a folder. */
+const GENERATED_FOLDERS = ['.prisma'];
 
 const entry = path.join(serverRoot, 'dist', 'src', 'index.js');
 if (!fs.existsSync(entry)) {
@@ -69,7 +75,10 @@ fs.cpSync(path.join(serverRoot, 'public'), path.join(outDir, 'public'), { recurs
 const isPrismaTmpFile = (entry) => /\.tmp\d*$/.test(entry);
 
 const destModules = path.join(outDir, 'node_modules');
-for (const pkg of NATIVE_PACKAGES) {
+// The native packages *and every dependency they pull in*, wherever npm put it.
+const toCopy = [...collectDependencyClosure(NATIVE_PACKAGES, rootModules), ...GENERATED_FOLDERS];
+console.log(`[bundle-server] shipping ${toCopy.length} packages: ${toCopy.join(', ')}`);
+for (const pkg of toCopy) {
   const from = path.join(rootModules, pkg);
   if (!fs.existsSync(from)) {
     throw new Error(`expected native package at ${from}`);
@@ -99,3 +108,26 @@ function sizeMb(dir) {
 }
 
 console.log(`[bundle-server] staged ${sizeMb(outDir)} MB in build-resources/server`);
+
+/**
+ * Build guard. Inside the repo, Node resolves a missing package by walking up
+ * to the repo's own node_modules, so a staged server that is missing a
+ * dependency still loads here — and crashes on the customer's machine. Load
+ * the external packages from a copy *outside* the repo, where nothing can
+ * paper over a gap, and fail the build if anything is missing.
+ */
+const probeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'pharmacy-server-probe-'));
+try {
+  fs.cpSync(outDir, probeRoot, { recursive: true });
+  const probe = spawnSync(
+    process.execPath,
+    ['--input-type=module', '-e', "await import('sharp'); await import('@prisma/client'); console.log('ok');"],
+    { cwd: probeRoot, encoding: 'utf8' },
+  );
+  if (probe.status !== 0) {
+    throw new Error(`[bundle-server] staged server cannot load its packages outside the repo:\n${probe.stderr}`);
+  }
+  console.log('[bundle-server] verified: sharp and @prisma/client load from the staged folder alone');
+} finally {
+  fs.rmSync(probeRoot, { recursive: true, force: true });
+}

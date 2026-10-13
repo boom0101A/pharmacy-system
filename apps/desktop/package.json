@@ -7,7 +7,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build && npm run build:backend && electron-builder",
+    "build": "node -e \"require('fs').rmSync('dist-electron',{recursive:true,force:true})\" && tsc -b && vite build && npm run build:backend && electron-builder",
     "build:backend": "npm run build --workspace=@pharmacy/server && node scripts/bundle-server.mjs && node scripts/fetch-postgres.mjs",
     "preview": "vite preview",
     "test": "vitest run",
@@ -48,18 +48,6 @@
         }
       ],
       "icon": "build/icon.ico"
-    },
-    "mac": {
-      "target": [
-        {
-          "target": "dmg",
-          "arch": [
-            "x64",
-            "arm64"
-          ]
-        }
-      ],
-      "icon": "build/icon.icns"
     },
     "nsis": {
       "oneClick": false,

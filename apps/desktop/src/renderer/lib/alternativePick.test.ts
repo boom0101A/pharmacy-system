@@ -22,39 +22,50 @@ function fakeProduct(id: number): Product {
     activeIngredient: null,
     dosageForm: null,
     strength: null,
+    looseSubUnits: 0,
   };
 }
 
 describe('findAlternativeProduct', () => {
   it('returns the already-loaded product without calling the server again', async () => {
     const loaded = [fakeProduct(1), fakeProduct(2)];
-    const fetchAll = vi.fn();
+    const fetchOne = vi.fn();
 
-    const result = await findAlternativeProduct(2, loaded, fetchAll);
+    const result = await findAlternativeProduct(2, loaded, fetchOne);
 
     expect(result).toBe(loaded[1]);
-    expect(fetchAll).not.toHaveBeenCalled();
+    expect(fetchOne).not.toHaveBeenCalled();
   });
 
-  it('fetches the full catalogue and finds the product by id when it is not already loaded', async () => {
-    const fetchAll = vi.fn().mockResolvedValue([fakeProduct(9)]);
+  it('fetches that one product by id when it is not already loaded — not a capped page of the catalogue', async () => {
+    const fetchOne = vi.fn().mockResolvedValue(fakeProduct(9));
 
-    const result = await findAlternativeProduct(9, [], fetchAll);
+    const result = await findAlternativeProduct(9, [], fetchOne);
 
+    expect(fetchOne).toHaveBeenCalledWith(9);
     expect(result?.id).toBe(9);
   });
 
-  it('resolves to undefined instead of throwing when the product is not found anywhere', async () => {
-    const fetchAll = vi.fn().mockResolvedValue([fakeProduct(1)]);
+  it('propagates a network failure so the caller can show an error instead of it vanishing silently', async () => {
+    const fetchOne = vi.fn().mockRejectedValue(new Error('تعذّر الاتصال بالخادم'));
 
-    const result = await findAlternativeProduct(404, [], fetchAll);
+    await expect(findAlternativeProduct(9, [], fetchOne)).rejects.toThrow('تعذّر الاتصال بالخادم');
+  });
+});
 
-    expect(result).toBeUndefined();
+describe('newCaptureFilename', async () => {
+  const { newCaptureFilename } = await import('./alternativePick.js');
+
+  it('ignores the photo the product already had before the QR code was shown', () => {
+    expect(newCaptureFilename('old.jpg', 'old.jpg')).toBeNull();
   });
 
-  it('propagates a network failure so the caller can show an error instead of it vanishing silently', async () => {
-    const fetchAll = vi.fn().mockRejectedValue(new Error('تعذّر الاتصال بالخادم'));
+  it('reports the new photo once it differs from the starting one', () => {
+    expect(newCaptureFilename('old.jpg', 'new.jpg')).toBe('new.jpg');
+    expect(newCaptureFilename(null, 'new.jpg')).toBe('new.jpg');
+  });
 
-    await expect(findAlternativeProduct(9, [], fetchAll)).rejects.toThrow('تعذّر الاتصال بالخادم');
+  it('is null while there is still no photo', () => {
+    expect(newCaptureFilename(null, null)).toBeNull();
   });
 });

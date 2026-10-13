@@ -16,8 +16,18 @@ export async function createReturn(userId: number, input: ReturnInput): Promise<
   if (input.items.length === 0) {
     throw new AppError(400, 'لم تُحدَّد أي أصناف للإرجاع');
   }
+  // The "already returned" check below reads committed return_items, and this
+  // return's own rows are only written after the loop — so the same line
+  // listed twice would pass the check twice and refund more than was sold.
+  if (new Set(input.items.map((i) => i.saleItemId)).size !== input.items.length) {
+    throw new AppError(400, 'تكرّر نفس الصنف في طلب الإرجاع — اجمع الكمية في سطر واحد');
+  }
 
   const result = await prisma.$transaction(async (tx) => {
+    // One return per invoice at a time. The per-line locks below don't stop
+    // two returns on *different* lines from both reading the same "already
+    // refunded" total and together paying out more than the invoice took in.
+    await tx.$queryRaw`SELECT id FROM sales WHERE id = ${input.saleId} FOR UPDATE`;
     const sale = await tx.sale.findUnique({
       where: { id: input.saleId },
       // Every line, not just the returned ones: the discount share is worked
@@ -37,7 +47,10 @@ export async function createReturn(userId: number, input: ReturnInput): Promise<
     // The customer paid the discounted amount, so a return gives back that same
     // share. Refunding the list price would hand them the discount back in cash
     // on top of the goods — money straight out of the till.
-    const paidRatio = subtotalMinor > 0 ? (subtotalMinor - discountMinor) / subtotalMinor : 0;
+    // Clamped: a sale saved before discounts were capped at the subtotal would
+    // otherwise produce a negative ratio, and with it a negative refund.
+    const paidRatio =
+      subtotalMinor > 0 ? Math.min(1, Math.max(0, (subtotalMinor - discountMinor) / subtotalMinor)) : 0;
 
     let totalMinor = 0;
     const affectedProductIds = new Set<number>();
@@ -102,6 +115,15 @@ export async function createReturn(userId: number, input: ReturnInput): Promise<
         isSubUnit: saleItem.isSubUnit,
       });
     }
+
+    // Each line rounds on its own, so several partial returns can add up to a
+    // cent or two more than the invoice took in (3 × 0.67 against 2.00 paid).
+    // Never let refunds on one invoice exceed what was actually paid for it.
+    const previousRefunds = await tx.return.aggregate({ where: { saleId: input.saleId }, _sum: { total: true } });
+    const refundableMinor =
+      toMinorUnits(toNumber(sale.total)) -
+      (previousRefunds._sum.total ? toMinorUnits(toNumber(previousRefunds._sum.total)) : 0);
+    totalMinor = Math.min(totalMinor, Math.max(0, refundableMinor));
 
     const created = await tx.return.create({
       data: {

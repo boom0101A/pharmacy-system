@@ -1,4 +1,5 @@
 import type { Sale, SaleInput } from '@pharmacy/shared-types';
+import { Prisma } from '@prisma/client';
 import { prisma, toNumber } from '../prisma.js';
 import { AppError } from '../middleware/errors.js';
 import { broadcastStockChanged } from '../sockets/stock.js';
@@ -66,9 +67,14 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
       quantity: number;
       unitPrice: number;
       isSubUnit: boolean;
+      subUnitsPerPackage?: number | null;
     }[] = [];
 
-    for (const line of input.items) {
+    // Locked in one global order (by product id): two sales of [A, B] and
+    // [B, A] would otherwise each hold one product's batches while waiting for
+    // the other's — a deadlock Postgres resolves by failing one sale.
+    const orderedItems = [...input.items].sort((a, b) => a.productId - b.productId);
+    for (const line of orderedItems) {
       const product = await tx.product.findUnique({ where: { id: line.productId } });
       if (!product) {
         throw new AppError(404, `الصنف رقم ${line.productId} غير موجود`);
@@ -95,7 +101,7 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
         { id: number; quantity: number; opened_sub_units: number }[]
       >`SELECT id, quantity, opened_sub_units FROM batches
          WHERE product_id = ${product.id}
-           AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
+           AND (expiry_date IS NULL OR expiry_date >= (now() AT TIME ZONE 'Asia/Baghdad')::date)
          ORDER BY expiry_date ASC NULLS LAST, received_at ASC
          FOR UPDATE`;
 
@@ -121,6 +127,7 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
               quantity: fromLoose,
               unitPrice,
               isSubUnit: true,
+              subUnitsPerPackage: product.unitsPerPackage,
             });
             remaining -= fromLoose;
           }
@@ -143,6 +150,7 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
               quantity: fromThisPackage,
               unitPrice,
               isSubUnit: true,
+              subUnitsPerPackage: product.unitsPerPackage,
             });
             remaining -= fromThisPackage;
           }
@@ -174,7 +182,12 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
     // requested ones — matters when a line was split across batches above.
     const subtotal = lineData.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0);
     const discount = input.discount ?? 0;
-    const total = Math.max(0, subtotal - discount);
+    // A discount above the subtotal used to be stored as-is (total clamped to
+    // 0), which later turned any return on the invoice into a negative refund.
+    if (discount > subtotal) {
+      throw new AppError(400, 'الخصم أكبر من مجموع الفاتورة');
+    }
+    const total = subtotal - discount;
 
     const sale = await tx.sale.create({
       data: {
@@ -188,7 +201,27 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
     });
 
     return { sale, affectedProductIds: [...affectedProductIds] };
+  }).catch((err: unknown) => {
+    // Two retries of the same checkout racing each other: both passed the
+    // lookup above, and the second insert hits the unique key. That is the
+    // idempotency doing its job — answer with the invoice that won.
+    if (
+      input.idempotencyKey &&
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === 'P2002'
+    ) {
+      return null;
+    }
+    throw err;
   });
+
+  if (result === null) {
+    const existing = await prisma.sale.findUniqueOrThrow({
+      where: { idempotencyKey: input.idempotencyKey },
+      include: { items: true },
+    });
+    return mapSale(existing);
+  }
 
   broadcastStockChanged(result.affectedProductIds);
   return mapSale(result.sale);

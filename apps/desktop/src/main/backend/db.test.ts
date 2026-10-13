@@ -51,3 +51,13 @@ describe('ensureDatabase connection timeout', () => {
     }
   }, 20_000);
 });
+
+describe('migrationChecksum', async () => {
+  const { createHash } = await import('node:crypto');
+  const { migrationChecksum } = await import('./db.js');
+
+  it('is the SHA-256 hex Prisma itself records, so `prisma migrate status` does not flag every migration as modified', () => {
+    const sql = 'CREATE TABLE x (id int);\n';
+    expect(migrationChecksum(sql)).toBe(createHash('sha256').update(sql).digest('hex'));
+  });
+});

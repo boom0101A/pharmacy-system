@@ -11,7 +11,7 @@ export const salesRouter = Router();
 salesRouter.use(requireAuth);
 
 // Cash only: no payment type, no customer, no due date.
-const saleSchema = z.object({
+export const saleSchema = z.object({
   items: z
     .array(
       z.object({
@@ -21,7 +21,7 @@ const saleSchema = z.object({
       }),
     )
     .min(1, 'الفاتورة فارغة'),
-  discount: z.number().nonnegative().default(0),
+  discount: z.number().nonnegative().finite().default(0),
   idempotencyKey: z.string().min(8).max(64).optional(),
 });
 

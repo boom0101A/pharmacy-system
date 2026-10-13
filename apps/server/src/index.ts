@@ -4,7 +4,7 @@ import { app } from './app.js';
 import { config } from './config.js';
 import { initStockSocket } from './sockets/stock.js';
 import { logger } from './lib/logger.js';
-import { createBackup } from './backup.js';
+import { createBackup, hasRecentBackup } from './backup.js';
 import { seedDefaultAccounts } from '../prisma/seed.js';
 
 const BACKUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -45,7 +45,11 @@ export function listenOrExit(
   // Injectable so a test can observe "we're listening" without triggering a
   // real backup run (a genuine Prisma query + file write) as a side effect.
   onListening: () => void = () => {
-    createBackup();
+    // Skipped when today's backup already exists — restarting the till
+    // several times a day would otherwise eat the retention window.
+    void hasRecentBackup().then((recent) => {
+      if (!recent) void createBackup();
+    });
     setInterval(createBackup, BACKUP_INTERVAL_MS);
   },
 ): void {

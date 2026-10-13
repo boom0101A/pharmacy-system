@@ -51,7 +51,11 @@ export function setServerUrl(url: string) {
   // and it cannot read localStorage — so the choice is mirrored into settings
   // the moment it is made, not on the next launch.
   void window.pharmacy?.setSettings({ serverMode: serverModeForUrl(clean) }).catch(() => {});
+  window.dispatchEvent(new CustomEvent(SERVER_URL_CHANGED_EVENT));
 }
+
+/** Fired by `setServerUrl` — long-lived connections (the stock socket) reconnect to the new address. */
+export const SERVER_URL_CHANGED_EVENT = 'pharmacy:server-url-changed';
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -229,6 +233,7 @@ export const api = {
     request<{ total: number; low: number; expiring: number; out: number }>(
       `/products/stats${search ? `?search=${encodeURIComponent(search)}` : ''}`,
     ),
+  productById: (id: number) => request<Product>(`/products/${id}`),
   productByBarcode: (barcode: string) =>
     request<Product>(`/products/barcode/${encodeURIComponent(barcode)}`),
   /** Suggestions only — a failure here must not block adding a product. */

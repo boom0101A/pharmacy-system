@@ -17,3 +17,19 @@ export function serverModeForUrl(url: string): 'local' | 'remote' {
     return 'local';
   }
 }
+
+/**
+ * The address the screen should switch to, or null to leave it alone. On the
+ * machine that runs the bundled server, an address typed by hand (say
+ * localhost:4000) used to override it permanently — the server was up, but
+ * the app kept trying the wrong port and showed "تعذّر الاتصال بالخادم"
+ * forever. An address on another computer is a deliberate choice and is kept.
+ */
+export function correctedLocalServerUrl(
+  storedUrl: string,
+  backend: BackendStatus,
+): string | null {
+  if (backend.status !== 'ready') return null;
+  if (serverModeForUrl(storedUrl) !== 'local') return null;
+  return storedUrl.replace(/\/$/, '') === backend.serverUrl ? null : backend.serverUrl;
+}

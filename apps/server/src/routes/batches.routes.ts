@@ -6,6 +6,7 @@ import { checkRole, requireAuth } from '../middleware/auth.js';
 import { broadcastStockChanged } from '../sockets/stock.js';
 import { deleteBatch, writeOffBatch } from '../services/batches.service.js';
 import { parseIdParam } from '../lib/parseIdParam.js';
+import { withoutCostFor } from '../lib/costVisibility.js';
 
 export const batchesRouter = Router();
 batchesRouter.use(requireAuth);
@@ -34,7 +35,7 @@ batchesRouter.get(
     });
 
     res.json(
-      rows.map((b) => ({
+      withoutCostFor(req.auth!.role, rows.map((b) => ({
         id: b.id,
         productId: b.productId,
         batchNumber: b.batchNumber,
@@ -43,7 +44,7 @@ batchesRouter.get(
         purchasePrice: toNumber(b.purchasePrice),
         receivedAt: b.receivedAt.toISOString(),
         openedSubUnits: b.openedSubUnits,
-      })),
+      }))),
     );
   }),
 );

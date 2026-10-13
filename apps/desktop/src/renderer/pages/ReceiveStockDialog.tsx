@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Batch, Product } from '@pharmacy/shared-types';
 import styles from './Inventory.module.css';
@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
+import { parsePriceInput } from '../lib/priceInput';
 import { useAuth } from '../store/auth';
 
 interface Props {
@@ -50,16 +51,24 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
   // batch; this is just a heads-up in case the date was a typo.
   const isPastExpiry = expiryDate !== '' && expiryDate < todayIsoDate();
 
+  // The product the dialog is showing *now*. A late batches response for a
+  // previously shown product is dropped — otherwise its rows (and their
+  // write-off buttons) appeared under the new product's title.
+  const shownProductId = useRef<number | null>(null);
+
   const loadBatches = useCallback(async (productId: number) => {
     try {
-      setBatches(await api.batches(productId));
+      const rows = await api.batches(productId);
+      if (shownProductId.current === productId) setBatches(rows);
     } catch {
-      setBatches([]);
+      if (shownProductId.current === productId) setBatches([]);
     }
   }, []);
 
   useEffect(() => {
+    shownProductId.current = product?.id ?? null;
     if (product) {
+      setBatches([]);
       setQuantity('');
       setExpiryDate('');
       setBatchNumber('');
@@ -71,6 +80,11 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!product) return;
+    const parsedPrice = parsePriceInput(purchasePrice);
+    if (parsedPrice === null) {
+      toast.error('سعر الشراء غير صالح', 'اكتب رقماً فقط، مثل 1,500');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -79,7 +93,7 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
         quantity: Number(quantity),
         expiryDate: expiryDate || null,
         batchNumber: batchNumber.trim() || null,
-        purchasePrice: Number(purchasePrice) || 0,
+        purchasePrice: parsedPrice,
       });
       toast.success('تمت إضافة الكمية', `${quantity} ${product.unit} من "${product.name}"`);
       // The dialog stays open so the new batch shows up in the list below —
@@ -267,10 +281,10 @@ function BatchRow({
     <tr>
       <td className="numeric">{batch.quantity}</td>
       <td>
-        <input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+        <input type="date" aria-label="تاريخ انتهاء الدفعة" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
       </td>
       <td>
-        <input value={number} onChange={(e) => setNumber(e.target.value)} />
+        <input aria-label="رقم الدفعة" value={number} onChange={(e) => setNumber(e.target.value)} />
       </td>
       <td>
         <div className={styles.actions}>

@@ -25,11 +25,15 @@ export async function saveProductImage(productId: number, buffer: Buffer): Promi
   await fs.mkdir(uploadDir(), { recursive: true });
 
   const filename = `${randomUUID()}.jpg`;
+  // A file that isn't an image is the uploader's mistake (400), not a server fault.
   const resized = await sharp(buffer)
     .rotate()
     .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 82 })
-    .toBuffer();
+    .toBuffer()
+    .catch(() => {
+      throw new AppError(400, 'الملف ليس صورة صالحة');
+    });
 
   await fs.writeFile(path.join(uploadDir(), filename), resized);
 

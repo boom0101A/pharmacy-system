@@ -49,6 +49,8 @@ export interface Product {
   activeIngredient: string | null;
   dosageForm: string | null;
   strength: string | null;
+  /** Loose sub-units left over in opened packages (e.g. 9 strips of a box of 10) — sellable only by the sub-unit, and not part of `stock`. */
+  looseSubUnits: number;
 }
 
 export interface ProductInput {

@@ -183,7 +183,12 @@ export function Settings() {
               type="file"
               accept="image/*"
               hidden
-              onChange={(e) => e.target.files?.[0] && pickLogo(e.target.files[0])}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // Cleared so picking the same file again (after an error) still fires onChange.
+                e.target.value = '';
+                if (file) void pickLogo(file);
+              }}
             />
             <Button
               type="button"
@@ -234,7 +239,7 @@ export function Settings() {
           عنوان الخادم
         </h2>
         <div className={styles.row}>
-          <Input value={server} onChange={(e) => setServer(e.target.value)} dir="ltr" />
+          <Input aria-label="عنوان الخادم" value={server} onChange={(e) => setServer(e.target.value)} dir="ltr" />
           <Button onClick={saveServer}>
             <Save size={16} />
             حفظ
@@ -261,10 +266,11 @@ export function Settings() {
         </h2>
         <div className={styles.row}>
           <Input
+            aria-label="منفذ الطابعة"
             value={printerPath}
             onChange={(e) => setPrinterPath(e.target.value)}
             dir="ltr"
-            placeholder="مثال: USB أو /dev/usb/lp0"
+            placeholder="مثال: COM3 أو printer:POS-80 أو tcp://192.168.1.50:9100"
             hint="منفذ الطابعة الحرارية المتصلة بجهاز الكاشير"
           />
           <Button onClick={savePrinter} disabled={savingPrinter}>

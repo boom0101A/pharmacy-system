@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
 import { config } from '../config.js';
+import { AppError } from '../middleware/errors.js';
 
 function brandingDir() {
   return path.join(config.uploadsDir, 'pharmacy');
@@ -14,11 +15,15 @@ function logoPath() {
 /** One fixed filename, always overwritten — there is only ever one pharmacy, so no id/lookup is needed. */
 export async function saveLogo(buffer: Buffer): Promise<void> {
   await fs.mkdir(brandingDir(), { recursive: true });
+  // A file that isn't an image is the uploader's mistake (400), not a server fault.
   const resized = await sharp(buffer)
     .rotate()
     .resize(512, 512, { fit: 'inside', withoutEnlargement: true })
     .png()
-    .toBuffer();
+    .toBuffer()
+    .catch(() => {
+      throw new AppError(400, 'الملف ليس صورة صالحة');
+    });
   await fs.writeFile(logoPath(), resized);
 }
 

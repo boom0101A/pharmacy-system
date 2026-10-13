@@ -13,6 +13,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { config } from '../config.js';
 import { parseIdParam } from '../lib/parseIdParam.js';
+import { withoutCostFor } from '../lib/costVisibility.js';
 
 export const productsRouter = Router();
 productsRouter.use(requireAuth);
@@ -82,7 +83,7 @@ productsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
     const query = listQuerySchema.parse(req.query);
-    res.json(await products.listProducts(query));
+    res.json(withoutCostFor(req.auth!.role, await products.listProducts(query)));
   }),
 );
 
@@ -107,7 +108,7 @@ productsRouter.get(
   asyncHandler(async (req, res) => {
     const product = await products.findByBarcode(req.params.barcode);
     if (!product) throw new AppError(404, 'لم يُعثر على صنف بهذا الباركود');
-    res.json(product);
+    res.json(withoutCostFor(req.auth!.role, [product])[0]);
   }),
 );
 
@@ -115,6 +116,17 @@ productsRouter.get(
   '/:id/alternatives',
   asyncHandler(async (req, res) => {
     res.json(await products.productAlternatives(parseIdParam(req.params.id, 'معرّف الصنف')));
+  }),
+);
+
+// Registered after the fixed paths above (/stats, /ingredients, /barcode/…) so
+// it never shadows them.
+productsRouter.get(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const product = await products.findById(parseIdParam(req.params.id, 'معرّف الصنف'));
+    if (!product) throw new AppError(404, 'الصنف غير موجود');
+    res.json(withoutCostFor(req.auth!.role, [product])[0]);
   }),
 );
 

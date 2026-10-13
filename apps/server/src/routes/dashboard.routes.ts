@@ -3,7 +3,7 @@ import { prisma, toNumber } from '../prisma.js';
 import { asyncHandler } from '../middleware/errors.js';
 import { requireAuth } from '../middleware/auth.js';
 import { productStats } from '../services/products.service.js';
-import { maskSalesForRole } from '../services/dashboard.service.js';
+import { lowStockList, maskSalesForRole } from '../services/dashboard.service.js';
 import { startOfTodayBaghdad } from '../lib/dateRange.js';
 
 export const dashboardRouter = Router();
@@ -16,17 +16,14 @@ dashboardRouter.get(
   asyncHandler(async (req, res) => {
     const startOfDay = startOfTodayBaghdad();
 
-    const [todaySales, stats, lowStockRows, expiringRows] = await Promise.all([
+    const [todaySales, stats, lowStock, expiringRows] = await Promise.all([
       prisma.sale.aggregate({
         where: { date: { gte: startOfDay } },
         _sum: { total: true },
         _count: true,
       }),
       productStats(),
-      prisma.product.findMany({
-        include: { batches: { select: { quantity: true } } },
-        take: 200,
-      }),
+      lowStockList(6),
       prisma.batch.findMany({
         where: {
           quantity: { gt: 0 },
@@ -37,17 +34,6 @@ dashboardRouter.get(
         take: 6,
       }),
     ]);
-
-    const lowStock = lowStockRows
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        stock: p.batches.reduce((sum, b) => sum + b.quantity, 0),
-        reorderLevel: p.reorderLevel,
-      }))
-      .filter((p) => p.stock > 0 && p.stock <= p.reorderLevel)
-      .sort((a, b) => a.stock - b.stock)
-      .slice(0, 6);
 
     const sales = maskSalesForRole(
       {
@@ -62,7 +48,7 @@ dashboardRouter.get(
       todaySalesCount: sales.count,
       lowStockCount: stats.low,
       expiringSoonCount: stats.expiring,
-      lowStock: lowStock.map((p) => ({ id: p.id, name: p.name, value: p.stock })),
+      lowStock,
       // Keyed by batch, not product — the same medicine can have more than one
       // batch expiring soon, and reusing the product id would collide.
       expiringSoon: expiringRows.map((b) => ({

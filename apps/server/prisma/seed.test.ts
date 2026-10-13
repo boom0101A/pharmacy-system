@@ -30,6 +30,17 @@ describe('seedDefaultAccounts', () => {
     expect(admin?.passwordHash).toBe(realHash);
   });
 
+  it('does not bring back the well-known default admin once the owner has replaced it with their own account', async () => {
+    await prisma.user.create({
+      data: { name: 'علي', username: 'ali', passwordHash: await bcrypt.hash('x', 4), role: 'admin' },
+    });
+
+    await seedDefaultAccounts();
+
+    expect(await prisma.user.findUnique({ where: { username: 'admin' } })).toBeNull();
+    expect(await prisma.user.findUnique({ where: { username: 'cashier' } })).toBeNull();
+  });
+
   it('is safe to run twice in a row without error or duplicate rows', async () => {
     await seedDefaultAccounts();
     await seedDefaultAccounts();

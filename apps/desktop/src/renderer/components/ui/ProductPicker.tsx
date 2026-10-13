@@ -23,17 +23,23 @@ export function ProductPicker({ onSelect, placeholder = 'ابحث عن دواء�
       setResults([]);
       return;
     }
+    // An older query that answers last must not overwrite the newer results.
+    let current = true;
     const timer = setTimeout(() => {
       api
         .products(query.trim(), { limit: 20 })
         .then((rows) => {
+          if (!current) return;
           setResults(rows);
           setOpen(true);
           setActiveIndex(null);
         })
-        .catch(() => setResults([]));
+        .catch(() => current && setResults([]));
     }, 200);
-    return () => clearTimeout(timer);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
   }, [query]);
 
   function select(product: Product) {
@@ -71,6 +77,7 @@ export function ProductPicker({ onSelect, placeholder = 'ابحث عن دواء�
     <div className={styles.wrap}>
       <Input
         ref={inputRef}
+        aria-label={placeholder}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={onKeyDown}

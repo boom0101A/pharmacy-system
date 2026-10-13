@@ -35,7 +35,7 @@ export const config = {
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? '12h',
   databaseUrl: required('DATABASE_URL'),
-  backupDir: process.env.BACKUP_DIR ?? './backups',
+  backupDir: process.env.BACKUP_DIR ?? inRepo('backups'),
   backupRetention: Number(process.env.BACKUP_RETENTION ?? 14),
   // Overridable so an installed copy can write under the user's data folder
   // instead of Program Files, which is read-only.

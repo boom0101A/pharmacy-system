@@ -23,20 +23,26 @@ async function dumpTables() {
     returns,
     returnItems,
     batchWriteOffs,
-  ] = await Promise.all([
-    prisma.user.findMany(),
-    prisma.category.findMany(),
-    prisma.product.findMany(),
-    prisma.batch.findMany(),
-    prisma.supplier.findMany(),
-    prisma.purchase.findMany(),
-    prisma.purchaseItem.findMany(),
-    prisma.sale.findMany(),
-    prisma.saleItem.findMany(),
-    prisma.return.findMany(),
-    prisma.returnItem.findMany(),
-    prisma.batchWriteOff.findMany(),
-  ]);
+  ] = await prisma.$transaction(
+    [
+      prisma.user.findMany(),
+      prisma.category.findMany(),
+      prisma.product.findMany(),
+      prisma.batch.findMany(),
+      prisma.supplier.findMany(),
+      prisma.purchase.findMany(),
+      prisma.purchaseItem.findMany(),
+      prisma.sale.findMany(),
+      prisma.saleItem.findMany(),
+      prisma.return.findMany(),
+      prisma.returnItem.findMany(),
+      prisma.batchWriteOff.findMany(),
+    ],
+    // One snapshot of the whole database. Twelve independent reads while the
+    // tills keep selling could capture a sale's lines without the sale (or
+    // stock that disagrees with it) — a backup the restore then refuses.
+    { isolationLevel: 'RepeatableRead' },
+  );
 
   return {
     users,
@@ -84,17 +90,42 @@ export async function backupUploads(uploadsSrc: string = defaultUploadsDir()): P
   return dest;
 }
 
+/** Keeps the newest `backupRetention` of each kind — the JSON dumps and the uploads/ copies (which otherwise grew by a full image set every run until the disk filled). */
 async function pruneOldBackups() {
-  const files = (await fs.readdir(config.backupDir))
-    .filter((f) => f.startsWith('backup-') && f.endsWith('.json'))
-    .sort(); // ISO timestamps in the filename sort chronologically as plain strings.
+  const entries = await fs.readdir(config.backupDir);
+  // ISO timestamps in the names sort chronologically as plain strings.
+  const groups = [
+    entries.filter((f) => f.startsWith('backup-') && f.endsWith('.json')).sort(),
+    entries.filter((f) => f.startsWith('uploads-')).sort(),
+  ];
 
-  const excess = files.length - config.backupRetention;
-  if (excess <= 0) return;
-
-  for (const file of files.slice(0, excess)) {
-    await fs.unlink(path.join(config.backupDir, file)).catch(() => {});
+  for (const group of groups) {
+    const excess = group.length - config.backupRetention;
+    for (const name of group.slice(0, Math.max(0, excess))) {
+      await fs.rm(path.join(config.backupDir, name), { recursive: true, force: true }).catch(() => {});
+    }
   }
+}
+
+/** Reads the timestamp back out of `backupFilename`'s naming scheme. */
+function backupDateFromName(name: string): Date | null {
+  const match = name.match(/^backup-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})\.(\d{3})Z\.json$/);
+  if (!match) return null;
+  const [, day, h, m, s, ms] = match;
+  return new Date(`${day}T${h}:${m}:${s}.${ms}Z`);
+}
+
+/**
+ * True when a backup younger than a day already exists. The server backs up at
+ * every boot; on a till restarted several times a day that used to push the
+ * fixed retention window down to a few days of real history.
+ */
+export async function hasRecentBackup(now: Date = new Date()): Promise<boolean> {
+  const entries = await fs.readdir(config.backupDir).catch(() => [] as string[]);
+  return entries.some((name) => {
+    const date = backupDateFromName(name);
+    return date !== null && now.getTime() - date.getTime() < 24 * 60 * 60 * 1000;
+  });
 }
 
 /**
@@ -111,7 +142,11 @@ export async function writeBackup(uploadsSrc?: string): Promise<string> {
   const data = { createdAt: createdAt.toISOString(), tables: await dumpTables() };
 
   const file = path.join(config.backupDir, backupFilename(createdAt));
-  await fs.writeFile(file, JSON.stringify(data));
+  // Temp file + rename: a crash mid-write must never leave a truncated file
+  // that counts toward retention and pushes a good backup out.
+  const tmp = `${file}.tmp`;
+  await fs.writeFile(tmp, JSON.stringify(data));
+  await fs.rename(tmp, file);
 
   await backupUploads(uploadsSrc);
   await pruneOldBackups();

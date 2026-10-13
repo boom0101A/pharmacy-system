@@ -11,6 +11,7 @@ import { api } from '../lib/api';
 import { generateInternalBarcode } from '../lib/barcode.js';
 import { cleanIpcError, digitsOnly, productImageUrl } from '../lib/cx';
 import { reformatPriceInput } from '../lib/priceInput.js';
+import { newCaptureFilename } from '../lib/alternativePick';
 
 interface Props {
   open: boolean;
@@ -83,7 +84,16 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
     setImageFilename(product?.imageFilename ?? null);
     setPendingImage(null);
     setImagePreview(null);
+    // Reopening for another product must not resurface the previous one's QR
+    // panel (and mint a capture token for this product nobody asked for).
+    setPhoneCaptureOpen(false);
   }, [open, product]);
+
+  // Each preview is a blob URL holding the picked file in memory until revoked.
+  useEffect(() => {
+    if (!imagePreview) return;
+    return () => URL.revokeObjectURL(imagePreview);
+  }, [imagePreview]);
 
   /**
    * F2 saves, from any field in the form — the counterpart to F1 opening it.
@@ -259,7 +269,12 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
               type="file"
               accept="image/*"
               hidden
-              onChange={(e) => e.target.files?.[0] && pickImage(e.target.files[0])}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                // Cleared so picking the same file again (after an error) still fires onChange.
+                e.target.value = '';
+                if (file) pickImage(file);
+              }}
             />
             <Button
               type="button"
@@ -446,6 +461,7 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
       {phoneCaptureOpen && product && (
         <PhoneCaptureNotice
           productId={product.id}
+          initialFilename={product.imageFilename}
           onClose={() => setPhoneCaptureOpen(false)}
           onCaptured={(filename) => {
             setImageFilename(filename);
@@ -467,10 +483,13 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
  */
 export function PhoneCaptureNotice({
   productId,
+  initialFilename = null,
   onClose,
   onCaptured,
 }: {
   productId: number;
+  /** The photo the product had when the QR code was shown — the poll waits for a different one. */
+  initialFilename?: string | null;
   onClose: () => void;
   onCaptured: (filename: string) => void;
 }) {
@@ -498,11 +517,11 @@ export function PhoneCaptureNotice({
             setExpired(true);
             return;
           }
-          const rows = await api.products().catch(() => []);
-          const fresh = rows.find((p) => p.id === productId);
-          if (fresh?.imageFilename) {
+          const fresh = await api.productById(productId).catch(() => null);
+          const captured = newCaptureFilename(initialFilename, fresh?.imageFilename ?? null);
+          if (captured) {
             window.clearInterval(pollTimer);
-            onCaptured(fresh.imageFilename);
+            onCaptured(captured);
           }
         }, 3000);
       },
@@ -515,6 +534,7 @@ export function PhoneCaptureNotice({
       cancelled = true;
       if (pollTimer !== undefined) window.clearInterval(pollTimer);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId, attempt]);
 
   useEffect(() => {

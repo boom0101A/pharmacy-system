@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../lib/api.js', () => ({
   api: {
     createCaptureToken: vi.fn(),
-    products: vi.fn(),
+    productById: vi.fn(),
   },
 }));
 vi.mock('qrcode', () => ({ default: { toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,x') } }));
@@ -31,7 +31,7 @@ describe('PhoneCaptureNotice expiry', () => {
       url: 'http://example/c/abc',
       expiresInSeconds: SHORT_TTL_SECONDS,
     });
-    (api.products as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 1, imageFilename: null }]);
+    (api.productById as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1, imageFilename: null });
 
     render(<PhoneCaptureNotice productId={1} onClose={() => {}} onCaptured={() => {}} />);
 
@@ -46,12 +46,12 @@ describe('PhoneCaptureNotice expiry', () => {
 
     expect(screen.getByText(/انتهت صلاحية/)).toBeTruthy();
 
-    // No more polling after expiry: products() call count should stop growing.
-    const callsAtExpiry = (api.products as ReturnType<typeof vi.fn>).mock.calls.length;
+    // No more polling after expiry: productById() call count should stop growing.
+    const callsAtExpiry = (api.productById as ReturnType<typeof vi.fn>).mock.calls.length;
     await act(async () => {
       await vi.advanceTimersByTimeAsync(10_000);
     });
-    expect((api.products as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsAtExpiry);
+    expect((api.productById as ReturnType<typeof vi.fn>).mock.calls.length).toBe(callsAtExpiry);
   }, 10000);
 
   it('lets the user mint a fresh token after expiry instead of being stuck', async () => {
@@ -60,7 +60,7 @@ describe('PhoneCaptureNotice expiry', () => {
       url: 'http://example/c/abc',
       expiresInSeconds: SHORT_TTL_SECONDS,
     });
-    (api.products as ReturnType<typeof vi.fn>).mockResolvedValue([{ id: 1, imageFilename: null }]);
+    (api.productById as ReturnType<typeof vi.fn>).mockResolvedValue({ id: 1, imageFilename: null });
 
     render(<PhoneCaptureNotice productId={1} onClose={() => {}} onCaptured={() => {}} />);
     await act(async () => {

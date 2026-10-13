@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Role, User } from '@pharmacy/shared-types';
 import { api, ApiError, getToken, setToken, setUnauthorizedHandler } from '../lib/api';
+import { useCart } from './cart';
 
 interface AuthState {
   user: User | null;
@@ -42,11 +43,14 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   logout() {
     setToken(null);
+    // The next cashier to sign in must never inherit this one's cart or discount.
+    useCart.getState().clear();
     set({ user: null, error: null });
   },
 
   sessionExpired() {
     setToken(null);
+    useCart.getState().clear();
     set({ user: null, error: 'انتهت الجلسة — سجّل الدخول من جديد' });
   },
 

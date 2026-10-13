@@ -1,5 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
-import { stopAllTrackedProcesses, trackProcess } from './processRegistry.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Shutdown is one-way (see processRegistry.shutdown.test.ts), so every case
+// gets a fresh registry.
+let stopAllTrackedProcesses: typeof import('./processRegistry.js').stopAllTrackedProcesses;
+let trackProcess: typeof import('./processRegistry.js').trackProcess;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ stopAllTrackedProcesses, trackProcess } = await import('./processRegistry.js'));
+});
 
 describe('processRegistry', () => {
   it('stops every tracked process', async () => {

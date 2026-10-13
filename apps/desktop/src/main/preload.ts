@@ -18,4 +18,10 @@ contextBridge.exposeInMainWorld('pharmacy', {
   getMachineId: (): Promise<string> => ipcRenderer.invoke('license:getMachineId'),
   getLicenseStatus: (): Promise<LicenseCheck> => ipcRenderer.invoke('license:getStatus'),
   activateLicense: (key: string): Promise<LicenseCheck> => ipcRenderer.invoke('license:activate', key),
+  resetPassword: (input: {
+    username: string;
+    licenseKey: string;
+    newPassword: string;
+    serverUrl: string;
+  }): Promise<void> => ipcRenderer.invoke('auth:resetPassword', input),
 });

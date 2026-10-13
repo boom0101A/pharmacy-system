@@ -31,3 +31,16 @@ export function reformatPriceInput(
   }
   return { formatted, cursorPos: formatted.length };
 }
+
+/**
+ * Reads a price field that may carry thousands separators ("1,500"). An
+ * empty field is 0; anything else that isn't a whole number is `null` —
+ * `Number('1,500') || 0` used to save such input as a zero cost silently,
+ * inflating every profit figure built on that batch.
+ */
+export function parsePriceInput(raw: string): number | null {
+  const cleaned = raw.replace(/[,\s]/g, '');
+  if (cleaned === '') return 0;
+  if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
+  return Number(cleaned);
+}

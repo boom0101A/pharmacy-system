@@ -13,17 +13,17 @@ export async function writeOffBatch(batchId: number, userId: number): Promise<Ba
     if (!batch) {
       throw new AppError(404, 'الدفعة غير موجودة');
     }
-    if (batch.quantity <= 0) {
+    if (batch.quantity <= 0 && batch.openedSubUnits <= 0) {
       throw new AppError(409, 'رصيد هذه الدفعة صفر أصلاً — لا شيء لإتلافه');
     }
 
-    // Raw CURRENT_DATE comparison, not a JS Date check — this must agree
+    // Baghdad's calendar date in SQL, not a JS Date check — this must agree
     // exactly with sales.service.ts's FEFO exclusion query (which uses the
     // same expression) on what "already expired" means, including the
     // edge case of a batch expiring today (still sellable, not yet
     // write-off-eligible) and no timezone drift between Node and Postgres.
     const [{ expired }] = await tx.$queryRaw<{ expired: boolean }[]>`
-      SELECT expiry_date IS NOT NULL AND expiry_date < CURRENT_DATE AS expired
+      SELECT expiry_date IS NOT NULL AND expiry_date < (now() AT TIME ZONE 'Asia/Baghdad')::date AS expired
       FROM batches WHERE id = ${batchId}
     `;
     if (!expired) {
@@ -34,7 +34,10 @@ export async function writeOffBatch(batchId: number, userId: number): Promise<Ba
       data: { batchId: batch.id, quantity: batch.quantity, userId },
     });
 
-    return tx.batch.update({ where: { id: batchId }, data: { quantity: 0 } });
+    // Loose strips from an opened package are on the same shelf and expire with
+    // it; left behind, they could never be sold yet would block switching
+    // sub-unit selling off for this product forever.
+    return tx.batch.update({ where: { id: batchId }, data: { quantity: 0, openedSubUnits: 0 } });
   });
 }
 

@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
 import { getMachineId, verifyLicenseKey, type LicenseCheck } from './license.js';
+import { writeFileAtomic } from './backend/atomicWrite.js';
 
 interface StoredLicense {
   key: string | null;
@@ -52,7 +53,9 @@ export const licenseStore = {
     const result = verifyLicenseKey(key, machine.id);
     if (result.valid) {
       fs.mkdirSync(path.dirname(filePath()), { recursive: true });
-      fs.writeFileSync(filePath(), JSON.stringify({ key } satisfies StoredLicense, null, 2));
+      // Atomic: a torn license.json reads as "no license" and locks the till
+      // on the activation screen until someone finds the key again.
+      writeFileAtomic(filePath(), JSON.stringify({ key } satisfies StoredLicense, null, 2));
     }
     return result;
   },

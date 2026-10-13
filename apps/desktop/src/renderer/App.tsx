@@ -20,6 +20,8 @@ import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
 import { useAuth } from './store/auth';
 import { useBranding } from './store/branding';
+import { getServerUrl, setServerUrl } from './lib/api';
+import { correctedLocalServerUrl } from './lib/serverMode';
 import { useStockSync } from './lib/useStockSync';
 import { useConnectionPing } from './lib/useConnectionPing';
 import { useExpiryAlert } from './lib/useExpiryAlert';
@@ -35,6 +37,17 @@ export function App() {
   useStockSync(user !== null);
   const recheckConnection = useConnectionPing();
   const backendStatus = useBackendStatus();
+
+  // On the machine running the bundled server, follow its real address — a
+  // hand-typed local address must never leave the app pointed at nothing.
+  useEffect(() => {
+    const corrected = correctedLocalServerUrl(getServerUrl(), backendStatus);
+    if (!corrected) return;
+    setServerUrl(corrected);
+    recheckConnection();
+    void useAuth.getState().bootstrap();
+    void useBranding.getState().refresh();
+  }, [backendStatus, recheckConnection]);
   useExpiryAlert(user !== null);
   const [showSplash, setShowSplash] = useState(true);
   // Purely local (no network), so this resolves in a few milliseconds — well

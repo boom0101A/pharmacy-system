@@ -19,6 +19,13 @@ const DEFAULT_ACCOUNTS = [
  * never silently reset it back to the well-known default.
  */
 export async function seedDefaultAccounts(): Promise<void> {
+  // Only ever for a brand-new database. The desktop launcher seeds on every
+  // boot, so per-username skipping alone would recreate admin/admin123 the
+  // moment an owner deleted it in favour of their own admin account.
+  if ((await prisma.user.count()) > 0) {
+    console.log('تخطّي البذر: توجد حسابات مسبقاً');
+    return;
+  }
   for (const account of DEFAULT_ACCOUNTS) {
     const existing = await prisma.user.findUnique({ where: { username: account.username } });
     if (existing) {

@@ -47,6 +47,8 @@ export function spawnServer(
   serverEntry: string,
   settings: ServerSettings,
   onLog?: (line: string) => void,
+  /** Fires whenever the server process ends — including a crash long after it reported ready. */
+  onExit?: (code: number | null) => void,
 ): RunningServer {
   const child = spawn(electronBinary, [serverEntry], {
     env: serverEnv(settings, process.env),
@@ -61,6 +63,7 @@ export function spawnServer(
   // in the *caller's* process, which for this app is the whole Electron main
   // process, not just the backend.
   child.on('error', (err) => onLog?.(`فشل تشغيل الخادم: ${err.message}`));
+  child.on('exit', (code) => onExit?.(code));
 
   return {
     process: child,
@@ -70,10 +73,32 @@ export function spawnServer(
   };
 }
 
-/** Polls /api/health until the server answers, so the window never loads against a server that is not listening yet. */
-export async function waitForServer(port: number, timeoutMs = 30_000): Promise<void> {
+/** True when something already answers /api/health on this port. */
+export async function isPortAnswering(port: number): Promise<boolean> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/api/health`, { signal: AbortSignal.timeout(2_000) });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Polls /api/health until the server answers, so the window never loads
+ * against a server that is not listening yet. Given the child process, it
+ * gives up the moment that process dies — otherwise a server that crashed on
+ * startup kept the splash spinning for the full timeout.
+ */
+export async function waitForServer(port: number, timeoutMs = 30_000, child?: ChildProcess): Promise<void> {
+  let exitCode: number | null | undefined;
+  child?.once('exit', (code) => {
+    exitCode = code;
+  });
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    if (exitCode !== undefined || (child && child.exitCode !== null)) {
+      throw new Error(`توقف الخادم فور تشغيله (رمز الخروج ${exitCode ?? child?.exitCode}) — راجع bootstrap.log`);
+    }
     try {
       const response = await fetch(`http://127.0.0.1:${port}/api/health`);
       if (response.ok) return;

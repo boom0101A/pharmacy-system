@@ -134,8 +134,23 @@ export async function ensureCluster(opts: ClusterOptions): Promise<void> {
   }
 }
 
+/** `pg_ctl status` exits 0 only when a postmaster is running on this data directory. */
+function isClusterRunning(pgCtlExe: string, dataDir: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn(pgCtlExe, ['status', '-D', dataDir], { stdio: 'ignore', windowsHide: true });
+    child.on('error', () => resolve(false));
+    child.on('exit', (code) => resolve(code === 0));
+  });
+}
+
 export async function startPostgres(opts: ClusterOptions): Promise<void> {
   fs.mkdirSync(path.dirname(opts.logFile), { recursive: true });
+  // A previous launch that crashed or was killed from Task Manager can leave
+  // its postmaster running and holding this data directory; a fresh start
+  // then fails on the lock every time until a reboot. Stop it cleanly first.
+  if (await isClusterRunning(opts.pgCtlExe, opts.dataDir)) {
+    await stopPostgres(opts);
+  }
   await runDetachedStdio(
     opts.pgCtlExe,
     pgCtlStartArgs({ dataDir: opts.dataDir, port: opts.port, logFile: opts.logFile }),

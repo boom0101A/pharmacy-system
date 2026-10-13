@@ -59,6 +59,7 @@ function QuantityInput({
   return (
     <input
       className={styles.qtyInput}
+      aria-label="الكمية"
       value={text}
       onChange={(e) => setText(e.target.value)}
       onBlur={commit}
@@ -141,18 +142,24 @@ export function Pos() {
 
   // Debounced catalogue search; a scanner submits before this ever fires.
   useEffect(() => {
+    // An older search that answers last must not replace the newer results.
+    let current = true;
     const timer = setTimeout(() => {
       api
         .products(query.trim() || undefined, { limit: 48 })
         .then((fresh) => {
+          if (!current) return;
           setProducts(fresh);
           cart.syncAvailability(fresh);
         })
-        .catch((err: Error) => toast.error('تعذّر تحميل الأصناف', err.message))
-        .finally(() => setLoadingProducts(false));
+        .catch((err: Error) => current && toast.error('تعذّر تحميل الأصناف', err.message))
+        .finally(() => current && setLoadingProducts(false));
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, 200);
-    return () => clearTimeout(timer);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
   }, [query, toast, stockVersion, reloadKey]);
 
   // A new set of results invalidates the old position.
@@ -237,17 +244,21 @@ export function Pos() {
   }, [cart.lines, cart.discount]);
 
   async function checkout() {
-    if (cart.lines.length === 0 || submitting) return;
+    // Read fresh, not from this render's closure: the F12 key handler keeps
+    // an older `checkout` until the line *count* changes, so a quantity or
+    // discount edited since then would otherwise be silently dropped.
+    const { lines, discount } = useCart.getState();
+    if (lines.length === 0 || submitting) return;
     setSubmitting(true);
     attemptKey.current ??= crypto.randomUUID();
     try {
       const sale = await api.createSale({
-        items: cart.lines.map((l) => ({
+        items: lines.map((l) => ({
           productId: l.productId,
           quantity: l.quantity,
           isSubUnit: l.isSubUnit,
         })),
-        discount: cart.discount,
+        discount,
         idempotencyKey: attemptKey.current,
       });
       toast.success(`تمت الفاتورة رقم ${sale.id}`, `الإجمالي ${formatMoney(sale.total)}`, { silent: true });
@@ -256,13 +267,13 @@ export function Pos() {
         saleId: sale.id,
         date: sale.date,
         cashierName: user?.name ?? '',
-        items: cart.lines.map((l) => ({
+        items: lines.map((l) => ({
           productName: l.product.name,
           quantity: l.quantity,
           unitPrice: l.isSubUnit ? (l.product.subUnitPrice ?? l.product.salePrice) : l.product.salePrice,
           unitLabel: l.isSubUnit ? (l.product.subUnitName ?? 'وحدة') : l.product.unit,
         })),
-        discount: cart.discount,
+        discount,
         total: sale.total,
       });
       cart.clear();
@@ -394,7 +405,11 @@ export function Pos() {
                     <span className={`${styles.productPrice} numeric`}>
                       {formatMoney(product.salePrice)}
                     </span>
-                    {product.stock <= 0 ? (
+                    {product.stock <= 0 && product.looseSubUnits > 0 ? (
+                      <Badge tone="warning">
+                        {product.looseSubUnits} {product.subUnitName ?? "وحدة"}
+                      </Badge>
+                    ) : product.stock <= 0 ? (
                       <Badge tone="danger">نفد</Badge>
                     ) : product.stock <= product.reorderLevel ? (
                       <Badge tone="warning">{product.stock} متبقٍ</Badge>
@@ -586,7 +601,7 @@ export function Pos() {
           dialogOpenRef.current = false;
           setAlternativesFor(null);
           try {
-            const full = await findAlternativeProduct(id, products, () => api.products());
+            const full = await findAlternativeProduct(id, products, (productId) => api.productById(productId));
             if (full) addProduct(full);
             else toast.warning('تعذّر إيجاد الصنف المختار');
           } catch (err) {

@@ -3,7 +3,7 @@ import { applyPendingMigrations } from './migrate.js';
 import { buildDatabaseUrl, ensureDatabase, migrationTarget, type ConnectionSettings } from './db.js';
 import { ensureCluster, findFreePort, startPostgres, stopPostgres } from './postgres.js';
 import { loadOrCreateSecrets } from './secrets.js';
-import { spawnServer, waitForServer, type RunningServer } from './server.js';
+import { isPortAnswering, spawnServer, waitForServer, type RunningServer } from './server.js';
 import { stopAllTrackedProcesses, trackProcess } from './processRegistry.js';
 import type { BackendPaths } from './paths.js';
 
@@ -25,7 +25,7 @@ export type BootstrapStage = 'database' | 'schema' | 'server';
 export type BackendStatus =
   | { status: 'disabled' }
   | { status: 'starting'; stage: BootstrapStage }
-  | { status: 'ready' }
+  | { status: 'ready'; serverUrl: string }
   | { status: 'failed'; message: string };
 
 /**
@@ -76,6 +76,8 @@ export async function startBundledBackend(
   onProgress?: (stage: BootstrapStage) => void,
   /** Wired to the bootstrap log file — the server child's stdout/stderr is the one place an actual crash reason (a port conflict, a missing module) ever surfaces. */
   onLog?: (line: string) => void,
+  /** Fires if the server process ends at any point, including long after it reported ready. */
+  onServerExit?: (code: number | null) => void,
 ): Promise<BackendHandle> {
   const secrets = loadOrCreateSecrets(paths.secretsDir);
   // The bundled database's port is internal — nothing outside this app ever
@@ -118,6 +120,14 @@ export async function startBundledBackend(
         await applyPendingMigrations(paths.migrationsDir, migrationTarget(conn));
       },
       startServer: async () => {
+        // Something already answering here (most often a server orphaned by a
+        // crash) would pass the health check below while our own child dies on
+        // EADDRINUSE — leaving the app "ready" against the wrong process.
+        if (await isPortAnswering(options.serverPort)) {
+          throw new Error(
+            `المنفذ ${options.serverPort} مستخدم من برنامج آخر — أعد تشغيل الجهاز ثم افتح التطبيق`,
+          );
+        }
         server = spawnServer(
           electronBinary,
           paths.serverEntry,
@@ -131,9 +141,10 @@ export async function startBundledBackend(
             publicDir: paths.publicDir,
           },
           onLog,
+          onServerExit,
         );
         trackProcess(async () => server?.stop());
-        await waitForServer(options.serverPort);
+        await waitForServer(options.serverPort, undefined, server.process);
       },
       stopServer: async () => server?.stop(),
     },

@@ -111,3 +111,11 @@
 .serverToggle:hover {
   color: var(--text-secondary);
 }
+
+.notice {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--success-3, #e6f6ec);
+  color: var(--success-11, #1a7f4b);
+  font-size: var(--text-sm);
+}

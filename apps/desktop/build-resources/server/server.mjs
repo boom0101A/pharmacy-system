@@ -28574,7 +28574,7 @@ var require_bcrypt = __commonJS({
         (global2["dcodeIO"] = global2["dcodeIO"] || {})["bcrypt"] = factory();
     })(exports, function() {
       "use strict";
-      var bcrypt4 = {};
+      var bcrypt5 = {};
       var randomFallback = null;
       function random(len) {
         if (typeof module !== "undefined" && module && module["exports"])
@@ -28599,10 +28599,10 @@ var require_bcrypt = __commonJS({
       } catch (e) {
       }
       randomFallback = null;
-      bcrypt4.setRandomFallback = function(random2) {
+      bcrypt5.setRandomFallback = function(random2) {
         randomFallback = random2;
       };
-      bcrypt4.genSaltSync = function(rounds, seed_length) {
+      bcrypt5.genSaltSync = function(rounds, seed_length) {
         rounds = rounds || GENSALT_DEFAULT_LOG2_ROUNDS;
         if (typeof rounds !== "number")
           throw Error("Illegal arguments: " + typeof rounds + ", " + typeof seed_length);
@@ -28619,7 +28619,7 @@ var require_bcrypt = __commonJS({
         salt.push(base64_encode(random(BCRYPT_SALT_LEN), BCRYPT_SALT_LEN));
         return salt.join("");
       };
-      bcrypt4.genSalt = function(rounds, seed_length, callback) {
+      bcrypt5.genSalt = function(rounds, seed_length, callback) {
         if (typeof seed_length === "function")
           callback = seed_length, seed_length = void 0;
         if (typeof rounds === "function")
@@ -28631,7 +28631,7 @@ var require_bcrypt = __commonJS({
         function _async(callback2) {
           nextTick(function() {
             try {
-              callback2(null, bcrypt4.genSaltSync(rounds));
+              callback2(null, bcrypt5.genSaltSync(rounds));
             } catch (err) {
               callback2(err);
             }
@@ -28652,19 +28652,19 @@ var require_bcrypt = __commonJS({
             });
           });
       };
-      bcrypt4.hashSync = function(s, salt) {
+      bcrypt5.hashSync = function(s, salt) {
         if (typeof salt === "undefined")
           salt = GENSALT_DEFAULT_LOG2_ROUNDS;
         if (typeof salt === "number")
-          salt = bcrypt4.genSaltSync(salt);
+          salt = bcrypt5.genSaltSync(salt);
         if (typeof s !== "string" || typeof salt !== "string")
           throw Error("Illegal arguments: " + typeof s + ", " + typeof salt);
         return _hash(s, salt);
       };
-      bcrypt4.hash = function(s, salt, callback, progressCallback) {
+      bcrypt5.hash = function(s, salt, callback, progressCallback) {
         function _async(callback2) {
           if (typeof s === "string" && typeof salt === "number")
-            bcrypt4.genSalt(salt, function(err, salt2) {
+            bcrypt5.genSalt(salt, function(err, salt2) {
               _hash(s, salt2, callback2, progressCallback);
             });
           else if (typeof s === "string" && typeof salt === "string")
@@ -28699,14 +28699,14 @@ var require_bcrypt = __commonJS({
           return false;
         return wrong === 0;
       }
-      bcrypt4.compareSync = function(s, hash) {
+      bcrypt5.compareSync = function(s, hash) {
         if (typeof s !== "string" || typeof hash !== "string")
           throw Error("Illegal arguments: " + typeof s + ", " + typeof hash);
         if (hash.length !== 60)
           return false;
-        return safeStringCompare(bcrypt4.hashSync(s, hash.substr(0, hash.length - 31)), hash);
+        return safeStringCompare(bcrypt5.hashSync(s, hash.substr(0, hash.length - 31)), hash);
       };
-      bcrypt4.compare = function(s, hash, callback, progressCallback) {
+      bcrypt5.compare = function(s, hash, callback, progressCallback) {
         function _async(callback2) {
           if (typeof s !== "string" || typeof hash !== "string") {
             nextTick(callback2.bind(this, Error("Illegal arguments: " + typeof s + ", " + typeof hash)));
@@ -28716,7 +28716,7 @@ var require_bcrypt = __commonJS({
             nextTick(callback2.bind(this, null, false));
             return;
           }
-          bcrypt4.hash(s, hash.substr(0, 29), function(err, comp) {
+          bcrypt5.hash(s, hash.substr(0, 29), function(err, comp) {
             if (err)
               callback2(err);
             else
@@ -28738,12 +28738,12 @@ var require_bcrypt = __commonJS({
             });
           });
       };
-      bcrypt4.getRounds = function(hash) {
+      bcrypt5.getRounds = function(hash) {
         if (typeof hash !== "string")
           throw Error("Illegal arguments: " + typeof hash);
         return parseInt(hash.split("$")[2], 10);
       };
-      bcrypt4.getSalt = function(hash) {
+      bcrypt5.getSalt = function(hash) {
         if (typeof hash !== "string")
           throw Error("Illegal arguments: " + typeof hash);
         if (hash.length !== 60)
@@ -30366,9 +30366,9 @@ var require_bcrypt = __commonJS({
           }, progressCallback);
         }
       }
-      bcrypt4.encodeBase64 = base64_encode;
-      bcrypt4.decodeBase64 = base64_decode;
-      return bcrypt4;
+      bcrypt5.encodeBase64 = base64_encode;
+      bcrypt5.decodeBase64 = base64_decode;
+      return bcrypt5;
     });
   }
 });
@@ -38177,9 +38177,9 @@ var require_jws = __commonJS({
 var require_decode = __commonJS({
   "../../node_modules/jsonwebtoken/decode.js"(exports, module) {
     var jws = require_jws();
-    module.exports = function(jwt2, options) {
+    module.exports = function(jwt3, options) {
       options = options || {};
-      var decoded = jws.decode(jwt2, options);
+      var decoded = jws.decode(jwt3, options);
       if (!decoded) {
         return null;
       }
@@ -54696,7 +54696,7 @@ import path7 from "node:path";
 
 // ../server/dist/src/routes/auth.routes.js
 var import_express = __toESM(require_express2(), 1);
-var import_bcryptjs = __toESM(require_bcryptjs(), 1);
+var import_bcryptjs2 = __toESM(require_bcryptjs(), 1);
 
 // ../../node_modules/express-rate-limit/dist/index.mjs
 import { Buffer as Buffer2 } from "node:buffer";
@@ -56455,11 +56455,11 @@ function isValidIP(ip, version) {
   }
   return false;
 }
-function isValidJWT(jwt2, alg) {
-  if (!jwtRegex.test(jwt2))
+function isValidJWT(jwt3, alg) {
+  if (!jwtRegex.test(jwt3))
     return false;
   try {
-    const [header] = jwt2.split(".");
+    const [header] = jwt3.split(".");
     if (!header)
       return false;
     const base64 = header.replace(/-/g, "+").replace(/_/g, "/").padEnd(header.length + (4 - header.length % 4) % 4, "=");
@@ -59537,7 +59537,7 @@ function rotateIfNeeded() {
   try {
     const { size } = fs.statSync(logFile);
     if (size >= MAX_LOG_BYTES) {
-      fs.rmSync(logFile, { force: true });
+      fs.renameSync(logFile, `${logFile}.1`);
     }
   } catch {
   }
@@ -59607,6 +59607,13 @@ function errorHandler(err, _req, res, _next) {
       return res.status(409).json({ error: "\u062A\u0639\u0627\u0631\u0636 \u0645\u0624\u0642\u062A \u0645\u0639 \u0639\u0645\u0644\u064A\u0629 \u0623\u062E\u0631\u0649 \u2014 \u0623\u0639\u062F \u0645\u062D\u0627\u0648\u0644\u0629 \u0627\u0644\u0628\u064A\u0639" });
     }
   }
+  if (err instanceof Error) {
+    const status = err.status ?? err.statusCode;
+    if (typeof status === "number" && status >= 400 && status < 500) {
+      const message = status === 413 ? "\u062D\u062C\u0645 \u0627\u0644\u0637\u0644\u0628 \u0643\u0628\u064A\u0631 \u062C\u062F\u0627\u064B" : "\u0637\u0644\u0628 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D";
+      return res.status(status).json({ error: message });
+    }
+  }
   logger.error("Unhandled request error", err);
   return res.status(500).json({ error: "\u062E\u0637\u0623 \u0641\u064A \u0627\u0644\u062E\u0627\u062F\u0645" });
 }
@@ -59648,7 +59655,7 @@ var config = {
   jwtSecret,
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "12h",
   databaseUrl: required("DATABASE_URL"),
-  backupDir: process.env.BACKUP_DIR ?? "./backups",
+  backupDir: process.env.BACKUP_DIR ?? inRepo("backups"),
   backupRetention: Number(process.env.BACKUP_RETENTION ?? 14),
   // Overridable so an installed copy can write under the user's data folder
   // instead of Program Files, which is read-only.
@@ -59724,6 +59731,34 @@ function checkRole(...roles) {
   };
 }
 
+// ../server/dist/src/services/passwordReset.service.js
+var import_bcryptjs = __toESM(require_bcryptjs(), 1);
+var import_jsonwebtoken2 = __toESM(require_jsonwebtoken(), 1);
+var PASSWORD_RESET_SCOPE = "password-reset";
+async function resetPasswordWithToken(token, newPassword) {
+  let payload;
+  try {
+    payload = import_jsonwebtoken2.default.verify(token, config.jwtSecret);
+  } catch {
+    throw new AppError(401, "\u0631\u0645\u0632 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0639\u064A\u064A\u0646 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D \u0623\u0648 \u0645\u0646\u062A\u0647\u064A \u2014 \u0623\u0639\u062F \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629");
+  }
+  if (payload.scope !== PASSWORD_RESET_SCOPE || typeof payload.username !== "string") {
+    throw new AppError(401, "\u0631\u0645\u0632 \u0625\u0639\u0627\u062F\u0629 \u0627\u0644\u062A\u0639\u064A\u064A\u0646 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D \u0623\u0648 \u0645\u0646\u062A\u0647\u064A \u2014 \u0623\u0639\u062F \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629");
+  }
+  const user = await prisma.user.findUnique({ where: { username: payload.username } });
+  if (!user)
+    throw new AppError(404, "\u0644\u0627 \u064A\u0648\u062C\u062F \u0645\u0633\u062A\u062E\u062F\u0645 \u0628\u0647\u0630\u0627 \u0627\u0644\u0627\u0633\u0645");
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash: await import_bcryptjs.default.hash(newPassword, 10),
+      // A disabled admin with a forgotten password would otherwise leave
+      // nobody able to manage the system at all.
+      ...user.role === "admin" ? { isActive: true } : {}
+    }
+  });
+}
+
 // ../server/dist/src/routes/auth.routes.js
 var authRouter = (0, import_express.Router)();
 var loginSchema = external_exports.object({
@@ -59741,7 +59776,7 @@ var loginLimiter = lib_default({
 authRouter.post("/login", loginLimiter, asyncHandler(async (req, res) => {
   const { username, password } = loginSchema.parse(req.body);
   const user = await prisma.user.findUnique({ where: { username } });
-  if (!user || !user.isActive || !await import_bcryptjs.default.compare(password, user.passwordHash)) {
+  if (!user || !user.isActive || !await import_bcryptjs2.default.compare(password, user.passwordHash)) {
     throw new AppError(401, "\u0627\u0633\u0645 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645 \u0623\u0648 \u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u063A\u064A\u0631 \u0635\u062D\u064A\u062D\u0629");
   }
   res.json({
@@ -59755,6 +59790,15 @@ authRouter.post("/login", loginLimiter, asyncHandler(async (req, res) => {
       createdAt: user.createdAt.toISOString()
     }
   });
+}));
+var resetSchema = external_exports.object({
+  token: external_exports.string().min(1),
+  password: external_exports.string().min(4, "\u0643\u0644\u0645\u0629 \u0627\u0644\u0645\u0631\u0648\u0631 \u0642\u0635\u064A\u0631\u0629 \u062C\u062F\u0627\u064B")
+});
+authRouter.post("/reset-password", loginLimiter, asyncHandler(async (req, res) => {
+  const { token, password } = resetSchema.parse(req.body);
+  await resetPasswordWithToken(token, password);
+  res.status(204).end();
 }));
 authRouter.get("/me", requireAuth, asyncHandler(async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.auth.userId } });
@@ -59773,6 +59817,24 @@ authRouter.get("/me", requireAuth, asyncHandler(async (req, res) => {
 // ../server/dist/src/routes/dashboard.routes.js
 var import_express2 = __toESM(require_express2(), 1);
 
+// ../server/dist/src/lib/dateRange.js
+var BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1e3;
+function resolveRange(from, to) {
+  const validFrom = from && !Number.isNaN(from.getTime()) ? from : void 0;
+  const validTo = to && !Number.isNaN(to.getTime()) ? to : void 0;
+  const end = validTo ? new Date(validTo.getTime() + 864e5 - 1 - BAGHDAD_OFFSET_MS) : /* @__PURE__ */ new Date();
+  const start = validFrom ? new Date(validFrom.getTime() - BAGHDAD_OFFSET_MS) : new Date(end.getTime() - 30 * 864e5);
+  return { start, end };
+}
+function startOfTodayBaghdad(now = /* @__PURE__ */ new Date()) {
+  const baghdadNow = new Date(now.getTime() + BAGHDAD_OFFSET_MS);
+  const baghdadMidnightAsUtc = Date.UTC(baghdadNow.getUTCFullYear(), baghdadNow.getUTCMonth(), baghdadNow.getUTCDate());
+  return new Date(baghdadMidnightAsUtc - BAGHDAD_OFFSET_MS);
+}
+function baghdadTodayIso(now = /* @__PURE__ */ new Date()) {
+  return new Date(now.getTime() + BAGHDAD_OFFSET_MS).toISOString().slice(0, 10);
+}
+
 // ../server/dist/src/services/products.service.js
 var EXPIRY_WARNING_DAYS = 30;
 function productWithAggregates(where) {
@@ -59785,8 +59847,11 @@ function productWithAggregates(where) {
   });
 }
 function present(row) {
-  const stock = row.batches.reduce((sum, b) => sum + b.quantity, 0);
-  const nearestExpiry = row.batches.filter((b) => b.quantity > 0 && b.expiryDate).map((b) => b.expiryDate).sort((a, b) => a.getTime() - b.getTime())[0];
+  const today = baghdadTodayIso();
+  const sellable = row.batches.filter((b) => !b.expiryDate || b.expiryDate.toISOString().slice(0, 10) >= today);
+  const stock = sellable.reduce((sum, b) => sum + b.quantity, 0);
+  const looseSubUnits = sellable.reduce((sum, b) => sum + b.openedSubUnits, 0);
+  const nearestExpiry = sellable.filter((b) => (b.quantity > 0 || b.openedSubUnits > 0) && b.expiryDate).map((b) => b.expiryDate).sort((a, b) => a.getTime() - b.getTime())[0];
   return {
     id: row.id,
     name: row.name,
@@ -59798,6 +59863,7 @@ function present(row) {
     purchasePrice: toNumber(row.purchasePrice),
     reorderLevel: row.reorderLevel,
     stock,
+    looseSubUnits,
     imageFilename: row.imageFilename,
     nearestExpiry: nearestExpiry ? nearestExpiry.toISOString() : null,
     unitsPerPackage: row.unitsPerPackage,
@@ -59805,8 +59871,7 @@ function present(row) {
     subUnitPrice: row.subUnitPrice ? toNumber(row.subUnitPrice) : null,
     activeIngredient: row.activeIngredient,
     dosageForm: row.dosageForm,
-    strength: row.strength,
-    isActive: true
+    strength: row.strength
   };
 }
 function matchesStatus(p, status) {
@@ -59856,6 +59921,10 @@ async function productStats(search) {
     out: rows.filter((p) => matchesStatus(p, "out")).length
   };
 }
+async function findById(id) {
+  const rows = await productWithAggregates({ id });
+  return rows[0] ? present(rows[0]) : null;
+}
 async function findByBarcode(barcode) {
   const rows = await productWithAggregates({ barcode });
   return rows[0] ? present(rows[0]) : null;
@@ -59896,24 +59965,39 @@ async function updateProduct(id, data) {
   return present(rows[0]);
 }
 
+// ../server/dist/src/services/dashboard.service.js
+function maskSalesForRole(sales, role) {
+  if (role === "admin" || role === "pharmacist")
+    return sales;
+  return { total: 0, count: 0 };
+}
+async function lowStockList(limit) {
+  const rows = await prisma.$queryRaw`
+    SELECT p.id, p.name, SUM(b.quantity)::bigint AS stock
+    FROM products p
+    JOIN batches b ON b.product_id = p.id
+    WHERE b.expiry_date IS NULL OR b.expiry_date >= (now() AT TIME ZONE 'Asia/Baghdad')::date
+    GROUP BY p.id, p.name, p.reorder_level
+    HAVING SUM(b.quantity) > 0 AND SUM(b.quantity) <= p.reorder_level
+    ORDER BY SUM(b.quantity) ASC, p.name ASC
+    LIMIT ${limit}`;
+  return rows.map((r) => ({ id: r.id, name: r.name, value: Number(r.stock) }));
+}
+
 // ../server/dist/src/routes/dashboard.routes.js
 var dashboardRouter = (0, import_express2.Router)();
 dashboardRouter.use(requireAuth);
 var EXPIRY_WARNING_DAYS2 = 30;
-dashboardRouter.get("/", asyncHandler(async (_req, res) => {
-  const startOfDay = /* @__PURE__ */ new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-  const [todaySales, stats, lowStockRows, expiringRows] = await Promise.all([
+dashboardRouter.get("/", asyncHandler(async (req, res) => {
+  const startOfDay = startOfTodayBaghdad();
+  const [todaySales, stats, lowStock, expiringRows] = await Promise.all([
     prisma.sale.aggregate({
       where: { date: { gte: startOfDay } },
       _sum: { total: true },
       _count: true
     }),
     productStats(),
-    prisma.product.findMany({
-      include: { batches: { select: { quantity: true } } },
-      take: 200
-    }),
+    lowStockList(6),
     prisma.batch.findMany({
       where: {
         quantity: { gt: 0 },
@@ -59924,18 +60008,16 @@ dashboardRouter.get("/", asyncHandler(async (_req, res) => {
       take: 6
     })
   ]);
-  const lowStock = lowStockRows.map((p) => ({
-    id: p.id,
-    name: p.name,
-    stock: p.batches.reduce((sum, b) => sum + b.quantity, 0),
-    reorderLevel: p.reorderLevel
-  })).filter((p) => p.stock > 0 && p.stock <= p.reorderLevel).sort((a, b) => a.stock - b.stock).slice(0, 6);
+  const sales = maskSalesForRole({
+    total: todaySales._sum.total ? toNumber(todaySales._sum.total) : 0,
+    count: todaySales._count
+  }, req.auth.role);
   res.json({
-    todaySalesTotal: todaySales._sum.total ? toNumber(todaySales._sum.total) : 0,
-    todaySalesCount: todaySales._count,
+    todaySalesTotal: sales.total,
+    todaySalesCount: sales.count,
     lowStockCount: stats.low,
     expiringSoonCount: stats.expiring,
-    lowStock: lowStock.map((p) => ({ id: p.id, name: p.name, value: p.stock })),
+    lowStock,
     // Keyed by batch, not product — the same medicine can have more than one
     // batch expiring soon, and reusing the product id would collide.
     expiringSoon: expiringRows.map((b) => ({
@@ -59948,7 +60030,18 @@ dashboardRouter.get("/", asyncHandler(async (_req, res) => {
 
 // ../server/dist/src/routes/users.routes.js
 var import_express3 = __toESM(require_express2(), 1);
-var import_bcryptjs2 = __toESM(require_bcryptjs(), 1);
+var import_bcryptjs3 = __toESM(require_bcryptjs(), 1);
+
+// ../server/dist/src/lib/parseIdParam.js
+function parseIdParam(raw, label = "\u0627\u0644\u0645\u0639\u0631\u0651\u0641") {
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0) {
+    throw new AppError(400, `${label} \u063A\u064A\u0631 \u0635\u0627\u0644\u062D`);
+  }
+  return id;
+}
+
+// ../server/dist/src/routes/users.routes.js
 var usersRouter = (0, import_express3.Router)();
 usersRouter.use(requireAuth);
 usersRouter.use(checkRole("admin"));
@@ -59986,14 +60079,14 @@ usersRouter.post("/", asyncHandler(async (req, res) => {
     data: {
       name: data.name,
       username: data.username,
-      passwordHash: await import_bcryptjs2.default.hash(data.password, 10),
+      passwordHash: await import_bcryptjs3.default.hash(data.password, 10),
       role: data.role
     }
   });
   res.status(201).json(present2(user));
 }));
 usersRouter.put("/:id", asyncHandler(async (req, res) => {
-  const targetId = Number(req.params.id);
+  const targetId = parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645");
   const data = updateSchema.parse(req.body);
   if (targetId === req.auth.userId) {
     if (data.role !== "admin") {
@@ -60009,13 +60102,13 @@ usersRouter.put("/:id", asyncHandler(async (req, res) => {
       name: data.name,
       role: data.role,
       isActive: data.isActive,
-      ...data.password ? { passwordHash: await import_bcryptjs2.default.hash(data.password, 10) } : {}
+      ...data.password ? { passwordHash: await import_bcryptjs3.default.hash(data.password, 10) } : {}
     }
   });
   res.json(present2(user));
 }));
 usersRouter.delete("/:id", asyncHandler(async (req, res) => {
-  const targetId = Number(req.params.id);
+  const targetId = parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0645\u0633\u062A\u062E\u062F\u0645");
   if (targetId === req.auth.userId) {
     throw new AppError(400, "\u0644\u0627 \u064A\u0645\u0643\u0646\u0643 \u062D\u0630\u0641 \u062D\u0633\u0627\u0628\u0643 \u0627\u0644\u062E\u0627\u0635");
   }
@@ -60066,14 +60159,19 @@ function uploadDir() {
   return path3.join(config.uploadsDir, "products");
 }
 async function saveProductImage(productId, buffer) {
-  await fs2.mkdir(uploadDir(), { recursive: true });
-  const filename = `${randomUUID()}.jpg`;
-  const resized = await sharp(buffer).rotate().resize(800, 800, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer();
-  await fs2.writeFile(path3.join(uploadDir(), filename), resized);
   const existing = await prisma.product.findUnique({
     where: { id: productId },
     select: { imageFilename: true }
   });
+  if (!existing) {
+    throw new AppError(404, "\u0627\u0644\u0635\u0646\u0641 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
+  }
+  await fs2.mkdir(uploadDir(), { recursive: true });
+  const filename = `${randomUUID()}.jpg`;
+  const resized = await sharp(buffer).rotate().resize(800, 800, { fit: "inside", withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer().catch(() => {
+    throw new AppError(400, "\u0627\u0644\u0645\u0644\u0641 \u0644\u064A\u0633 \u0635\u0648\u0631\u0629 \u0635\u0627\u0644\u062D\u0629");
+  });
+  await fs2.writeFile(path3.join(uploadDir(), filename), resized);
   await prisma.product.update({ where: { id: productId }, data: { imageFilename: filename } });
   if (existing?.imageFilename) {
     await fs2.unlink(path3.join(uploadDir(), existing.imageFilename)).catch(() => {
@@ -60089,6 +60187,7 @@ var CODE_TTL_MS = 10 * 60 * 1e3;
 function createCaptureCode(productId) {
   const code = randomBytes(6).toString("hex");
   codes.set(code, { productId, expiresAt: Date.now() + CODE_TTL_MS });
+  setTimeout(() => codes.delete(code), CODE_TTL_MS).unref();
   return code;
 }
 function resolveCaptureCode(code) {
@@ -60120,6 +60219,15 @@ function lanServerUrl() {
 // ../server/dist/src/routes/products.routes.js
 import fs3 from "node:fs/promises";
 import path4 from "node:path";
+
+// ../server/dist/src/lib/costVisibility.js
+function withoutCostFor(role, rows) {
+  if (role !== "cashier")
+    return rows;
+  return rows.map(({ purchasePrice: _cost, ...rest }) => rest);
+}
+
+// ../server/dist/src/routes/products.routes.js
 var productsRouter = (0, import_express5.Router)();
 productsRouter.use(requireAuth);
 var upload = (0, import_multer2.default)({ storage: import_multer2.default.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
@@ -60131,16 +60239,19 @@ var productSchema = external_exports.object({
   barcode: external_exports.string().trim().min(1).nullish(),
   categoryId: external_exports.number().int().positive().nullish(),
   unit: external_exports.string().min(1).default("\u0639\u0644\u0628\u0629"),
-  salePrice: external_exports.number().nonnegative(),
-  purchasePrice: external_exports.number().nonnegative(),
+  salePrice: external_exports.number().nonnegative().finite(),
+  purchasePrice: external_exports.number().nonnegative().finite(),
   reorderLevel: external_exports.number().int().nonnegative().default(0),
   unitsPerPackage: external_exports.number().int().min(2).nullish(),
   subUnitName: external_exports.string().trim().min(1).nullish(),
-  subUnitPrice: external_exports.number().nonnegative().nullish(),
+  subUnitPrice: external_exports.number().nonnegative().finite().nullish(),
   activeIngredient: external_exports.string().trim().min(1).nullish(),
   dosageForm: external_exports.string().trim().min(1).nullish(),
   strength: external_exports.string().trim().min(1).nullish()
-});
+}).refine((data) => {
+  const fields = [data.unitsPerPackage, data.subUnitName, data.subUnitPrice];
+  return fields.every((f) => f == null) || fields.every((f) => f != null);
+}, { message: "\u0639\u0646\u062F \u062A\u0641\u0639\u064A\u0644 \u0628\u064A\u0639 \u0627\u0644\u0648\u062D\u062F\u0629 \u0627\u0644\u0641\u0631\u0639\u064A\u0629\u060C \u064A\u062C\u0628 \u0636\u0628\u0637 \u0639\u062F\u062F \u0627\u0644\u0648\u062D\u062F\u0627\u062A \u0648\u0627\u0633\u0645 \u0627\u0644\u0648\u062D\u062F\u0629 \u0648\u0633\u0639\u0631\u0647\u0627 \u0645\u0639\u0627\u064B" });
 function toCreateData(data) {
   return {
     name: data.name,
@@ -60167,7 +60278,7 @@ var listQuerySchema = external_exports.object({
 });
 productsRouter.get("/", asyncHandler(async (req, res) => {
   const query = listQuerySchema.parse(req.query);
-  res.json(await listProducts(query));
+  res.json(withoutCostFor(req.auth.role, await listProducts(query)));
 }));
 productsRouter.get("/stats", asyncHandler(async (req, res) => {
   const search = typeof req.query.search === "string" ? req.query.search : void 0;
@@ -60180,17 +60291,23 @@ productsRouter.get("/barcode/:barcode", asyncHandler(async (req, res) => {
   const product = await findByBarcode(req.params.barcode);
   if (!product)
     throw new AppError(404, "\u0644\u0645 \u064A\u064F\u0639\u062B\u0631 \u0639\u0644\u0649 \u0635\u0646\u0641 \u0628\u0647\u0630\u0627 \u0627\u0644\u0628\u0627\u0631\u0643\u0648\u062F");
-  res.json(product);
+  res.json(withoutCostFor(req.auth.role, [product])[0]);
 }));
 productsRouter.get("/:id/alternatives", asyncHandler(async (req, res) => {
-  res.json(await productAlternatives(Number(req.params.id)));
+  res.json(await productAlternatives(parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641")));
+}));
+productsRouter.get("/:id", asyncHandler(async (req, res) => {
+  const product = await findById(parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641"));
+  if (!product)
+    throw new AppError(404, "\u0627\u0644\u0635\u0646\u0641 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
+  res.json(withoutCostFor(req.auth.role, [product])[0]);
 }));
 productsRouter.post("/", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
   const data = productSchema.parse(req.body);
   res.status(201).json(await createProduct(toCreateData(data)));
 }));
 productsRouter.put("/:id", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
-  const id = Number(req.params.id);
+  const id = parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641");
   const data = productSchema.parse(req.body);
   if (!data.unitsPerPackage) {
     const loose = await prisma.batch.aggregate({
@@ -60204,7 +60321,7 @@ productsRouter.put("/:id", checkRole("admin", "pharmacist"), asyncHandler(async 
   res.json(await updateProduct(id, toUpdateData(data)));
 }));
 productsRouter.delete("/:id", checkRole("admin"), asyncHandler(async (req, res) => {
-  const id = Number(req.params.id);
+  const id = parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641");
   const product = await prisma.product.findUnique({ where: { id } });
   if (!product) {
     throw new AppError(404, "\u0627\u0644\u062F\u0648\u0627\u0621 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
@@ -60243,7 +60360,7 @@ productsRouter.post("/:id/image", checkRole("admin", "pharmacist"), upload.singl
   if (!req.file) {
     throw new AppError(400, "\u0644\u0645 \u064A\u064F\u0631\u0641\u064E\u0639 \u0623\u064A \u0645\u0644\u0641");
   }
-  const filename = await saveProductImage(Number(req.params.id), req.file.buffer);
+  const filename = await saveProductImage(parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641"), req.file.buffer);
   res.status(201).json({ imageFilename: filename });
 }));
 
@@ -60272,11 +60389,11 @@ async function writeOffBatch(batchId, userId) {
     if (!batch) {
       throw new AppError(404, "\u0627\u0644\u062F\u0641\u0639\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629");
     }
-    if (batch.quantity <= 0) {
+    if (batch.quantity <= 0 && batch.openedSubUnits <= 0) {
       throw new AppError(409, "\u0631\u0635\u064A\u062F \u0647\u0630\u0647 \u0627\u0644\u062F\u0641\u0639\u0629 \u0635\u0641\u0631 \u0623\u0635\u0644\u0627\u064B \u2014 \u0644\u0627 \u0634\u064A\u0621 \u0644\u0625\u062A\u0644\u0627\u0641\u0647");
     }
     const [{ expired }] = await tx.$queryRaw`
-      SELECT expiry_date IS NOT NULL AND expiry_date < CURRENT_DATE AS expired
+      SELECT expiry_date IS NOT NULL AND expiry_date < (now() AT TIME ZONE 'Asia/Baghdad')::date AS expired
       FROM batches WHERE id = ${batchId}
     `;
     if (!expired) {
@@ -60285,8 +60402,21 @@ async function writeOffBatch(batchId, userId) {
     await tx.batchWriteOff.create({
       data: { batchId: batch.id, quantity: batch.quantity, userId }
     });
-    return tx.batch.update({ where: { id: batchId }, data: { quantity: 0 } });
+    return tx.batch.update({ where: { id: batchId }, data: { quantity: 0, openedSubUnits: 0 } });
   });
+}
+async function deleteBatch(batchId) {
+  const [saleCount, purchaseItemCount] = await Promise.all([
+    prisma.saleItem.count({ where: { batchId } }),
+    prisma.purchaseItem.count({ where: { batchId } })
+  ]);
+  if (saleCount > 0) {
+    throw new AppError(409, "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u062F\u0641\u0639\u0629 \u0628\u064A\u0639 \u0645\u0646\u0647\u0627 \u0633\u0627\u0628\u0642\u0627\u064B \u2014 \u0635\u0641\u0651\u0631 \u0643\u0645\u064A\u062A\u0647\u0627 \u0628\u062F\u0644\u0627\u064B \u0645\u0646 \u0630\u0644\u0643 \u0639\u0628\u0631 \u0627\u0644\u062A\u0639\u062F\u064A\u0644");
+  }
+  if (purchaseItemCount > 0) {
+    throw new AppError(409, "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u062F\u0641\u0639\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0641\u0627\u062A\u0648\u0631\u0629 \u0634\u0631\u0627\u0621 \u2014 \u0635\u0641\u0651\u0631 \u0643\u0645\u064A\u062A\u0647\u0627 \u0628\u062F\u0644\u0627\u064B \u0645\u0646 \u0630\u0644\u0643 \u0639\u0628\u0631 \u0627\u0644\u062A\u0639\u062F\u064A\u0644");
+  }
+  return prisma.batch.delete({ where: { id: batchId } });
 }
 
 // ../server/dist/src/routes/batches.routes.js
@@ -60297,15 +60427,15 @@ var batchSchema = external_exports.object({
   batchNumber: external_exports.string().trim().min(1).nullish(),
   expiryDate: external_exports.coerce.date().nullish(),
   quantity: external_exports.number().int().positive(),
-  purchasePrice: external_exports.number().nonnegative().default(0)
+  purchasePrice: external_exports.number().nonnegative().finite().default(0)
 });
 batchesRouter.get("/", asyncHandler(async (req, res) => {
-  const productId = req.query.productId ? Number(req.query.productId) : void 0;
+  const productId = req.query.productId !== void 0 ? parseIdParam(String(req.query.productId), "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641") : void 0;
   const rows = await prisma.batch.findMany({
     where: productId ? { productId } : {},
     orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }]
   });
-  res.json(rows.map((b) => ({
+  res.json(withoutCostFor(req.auth.role, rows.map((b) => ({
     id: b.id,
     productId: b.productId,
     batchNumber: b.batchNumber,
@@ -60314,7 +60444,7 @@ batchesRouter.get("/", asyncHandler(async (req, res) => {
     purchasePrice: toNumber(b.purchasePrice),
     receivedAt: b.receivedAt.toISOString(),
     openedSubUnits: b.openedSubUnits
-  })));
+  }))));
 }));
 batchesRouter.post("/", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
   const data = batchSchema.parse(req.body);
@@ -60399,11 +60529,7 @@ batchesRouter.delete("/:id", checkRole("admin"), asyncHandler(async (req, res) =
   if (!Number.isInteger(batchId)) {
     throw new AppError(400, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u062F\u0641\u0639\u0629 \u063A\u064A\u0631 \u0635\u0627\u0644\u062D");
   }
-  const saleCount = await prisma.saleItem.count({ where: { batchId } });
-  if (saleCount > 0) {
-    throw new AppError(409, "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u062F\u0641\u0639\u0629 \u0628\u064A\u0639 \u0645\u0646\u0647\u0627 \u0633\u0627\u0628\u0642\u0627\u064B \u2014 \u0635\u0641\u0651\u0631 \u0643\u0645\u064A\u062A\u0647\u0627 \u0628\u062F\u0644\u0627\u064B \u0645\u0646 \u0630\u0644\u0643 \u0639\u0628\u0631 \u0627\u0644\u062A\u0639\u062F\u064A\u0644");
-  }
-  const batch = await prisma.batch.delete({ where: { id: batchId } });
+  const batch = await deleteBatch(batchId);
   broadcastStockChanged([batch.productId]);
   res.status(204).end();
 }));
@@ -60412,6 +60538,7 @@ batchesRouter.delete("/:id", checkRole("admin"), asyncHandler(async (req, res) =
 var import_express7 = __toESM(require_express2(), 1);
 
 // ../server/dist/src/services/sales.service.js
+import { Prisma } from "@prisma/client";
 function mapSale(row) {
   return {
     id: row.id,
@@ -60445,16 +60572,20 @@ async function createSale(userId, input) {
   const result = await prisma.$transaction(async (tx) => {
     const affectedProductIds = /* @__PURE__ */ new Set();
     const lineData = [];
-    for (const line of input.items) {
+    const orderedItems = [...input.items].sort((a, b) => a.productId - b.productId);
+    for (const line of orderedItems) {
       const product = await tx.product.findUnique({ where: { id: line.productId } });
       if (!product) {
         throw new AppError(404, `\u0627\u0644\u0635\u0646\u0641 \u0631\u0642\u0645 ${line.productId} \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F`);
       }
       affectedProductIds.add(product.id);
-      const unitPrice = line.isSubUnit ? toNumber(product.subUnitPrice ?? product.salePrice) : toNumber(product.salePrice);
+      if (line.isSubUnit && product.subUnitPrice === null) {
+        throw new AppError(400, `"${product.name}" \u0628\u0644\u0627 \u0633\u0639\u0631 \u0645\u062D\u062F\u062F \u0644\u0644\u0648\u062D\u062F\u0629 \u0627\u0644\u0641\u0631\u0639\u064A\u0629 \u2014 \u0631\u0627\u062C\u0639 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0635\u0646\u0641`);
+      }
+      const unitPrice = line.isSubUnit ? toNumber(product.subUnitPrice) : toNumber(product.salePrice);
       const batches = await tx.$queryRaw`SELECT id, quantity, opened_sub_units FROM batches
          WHERE product_id = ${product.id}
-           AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
+           AND (expiry_date IS NULL OR expiry_date >= (now() AT TIME ZONE 'Asia/Baghdad')::date)
          ORDER BY expiry_date ASC NULLS LAST, received_at ASC
          FOR UPDATE`;
       let remaining = line.quantity;
@@ -60476,7 +60607,8 @@ async function createSale(userId, input) {
               batchId: batch.id,
               quantity: fromLoose,
               unitPrice,
-              isSubUnit: true
+              isSubUnit: true,
+              subUnitsPerPackage: product.unitsPerPackage
             });
             remaining -= fromLoose;
           }
@@ -60497,7 +60629,8 @@ async function createSale(userId, input) {
               batchId: batch.id,
               quantity: fromThisPackage,
               unitPrice,
-              isSubUnit: true
+              isSubUnit: true,
+              subUnitsPerPackage: product.unitsPerPackage
             });
             remaining -= fromThisPackage;
           }
@@ -60526,7 +60659,10 @@ async function createSale(userId, input) {
     }
     const subtotal = lineData.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0);
     const discount = input.discount ?? 0;
-    const total = Math.max(0, subtotal - discount);
+    if (discount > subtotal) {
+      throw new AppError(400, "\u0627\u0644\u062E\u0635\u0645 \u0623\u0643\u0628\u0631 \u0645\u0646 \u0645\u062C\u0645\u0648\u0639 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629");
+    }
+    const total = subtotal - discount;
     const sale = await tx.sale.create({
       data: {
         userId,
@@ -60538,19 +60674,21 @@ async function createSale(userId, input) {
       include: { items: true }
     });
     return { sale, affectedProductIds: [...affectedProductIds] };
+  }).catch((err) => {
+    if (input.idempotencyKey && err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return null;
+    }
+    throw err;
   });
+  if (result === null) {
+    const existing = await prisma.sale.findUniqueOrThrow({
+      where: { idempotencyKey: input.idempotencyKey },
+      include: { items: true }
+    });
+    return mapSale(existing);
+  }
   broadcastStockChanged(result.affectedProductIds);
   return mapSale(result.sale);
-}
-
-// ../server/dist/src/lib/dateRange.js
-var BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1e3;
-function resolveRange(from, to) {
-  const validFrom = from && !Number.isNaN(from.getTime()) ? from : void 0;
-  const validTo = to && !Number.isNaN(to.getTime()) ? to : void 0;
-  const end = validTo ? new Date(validTo.getTime() + 864e5 - 1 - BAGHDAD_OFFSET_MS) : /* @__PURE__ */ new Date();
-  const start = validFrom ? new Date(validFrom.getTime() - BAGHDAD_OFFSET_MS) : new Date(end.getTime() - 30 * 864e5);
-  return { start, end };
 }
 
 // ../server/dist/src/routes/sales.routes.js
@@ -60562,7 +60700,7 @@ var saleSchema = external_exports.object({
     quantity: external_exports.number().int().positive(),
     isSubUnit: external_exports.boolean().optional()
   })).min(1, "\u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0641\u0627\u0631\u063A\u0629"),
-  discount: external_exports.number().nonnegative().default(0),
+  discount: external_exports.number().nonnegative().finite().default(0),
   idempotencyKey: external_exports.string().min(8).max(64).optional()
 });
 salesRouter.post("/", asyncHandler(async (req, res) => {
@@ -60571,7 +60709,7 @@ salesRouter.post("/", asyncHandler(async (req, res) => {
 }));
 salesRouter.get("/:id", asyncHandler(async (req, res) => {
   const sale = await prisma.sale.findUnique({
-    where: { id: Number(req.params.id) },
+    where: { id: parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629") },
     include: {
       items: {
         include: { product: { select: { name: true, unit: true, subUnitName: true } } }
@@ -60656,7 +60794,11 @@ async function createReturn(userId, input) {
   if (input.items.length === 0) {
     throw new AppError(400, "\u0644\u0645 \u062A\u064F\u062D\u062F\u064E\u0651\u062F \u0623\u064A \u0623\u0635\u0646\u0627\u0641 \u0644\u0644\u0625\u0631\u062C\u0627\u0639");
   }
+  if (new Set(input.items.map((i) => i.saleItemId)).size !== input.items.length) {
+    throw new AppError(400, "\u062A\u0643\u0631\u0651\u0631 \u0646\u0641\u0633 \u0627\u0644\u0635\u0646\u0641 \u0641\u064A \u0637\u0644\u0628 \u0627\u0644\u0625\u0631\u062C\u0627\u0639 \u2014 \u0627\u062C\u0645\u0639 \u0627\u0644\u0643\u0645\u064A\u0629 \u0641\u064A \u0633\u0637\u0631 \u0648\u0627\u062D\u062F");
+  }
   const result = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM sales WHERE id = ${input.saleId} FOR UPDATE`;
     const sale = await tx.sale.findUnique({
       where: { id: input.saleId },
       // Every line, not just the returned ones: the discount share is worked
@@ -60668,7 +60810,7 @@ async function createReturn(userId, input) {
     }
     const subtotalMinor = sale.items.reduce((sum, item) => sum + item.quantity * toMinorUnits(toNumber(item.unitPrice)), 0);
     const discountMinor = toMinorUnits(toNumber(sale.discount));
-    const paidRatio = subtotalMinor > 0 ? (subtotalMinor - discountMinor) / subtotalMinor : 0;
+    const paidRatio = subtotalMinor > 0 ? Math.min(1, Math.max(0, (subtotalMinor - discountMinor) / subtotalMinor)) : 0;
     let totalMinor = 0;
     const affectedProductIds = /* @__PURE__ */ new Set();
     const returnItems = [];
@@ -60706,6 +60848,9 @@ async function createReturn(userId, input) {
         isSubUnit: saleItem.isSubUnit
       });
     }
+    const previousRefunds = await tx.return.aggregate({ where: { saleId: input.saleId }, _sum: { total: true } });
+    const refundableMinor = toMinorUnits(toNumber(sale.total)) - (previousRefunds._sum.total ? toMinorUnits(toNumber(previousRefunds._sum.total)) : 0);
+    totalMinor = Math.min(totalMinor, Math.max(0, refundableMinor));
     const created2 = await tx.return.create({
       data: {
         saleId: input.saleId,
@@ -60801,14 +60946,15 @@ suppliersRouter.post("/", checkRole("admin", "pharmacist"), asyncHandler(async (
   }));
 }));
 suppliersRouter.put("/:id", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
+  const id = parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0645\u0648\u0631\u0651\u062F");
   const data = supplierSchema.parse(req.body);
   res.json(await prisma.supplier.update({
-    where: { id: Number(req.params.id) },
+    where: { id },
     data: { name: data.name, phone: data.phone || null, address: data.address || null }
   }));
 }));
 suppliersRouter.delete("/:id", checkRole("admin"), asyncHandler(async (req, res) => {
-  await prisma.supplier.delete({ where: { id: Number(req.params.id) } });
+  await prisma.supplier.delete({ where: { id: parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0645\u0648\u0631\u0651\u062F") } });
   res.status(204).end();
 }));
 
@@ -60904,7 +61050,7 @@ var purchaseSchema = external_exports.object({
   items: external_exports.array(external_exports.object({
     productId: external_exports.number().int().positive(),
     quantity: external_exports.number().int().positive(),
-    unitPrice: external_exports.number().nonnegative(),
+    unitPrice: external_exports.number().nonnegative().finite(),
     batchNumber: external_exports.string().trim().min(1).nullish(),
     expiryDate: external_exports.coerce.date().nullish()
   })).min(1, "\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0634\u0631\u0627\u0621 \u0641\u0627\u0631\u063A\u0629")
@@ -60944,6 +61090,90 @@ async function getWriteOffsReport() {
     createdAt: r.createdAt.toISOString()
   }));
 }
+function baghdadDay(column) {
+  return `(${column} + interval '3 hours')::date`;
+}
+var LINE_UNIT_COST = `(COALESCE(b.purchase_price, p.purchase_price)
+  / CASE WHEN si.is_sub_unit THEN COALESCE(si.sub_units_per_package, p.units_per_package, 1) ELSE 1 END)`;
+async function getTopProducts(start, end) {
+  const rows = await prisma.$queryRaw`
+    SELECT si.product_id, p.name AS product_name,
+           SUM(si.quantity)::bigint AS quantity,
+           SUM(si.quantity * si.unit_price)::text AS revenue
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    JOIN products p ON p.id = si.product_id
+    WHERE s.date BETWEEN ${start} AND ${end}
+    GROUP BY si.product_id, p.name
+    -- By the number itself: the revenue alias is text, which would rank "9" above "1500".
+    ORDER BY SUM(si.quantity * si.unit_price) DESC
+    LIMIT 10`;
+  return rows.map((r) => ({
+    productId: r.product_id,
+    productName: r.product_name,
+    quantity: Number(r.quantity),
+    revenue: Number(r.revenue)
+  }));
+}
+async function getRevenueByCategory(start, end) {
+  const rows = await prisma.$queryRaw`
+    SELECT COALESCE(c.name, 'بلا تصنيف') AS category_name,
+           SUM(si.quantity * si.unit_price)::text AS revenue
+    FROM sale_items si
+    JOIN sales s ON s.id = si.sale_id
+    JOIN products p ON p.id = si.product_id
+    LEFT JOIN categories c ON c.id = p.category_id
+    WHERE s.date BETWEEN ${start} AND ${end}
+    GROUP BY c.name
+    ORDER BY SUM(si.quantity * si.unit_price) DESC`;
+  return rows.map((r) => ({ categoryName: r.category_name, revenue: Number(r.revenue) }));
+}
+async function getProfitReport(start, end) {
+  const revenueByDay = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay("date")} AS day, SUM(total)::text AS revenue
+     FROM sales WHERE date BETWEEN $1 AND $2 GROUP BY 1`, start, end);
+  const returnsByDay = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay("date")} AS day, SUM(total)::text AS refunded
+     FROM returns WHERE date BETWEEN $1 AND $2 GROUP BY 1`, start, end);
+  const costByDay = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay("s.date")} AS day, SUM(si.quantity * ${LINE_UNIT_COST})::text AS cost
+     FROM sale_items si
+     JOIN sales s ON s.id = si.sale_id
+     JOIN products p ON p.id = si.product_id
+     LEFT JOIN batches b ON b.id = si.batch_id
+     WHERE s.date BETWEEN $1 AND $2
+     GROUP BY 1`, start, end);
+  const returnedCostByDay = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay("r.date")} AS day, SUM(ri.quantity * ${LINE_UNIT_COST})::text AS cost
+     FROM return_items ri
+     JOIN returns r ON r.id = ri.return_id
+     JOIN sale_items si ON si.id = ri.sale_item_id
+     JOIN products p ON p.id = si.product_id
+     LEFT JOIN batches b ON b.id = si.batch_id
+     WHERE r.date BETWEEN $1 AND $2
+     GROUP BY 1`, start, end);
+  const days = /* @__PURE__ */ new Map();
+  const entry = (day) => {
+    const key = day.toISOString().slice(0, 10);
+    const existing = days.get(key) ?? { revenue: 0, refunded: 0, cost: 0 };
+    days.set(key, existing);
+    return existing;
+  };
+  for (const r of revenueByDay)
+    entry(r.day).revenue = Number(r.revenue);
+  for (const r of returnsByDay)
+    entry(r.day).refunded = Number(r.refunded);
+  for (const r of costByDay)
+    entry(r.day).cost += Number(r.cost);
+  for (const r of returnedCostByDay)
+    entry(r.day).cost -= Number(r.cost);
+  return [...days.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => {
+    const revenueMinor = toMinorUnits(v.revenue - v.refunded);
+    const costMinor = toMinorUnits(v.cost);
+    return {
+      date,
+      revenue: fromMinorUnits(revenueMinor),
+      cost: fromMinorUnits(costMinor),
+      profit: fromMinorUnits(revenueMinor - costMinor)
+    };
+  });
+}
 
 // ../server/dist/src/routes/reports.routes.js
 var reportsRouter = (0, import_express11.Router)();
@@ -60953,13 +61183,13 @@ var rangeSchema = external_exports.object({
   from: external_exports.coerce.date().optional(),
   to: external_exports.coerce.date().optional()
 });
-function baghdadDay(column) {
+function baghdadDay2(column) {
   return `(${column} + interval '3 hours')::date`;
 }
 reportsRouter.get("/sales", asyncHandler(async (req, res) => {
   const { from, to } = rangeSchema.parse(req.query);
   const { start, end } = resolveRange(from, to);
-  const rows = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay("date")} AS day, SUM(total)::text AS total, COUNT(*)::bigint AS count
+  const rows = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay2("date")} AS day, SUM(total)::text AS total, COUNT(*)::bigint AS count
        FROM sales WHERE date BETWEEN $1 AND $2
        GROUP BY 1 ORDER BY 1`, start, end);
   res.json(rows.map((r) => ({
@@ -60971,38 +61201,12 @@ reportsRouter.get("/sales", asyncHandler(async (req, res) => {
 reportsRouter.get("/top-products", asyncHandler(async (req, res) => {
   const { from, to } = rangeSchema.parse(req.query);
   const { start, end } = resolveRange(from, to);
-  const rows = await prisma.$queryRaw`
-      SELECT si.product_id, p.name AS product_name,
-             SUM(si.quantity)::bigint AS quantity,
-             SUM(si.quantity * si.unit_price)::text AS revenue
-      FROM sale_items si
-      JOIN sales s ON s.id = si.sale_id
-      JOIN products p ON p.id = si.product_id
-      WHERE s.date BETWEEN ${start} AND ${end}
-      GROUP BY si.product_id, p.name
-      ORDER BY revenue DESC
-      LIMIT 10`;
-  res.json(rows.map((r) => ({
-    productId: r.product_id,
-    productName: r.product_name,
-    quantity: Number(r.quantity),
-    revenue: Number(r.revenue)
-  })));
+  res.json(await getTopProducts(start, end));
 }));
 reportsRouter.get("/by-category", asyncHandler(async (req, res) => {
   const { from, to } = rangeSchema.parse(req.query);
   const { start, end } = resolveRange(from, to);
-  const rows = await prisma.$queryRaw`
-      SELECT COALESCE(c.name, 'بلا تصنيف') AS category_name,
-             SUM(si.quantity * si.unit_price)::text AS revenue
-      FROM sale_items si
-      JOIN sales s ON s.id = si.sale_id
-      JOIN products p ON p.id = si.product_id
-      LEFT JOIN categories c ON c.id = p.category_id
-      WHERE s.date BETWEEN ${start} AND ${end}
-      GROUP BY c.name
-      ORDER BY revenue DESC`;
-  res.json(rows.map((r) => ({ categoryName: r.category_name, revenue: Number(r.revenue) })));
+  res.json(await getRevenueByCategory(start, end));
 }));
 reportsRouter.get("/expiry", asyncHandler(async (req, res) => {
   const { to } = rangeSchema.parse(req.query);
@@ -61039,46 +61243,7 @@ reportsRouter.get("/write-offs", asyncHandler(async (_req, res) => {
 reportsRouter.get("/profit", checkRole("admin"), asyncHandler(async (req, res) => {
   const { from, to } = rangeSchema.parse(req.query);
   const { start, end } = resolveRange(from, to);
-  const revenueByDay = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay("date")} AS day, SUM(total)::text AS revenue
-       FROM sales WHERE date BETWEEN $1 AND $2 GROUP BY 1`, start, end);
-  const returnsByDay = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay("date")} AS day, SUM(total)::text AS refunded
-       FROM returns WHERE date BETWEEN $1 AND $2 GROUP BY 1`, start, end);
-  const costByDay = await prisma.$queryRawUnsafe(`SELECT ${baghdadDay("s.date")} AS day,
-              SUM(si.quantity * COALESCE(b.purchase_price, p.purchase_price))::text AS cost
-       FROM sale_items si
-       JOIN sales s ON s.id = si.sale_id
-       JOIN products p ON p.id = si.product_id
-       LEFT JOIN batches b ON b.id = si.batch_id
-       WHERE s.date BETWEEN $1 AND $2
-       GROUP BY 1`, start, end);
-  const days = /* @__PURE__ */ new Map();
-  for (const r of revenueByDay) {
-    const key = r.day.toISOString().slice(0, 10);
-    days.set(key, { revenue: Number(r.revenue), refunded: 0, cost: 0 });
-  }
-  for (const r of returnsByDay) {
-    const key = r.day.toISOString().slice(0, 10);
-    const entry = days.get(key) ?? { revenue: 0, refunded: 0, cost: 0 };
-    entry.refunded = Number(r.refunded);
-    days.set(key, entry);
-  }
-  for (const r of costByDay) {
-    const key = r.day.toISOString().slice(0, 10);
-    const entry = days.get(key) ?? { revenue: 0, refunded: 0, cost: 0 };
-    entry.cost = Number(r.cost);
-    days.set(key, entry);
-  }
-  const points = [...days.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, v]) => {
-    const revenueMinor = toMinorUnits(v.revenue - v.refunded);
-    const costMinor = toMinorUnits(v.cost);
-    return {
-      date,
-      revenue: fromMinorUnits(revenueMinor),
-      cost: fromMinorUnits(costMinor),
-      profit: fromMinorUnits(revenueMinor - costMinor)
-    };
-  });
-  res.json(points);
+  res.json(await getProfitReport(start, end));
 }));
 
 // ../server/dist/src/routes/backup.routes.js
@@ -61126,7 +61291,9 @@ function logoPath() {
 }
 async function saveLogo(buffer) {
   await fs5.mkdir(brandingDir(), { recursive: true });
-  const resized = await sharp2(buffer).rotate().resize(512, 512, { fit: "inside", withoutEnlargement: true }).png().toBuffer();
+  const resized = await sharp2(buffer).rotate().resize(512, 512, { fit: "inside", withoutEnlargement: true }).png().toBuffer().catch(() => {
+    throw new AppError(400, "\u0627\u0644\u0645\u0644\u0641 \u0644\u064A\u0633 \u0635\u0648\u0631\u0629 \u0635\u0627\u0644\u062D\u0629");
+  });
   await fs5.writeFile(logoPath(), resized);
 }
 async function deleteLogo() {
@@ -61212,20 +61379,26 @@ app.use(errorHandler);
 import fs6 from "node:fs/promises";
 import path8 from "node:path";
 async function dumpTables() {
-  const [users, categories, products, batches, suppliers, purchases, purchaseItems, sales, saleItems, returns, returnItems, batchWriteOffs] = await Promise.all([
-    prisma.user.findMany(),
-    prisma.category.findMany(),
-    prisma.product.findMany(),
-    prisma.batch.findMany(),
-    prisma.supplier.findMany(),
-    prisma.purchase.findMany(),
-    prisma.purchaseItem.findMany(),
-    prisma.sale.findMany(),
-    prisma.saleItem.findMany(),
-    prisma.return.findMany(),
-    prisma.returnItem.findMany(),
-    prisma.batchWriteOff.findMany()
-  ]);
+  const [users, categories, products, batches, suppliers, purchases, purchaseItems, sales, saleItems, returns, returnItems, batchWriteOffs] = await prisma.$transaction(
+    [
+      prisma.user.findMany(),
+      prisma.category.findMany(),
+      prisma.product.findMany(),
+      prisma.batch.findMany(),
+      prisma.supplier.findMany(),
+      prisma.purchase.findMany(),
+      prisma.purchaseItem.findMany(),
+      prisma.sale.findMany(),
+      prisma.saleItem.findMany(),
+      prisma.return.findMany(),
+      prisma.returnItem.findMany(),
+      prisma.batchWriteOff.findMany()
+    ],
+    // One snapshot of the whole database. Twelve independent reads while the
+    // tills keep selling could capture a sale's lines without the sale (or
+    // stock that disagrees with it) — a backup the restore then refuses.
+    { isolationLevel: "RepeatableRead" }
+  );
   return {
     users,
     categories,
@@ -61259,21 +61432,41 @@ async function backupUploads(uploadsSrc = defaultUploadsDir()) {
   return dest;
 }
 async function pruneOldBackups() {
-  const files = (await fs6.readdir(config.backupDir)).filter((f) => f.startsWith("backup-") && f.endsWith(".json")).sort();
-  const excess = files.length - config.backupRetention;
-  if (excess <= 0)
-    return;
-  for (const file of files.slice(0, excess)) {
-    await fs6.unlink(path8.join(config.backupDir, file)).catch(() => {
-    });
+  const entries = await fs6.readdir(config.backupDir);
+  const groups = [
+    entries.filter((f) => f.startsWith("backup-") && f.endsWith(".json")).sort(),
+    entries.filter((f) => f.startsWith("uploads-")).sort()
+  ];
+  for (const group of groups) {
+    const excess = group.length - config.backupRetention;
+    for (const name of group.slice(0, Math.max(0, excess))) {
+      await fs6.rm(path8.join(config.backupDir, name), { recursive: true, force: true }).catch(() => {
+      });
+    }
   }
+}
+function backupDateFromName(name) {
+  const match = name.match(/^backup-(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})\.(\d{3})Z\.json$/);
+  if (!match)
+    return null;
+  const [, day, h, m, s, ms] = match;
+  return /* @__PURE__ */ new Date(`${day}T${h}:${m}:${s}.${ms}Z`);
+}
+async function hasRecentBackup(now = /* @__PURE__ */ new Date()) {
+  const entries = await fs6.readdir(config.backupDir).catch(() => []);
+  return entries.some((name) => {
+    const date = backupDateFromName(name);
+    return date !== null && now.getTime() - date.getTime() < 24 * 60 * 60 * 1e3;
+  });
 }
 async function writeBackup(uploadsSrc) {
   await fs6.mkdir(config.backupDir, { recursive: true });
   const createdAt = /* @__PURE__ */ new Date();
   const data = { createdAt: createdAt.toISOString(), tables: await dumpTables() };
   const file = path8.join(config.backupDir, backupFilename(createdAt));
-  await fs6.writeFile(file, JSON.stringify(data));
+  const tmp = `${file}.tmp`;
+  await fs6.writeFile(tmp, JSON.stringify(data));
+  await fs6.rename(tmp, file);
   await backupUploads(uploadsSrc);
   await pruneOldBackups();
   return file;
@@ -61300,12 +61493,16 @@ function isDirectCliRun(moduleUrl, entryPath, expectedModuleName) {
 }
 
 // ../server/dist/prisma/seed.js
-var import_bcryptjs3 = __toESM(require_bcryptjs(), 1);
+var import_bcryptjs4 = __toESM(require_bcryptjs(), 1);
 var DEFAULT_ACCOUNTS = [
   { username: "admin", password: "admin123", name: "\u0645\u062F\u064A\u0631 \u0627\u0644\u0646\u0638\u0627\u0645", role: "admin" },
   { username: "cashier", password: "cashier123", name: "\u0623\u0645\u064A\u0646 \u0627\u0644\u0635\u0646\u062F\u0648\u0642", role: "cashier" }
 ];
 async function seedDefaultAccounts() {
+  if (await prisma.user.count() > 0) {
+    console.log("\u062A\u062E\u0637\u0651\u064A \u0627\u0644\u0628\u0630\u0631: \u062A\u0648\u062C\u062F \u062D\u0633\u0627\u0628\u0627\u062A \u0645\u0633\u0628\u0642\u0627\u064B");
+    return;
+  }
   for (const account of DEFAULT_ACCOUNTS) {
     const existing = await prisma.user.findUnique({ where: { username: account.username } });
     if (existing) {
@@ -61316,7 +61513,7 @@ async function seedDefaultAccounts() {
       data: {
         name: account.name,
         username: account.username,
-        passwordHash: await import_bcryptjs3.default.hash(account.password, 10),
+        passwordHash: await import_bcryptjs4.default.hash(account.password, 10),
         role: account.role,
         isActive: true
       }
@@ -61346,7 +61543,10 @@ async function seedIfRequested() {
   }
 }
 function listenOrExit(server, port, log = logger, onListening = () => {
-  createBackup();
+  void hasRecentBackup().then((recent) => {
+    if (!recent)
+      void createBackup();
+  });
   setInterval(createBackup, BACKUP_INTERVAL_MS);
 }) {
   server.on("error", (err) => {

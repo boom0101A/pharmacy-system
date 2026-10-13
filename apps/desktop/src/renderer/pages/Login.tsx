@@ -6,6 +6,7 @@ import { Input } from '../components/ui/Input';
 import { useAuth } from '../store/auth';
 import { useBranding } from '../store/branding';
 import { getServerUrl, setServerUrl } from '../lib/api';
+import { ResetPasswordDialog } from './ResetPasswordDialog';
 
 export function Login() {
   const { login, loading, error } = useAuth();
@@ -14,11 +15,14 @@ export function Login() {
   const [password, setPassword] = useState('');
   const [server, setServer] = useState(getServerUrl());
   const [showServerField, setShowServerField] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     // The address is saved before the attempt so a retry uses the new value.
     setServerUrl(server);
+    setResetNotice(null);
     await login(username, password);
   }
 
@@ -40,7 +44,11 @@ export function Login() {
         </div>
 
         <form className={styles.form} onSubmit={handleSubmit}>
-          {error && <div className={styles.alert}>{error}</div>}
+          {resetNotice ? (
+            <div className={styles.notice}>{resetNotice}</div>
+          ) : (
+            error && <div className={styles.alert}>{error}</div>
+          )}
 
           <Input
             label="اسم المستخدم"
@@ -62,6 +70,10 @@ export function Login() {
           <Button type="submit" size="lg" fullWidth disabled={loading}>
             {loading ? 'جارٍ الدخول…' : 'دخول'}
           </Button>
+
+          <button type="button" className={styles.serverToggle} onClick={() => setResetOpen(true)}>
+            نسيت كلمة المرور؟
+          </button>
 
           {showServerField ? (
             <div className={styles.serverRow}>
@@ -85,6 +97,17 @@ export function Login() {
           )}
         </form>
       </div>
+
+      <ResetPasswordDialog
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        onDone={(name) => {
+          setResetOpen(false);
+          setUsername(name);
+          setPassword('');
+          setResetNotice('تم تغيير كلمة المرور — سجّل الدخول بالكلمة الجديدة');
+        }}
+      />
     </div>
   );
 }

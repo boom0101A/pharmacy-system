@@ -24,3 +24,24 @@ describe('serverModeForUrl', () => {
     expect(serverModeForUrl('not a url')).toBe('local');
   });
 });
+
+describe('correctedLocalServerUrl', async () => {
+  const { correctedLocalServerUrl } = await import('./serverMode');
+  const ready = { status: 'ready', serverUrl: 'http://127.0.0.1:3000' } as const;
+
+  it('replaces a mistyped address on this machine with the bundled server that is actually running', () => {
+    expect(correctedLocalServerUrl('http://localhost:4000', ready)).toBe('http://127.0.0.1:3000');
+  });
+
+  it('leaves an address on another computer alone — that till is deliberately using a remote server', () => {
+    expect(correctedLocalServerUrl('http://192.168.1.10:3000', ready)).toBeNull();
+  });
+
+  it('does nothing when the stored address already matches', () => {
+    expect(correctedLocalServerUrl('http://127.0.0.1:3000', ready)).toBeNull();
+  });
+
+  it('does nothing until the bundled server is actually ready', () => {
+    expect(correctedLocalServerUrl('http://localhost:4000', { status: 'starting', stage: 'database' })).toBeNull();
+  });
+});

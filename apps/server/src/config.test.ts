@@ -51,3 +51,12 @@ describe('config directories', () => {
     expect(config.logsDir).toMatch(/^([A-Za-z]:|\/)/);
   });
 });
+
+describe('config backupDir default', () => {
+  it('is an absolute folder next to the server, not relative to whatever the working directory happens to be', async () => {
+    delete process.env.BACKUP_DIR;
+    const config = await loadConfig();
+    expect(config.backupDir.startsWith('.')).toBe(false);
+    expect(config.backupDir.endsWith('backups')).toBe(true);
+  });
+});

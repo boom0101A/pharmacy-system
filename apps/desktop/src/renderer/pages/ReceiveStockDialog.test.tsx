@@ -121,3 +121,35 @@ describe('ReceiveStockDialog batch delete', () => {
     resolveDelete();
   });
 });
+
+describe('ReceiveStockDialog switching products', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('never shows the previous product\'s batches under the new product, even when its response arrives late', async () => {
+    let resolveA!: (rows: unknown[]) => void;
+    vi.mocked(api.batches)
+      .mockImplementationOnce(() => new Promise((resolve) => (resolveA = resolve as never)) as never)
+      .mockResolvedValueOnce([] as never);
+
+    const productA = { ...product, id: 1, name: 'دواء أ' } as typeof product;
+    const productB = { ...product, id: 2, name: 'دواء ب' } as typeof product;
+    const { rerender } = render(
+      <ToastProvider>
+        <ReceiveStockDialog product={productA} onClose={() => {}} onSaved={() => {}} />
+      </ToastProvider>,
+    );
+    rerender(
+      <ToastProvider>
+        <ReceiveStockDialog product={productB} onClose={() => {}} onSaved={() => {}} />
+      </ToastProvider>,
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    resolveA([{ id: 99, productId: 1, batchNumber: 'A-BATCH', expiryDate: null, quantity: 3, purchasePrice: 1, receivedAt: isoDate(-1), openedSubUnits: 0 }]);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(screen.queryByDisplayValue('A-BATCH')).toBeNull();
+  });
+});

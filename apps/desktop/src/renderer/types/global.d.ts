@@ -26,7 +26,7 @@ declare global {
   type BackendStatus =
     | { status: 'disabled' }
     | { status: 'starting'; stage: 'database' | 'schema' | 'server' }
-    | { status: 'ready' }
+    | { status: 'ready'; serverUrl: string }
     | { status: 'failed'; message: string };
 
   interface Window {
@@ -41,6 +41,12 @@ declare global {
       getMachineId: () => Promise<string>;
       getLicenseStatus: () => Promise<LicenseCheck>;
       activateLicense: (key: string) => Promise<LicenseCheck>;
+      resetPassword: (input: {
+        username: string;
+        licenseKey: string;
+        newPassword: string;
+        serverUrl: string;
+      }) => Promise<void>;
     };
   }
 }

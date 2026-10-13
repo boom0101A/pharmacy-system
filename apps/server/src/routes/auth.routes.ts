@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '../prisma.js';
 import { AppError, asyncHandler } from '../middleware/errors.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
+import { resetPasswordWithToken } from '../services/passwordReset.service.js';
 
 export const authRouter = Router();
 
@@ -53,6 +54,21 @@ authRouter.post(
         createdAt: user.createdAt.toISOString(),
       },
     });
+  }),
+);
+
+const resetSchema = z.object({
+  token: z.string().min(1),
+  password: z.string().min(4, 'كلمة المرور قصيرة جداً'),
+});
+
+authRouter.post(
+  '/reset-password',
+  loginLimiter,
+  asyncHandler(async (req, res) => {
+    const { token, password } = resetSchema.parse(req.body);
+    await resetPasswordWithToken(token, password);
+    res.status(204).end();
   }),
 );
 

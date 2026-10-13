@@ -9,6 +9,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { api } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { baghdadToday, formatDate, formatMoney, formatTime } from '../lib/cx';
+import { refundPreview } from '../lib/returnRefund';
 
 export function Returns() {
   const toast = useToast();
@@ -92,9 +93,7 @@ export function Returns() {
     setQuantities((prev) => ({ ...prev, [saleItemId]: Math.max(0, Math.min(value, max)) }));
   }
 
-  const total = sale
-    ? sale.items.reduce((sum, item) => sum + (quantities[item.id] ?? 0) * item.unitPrice, 0)
-    : 0;
+  const total = sale ? refundPreview(sale.items, quantities, sale.discount) : 0;
 
   async function submitReturn() {
     if (!sale) return;
@@ -224,11 +223,12 @@ export function Returns() {
                           type="number"
                           min={0}
                           max={remaining}
+                          aria-label={`كمية إرجاع `}
                           className={styles.qtyInput}
                           value={quantities[item.id] ?? ''}
                           placeholder="0"
                           disabled={remaining === 0}
-                          onChange={(e) => setQuantity(item.id, Number(e.target.value), remaining)}
+                          onChange={(e) => setQuantity(item.id, Math.floor(Number(e.target.value) || 0), remaining)}
                         />
                       </td>
                     </tr>

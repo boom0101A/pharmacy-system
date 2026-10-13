@@ -21,12 +21,19 @@ export function AlternativesDialog({ product, onClose, onPick }: Props) {
 
   useEffect(() => {
     if (!product) return;
+    // A slow reply for a product the cashier has already moved on from must
+    // not replace the list for the one now shown.
+    let current = true;
+    setAlternatives([]);
     setLoading(true);
     api
       .productAlternatives(product.id)
-      .then(setAlternatives)
-      .catch(() => setAlternatives([]))
-      .finally(() => setLoading(false));
+      .then((rows) => current && setAlternatives(rows))
+      .catch(() => current && setAlternatives([]))
+      .finally(() => current && setLoading(false));
+    return () => {
+      current = false;
+    };
   }, [product]);
 
   return (

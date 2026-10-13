@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 import * as RadixToast from '@radix-ui/react-toast';
 import { AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import styles from './Toast.module.css';
@@ -50,11 +50,17 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     setItems((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  const value: ToastContextValue = {
-    success: (title, description, opts) => push('success', title, description, opts),
-    error: (title, description) => push('error', title, description),
-    warning: (title, description) => push('warning', title, description),
-  };
+  // Memoised: pages list `toast` in their data-loading effects. A fresh object
+  // on every render made each error toast re-trigger the failed load, which
+  // toasted again — an endless request/error-sound loop while offline.
+  const value = useMemo<ToastContextValue>(
+    () => ({
+      success: (title, description, opts) => push('success', title, description, opts),
+      error: (title, description) => push('error', title, description),
+      warning: (title, description) => push('warning', title, description),
+    }),
+    [push],
+  );
 
   return (
     <ToastContext.Provider value={value}>

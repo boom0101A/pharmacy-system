@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Clock,
@@ -59,8 +59,13 @@ export function Inventory() {
   // The low-stock banner greets you on arrival and then gets out of the way.
   const [lowStockAlertDone, setLowStockAlertDone] = useState(false);
 
+  // Bumped by every fresh load, so a response for an older search/filter —
+  // including a "load more" page — is dropped instead of mixed into the list.
+  const loadGeneration = useRef(0);
+
   const load = useCallback(
     async (term: string, status: StatusFilter) => {
+      const generation = ++loadGeneration.current;
       try {
         const query = term.trim() || undefined;
         const [page, stats] = await Promise.all([
@@ -70,6 +75,7 @@ export function Inventory() {
           }),
           api.productStats(query),
         ]);
+        if (generation !== loadGeneration.current) return;
         setProducts(page);
         setCounts(stats);
       } catch (err) {
@@ -100,6 +106,7 @@ export function Inventory() {
   }, []);
 
   async function loadMore() {
+    const generation = loadGeneration.current;
     setLoadingMore(true);
     try {
       const more = await api.products(search.trim() || undefined, {
@@ -107,6 +114,7 @@ export function Inventory() {
         limit: PAGE_SIZE,
         offset: products.length,
       });
+      if (generation !== loadGeneration.current) return;
       setProducts((prev) => [...prev, ...more]);
     } catch (err) {
       toast.error('تعذّر تحميل المزيد', (err as Error).message);

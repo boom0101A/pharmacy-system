@@ -20,7 +20,7 @@ describe('bootstrapMessage', () => {
   });
 
   it('says nothing once the backend is ready', () => {
-    expect(bootstrapMessage({ status: 'ready' })).toBeNull();
+    expect(bootstrapMessage({ status: 'ready', serverUrl: 'http://127.0.0.1:3000' })).toBeNull();
   });
 
   it('says nothing when this till uses another computer as its server', () => {
@@ -30,7 +30,7 @@ describe('bootstrapMessage', () => {
 
 describe('BackendNotice', () => {
   it('renders nothing while the backend is ready', () => {
-    const { container } = render(<BackendNotice status={{ status: 'ready' }} />);
+    const { container } = render(<BackendNotice status={{ status: 'ready', serverUrl: 'http://127.0.0.1:3000' }} />);
     expect(container.innerHTML).toBe('');
   });
 

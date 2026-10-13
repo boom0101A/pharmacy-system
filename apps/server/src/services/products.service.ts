@@ -1,6 +1,7 @@
 import type { Product, ProductAlternative } from '@pharmacy/shared-types';
 import { Prisma } from '@prisma/client';
 import { prisma, toNumber } from '../prisma.js';
+import { baghdadTodayIso } from '../lib/dateRange.js';
 
 // A product "قارب على الانتهاء" (expiring soon) inside this many days of its
 // nearest batch — chosen to give a pharmacist a working month's notice.
@@ -42,9 +43,15 @@ function productWithAggregates(where?: Prisma.ProductWhereInput) {
 }
 
 function present(row: ProductRow): Product {
-  const stock = row.batches.reduce((sum, b) => sum + b.quantity, 0);
-  const nearestExpiry = row.batches
-    .filter((b) => b.quantity > 0 && b.expiryDate)
+  // Only batches that can still be sold. An expired batch counted here made a
+  // product look available while every sale of it was refused, and its past
+  // date hid the product from the "expiring soon" list entirely.
+  const today = baghdadTodayIso();
+  const sellable = row.batches.filter((b) => !b.expiryDate || b.expiryDate.toISOString().slice(0, 10) >= today);
+  const stock = sellable.reduce((sum, b) => sum + b.quantity, 0);
+  const looseSubUnits = sellable.reduce((sum, b) => sum + b.openedSubUnits, 0);
+  const nearestExpiry = sellable
+    .filter((b) => (b.quantity > 0 || b.openedSubUnits > 0) && b.expiryDate)
     .map((b) => b.expiryDate!)
     .sort((a, b) => a.getTime() - b.getTime())[0];
 
@@ -59,6 +66,7 @@ function present(row: ProductRow): Product {
     purchasePrice: toNumber(row.purchasePrice),
     reorderLevel: row.reorderLevel,
     stock,
+    looseSubUnits,
     imageFilename: row.imageFilename,
     nearestExpiry: nearestExpiry ? nearestExpiry.toISOString() : null,
     unitsPerPackage: row.unitsPerPackage,
@@ -132,6 +140,12 @@ export async function productStats(
     expiring: rows.filter((p) => matchesStatus(p, 'expiring')).length,
     out: rows.filter((p) => matchesStatus(p, 'out')).length,
   };
+}
+
+/** One product by id — callers used to page through the (capped) list and missed anything past the first page. */
+export async function findById(id: number): Promise<Product | null> {
+  const rows = await productWithAggregates({ id });
+  return rows[0] ? present(rows[0]) : null;
 }
 
 /** Barcode scanner lookup — an exact match, used by the POS screen. */

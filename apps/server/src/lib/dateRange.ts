@@ -46,3 +46,8 @@ export function startOfTodayBaghdad(now: Date = new Date()): Date {
   );
   return new Date(baghdadMidnightAsUtc - BAGHDAD_OFFSET_MS);
 }
+
+/** Today's calendar date in Baghdad as "YYYY-MM-DD" — what an expiry date (a plain date) is compared against. */
+export function baghdadTodayIso(now: Date = new Date()): string {
+  return new Date(now.getTime() + BAGHDAD_OFFSET_MS).toISOString().slice(0, 10);
+}

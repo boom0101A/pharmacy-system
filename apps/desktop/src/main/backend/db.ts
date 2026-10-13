@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import pg from 'pg';
 import type { MigrationTarget } from './migrate.js';
 
@@ -6,6 +7,11 @@ export interface ConnectionSettings {
   password: string;
   port: number;
   database: string;
+}
+
+/** What Prisma records in `_prisma_migrations.checksum` — an empty one makes `prisma migrate status` report every migration as modified. */
+export function migrationChecksum(sql: string): string {
+  return createHash('sha256').update(sql).digest('hex');
 }
 
 export function buildDatabaseUrl(conn: ConnectionSettings): string {
@@ -86,12 +92,14 @@ export function migrationTarget(conn: ConnectionSettings): MigrationTarget {
           await client.query(sql);
           await client.query(
             `INSERT INTO "_prisma_migrations" (id, checksum, migration_name, finished_at, applied_steps_count)
-             VALUES (gen_random_uuid()::text, '', $1, now(), 1)`,
-            [name],
+             VALUES (gen_random_uuid()::text, $2, $1, now(), 1)`,
+            [name, migrationChecksum(sql)],
           );
           await client.query('COMMIT');
         } catch (err) {
-          await client.query('ROLLBACK');
+          // If the connection itself dropped, ROLLBACK throws too — and would
+          // replace the real SQL error in the log with "Connection terminated".
+          await client.query('ROLLBACK').catch(() => {});
           throw err;
         }
       });

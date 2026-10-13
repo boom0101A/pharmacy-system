@@ -31,3 +31,19 @@ describe('reformatPriceInput', () => {
     expect(reformatPriceInput('12.5', 4)).toEqual({ formatted: '125', cursorPos: 3 });
   });
 });
+
+describe('parsePriceInput', async () => {
+  const { parsePriceInput } = await import('./priceInput');
+
+  it('reads a comma-formatted price', () => {
+    expect(parsePriceInput('1,500')).toBe(1500);
+  });
+
+  it('treats an empty field as 0', () => {
+    expect(parsePriceInput('')).toBe(0);
+  });
+
+  it('rejects text that is not a number instead of silently saving 0', () => {
+    expect(parsePriceInput('15oo')).toBeNull();
+  });
+});
