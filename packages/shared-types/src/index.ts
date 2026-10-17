@@ -269,6 +269,19 @@ export interface SalesReportPoint {
   count: number;
 }
 
+/** One product's net sales in a period (returns already taken out). */
+export interface SoldProductRow {
+  productId: number;
+  productName: string;
+  /** Whole packages sold. */
+  packages: number;
+  /** Strips (sub-units) sold separately; 0 for products that aren't divisible. */
+  subUnits: number;
+  subUnitName: string | null;
+  /** At line price, before the invoice discount. */
+  revenue: number;
+}
+
 export interface TopProductPoint {
   productId: number;
   productName: string;

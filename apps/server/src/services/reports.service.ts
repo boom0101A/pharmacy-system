@@ -1,4 +1,4 @@
-import type { WriteOffReportRow } from '@pharmacy/shared-types';
+import type { SoldProductRow, WriteOffReportRow } from '@pharmacy/shared-types';
 import { prisma } from '../prisma.js';
 import { fromMinorUnits, toMinorUnits } from '../lib/money.js';
 
@@ -55,6 +55,43 @@ export async function getTopProducts(start: Date, end: Date) {
     productId: r.product_id,
     productName: r.product_name,
     quantity: Number(r.quantity),
+    revenue: Number(r.revenue),
+  }));
+}
+
+/**
+ * Every product sold in the period — unlike `getTopProducts`, no top-ten cut —
+ * net of what came back as returns, with packages and strips kept apart (a
+ * strip line's quantity is strips, not boxes). Revenue is at line price,
+ * before the invoice-level discount.
+ */
+export async function getSoldProducts(start: Date, end: Date): Promise<SoldProductRow[]> {
+  const rows = await prisma.$queryRaw<
+    { product_id: number; product_name: string; sub_unit_name: string | null; packages: bigint; sub_units: bigint; revenue: string }[]
+  >`
+    WITH net AS (
+      SELECT si.product_id, si.is_sub_unit, si.unit_price,
+             si.quantity - COALESCE((SELECT SUM(ri.quantity) FROM return_items ri WHERE ri.sale_item_id = si.id), 0) AS qty
+      FROM sale_items si
+      JOIN sales s ON s.id = si.sale_id
+      WHERE s.date BETWEEN ${start} AND ${end}
+    )
+    SELECT n.product_id, p.name AS product_name, p.sub_unit_name,
+           COALESCE(SUM(n.qty) FILTER (WHERE NOT n.is_sub_unit), 0)::bigint AS packages,
+           COALESCE(SUM(n.qty) FILTER (WHERE n.is_sub_unit), 0)::bigint AS sub_units,
+           SUM(n.qty * n.unit_price)::text AS revenue
+    FROM net n
+    JOIN products p ON p.id = n.product_id
+    WHERE n.qty > 0
+    GROUP BY n.product_id, p.name, p.sub_unit_name
+    ORDER BY SUM(n.qty * n.unit_price) DESC, p.name`;
+
+  return rows.map((r) => ({
+    productId: r.product_id,
+    productName: r.product_name,
+    packages: Number(r.packages),
+    subUnits: Number(r.sub_units),
+    subUnitName: r.sub_unit_name,
     revenue: Number(r.revenue),
   }));
 }

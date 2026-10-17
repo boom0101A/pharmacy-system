@@ -10,6 +10,7 @@ const api = {
   reportLowStock: vi.fn(),
   reportProfit: vi.fn(),
   reportWriteOffs: vi.fn(),
+  reportSoldProducts: vi.fn(),
 };
 vi.mock('./api.js', () => ({ api }));
 
@@ -23,6 +24,7 @@ function resolveAllOnce() {
   api.reportLowStock.mockResolvedValue([]);
   api.reportProfit.mockResolvedValue([]);
   api.reportWriteOffs.mockResolvedValue([]);
+  api.reportSoldProducts.mockResolvedValue([]);
 }
 
 describe('useReportsData', () => {
@@ -67,7 +69,10 @@ describe('useReportsData', () => {
     const secondCall = new Promise<{ date: string; total: number; count: number }[]>((resolve) => {
       resolveSecond = resolve;
     });
-    api.reportSales.mockReturnValueOnce(firstCall).mockReturnValueOnce(secondCall);
+    // By range, not call order: today's card makes its own reportSales call too.
+    api.reportSales.mockImplementation((_from: string, to: string) =>
+      to === '2026-09-01' ? firstCall : to === '2026-09-13' ? secondCall : Promise.resolve([]),
+    );
 
     const { result, rerender } = renderHook(({ from, to }) => useReportsData(from, to, true), {
       initialProps: { from: '2026-08-01', to: '2026-09-01' },
@@ -96,5 +101,28 @@ describe('useReportsData', () => {
 
     await waitFor(() => expect(result.current.writeOffs).toHaveLength(1));
     expect(api.reportWriteOffs).toHaveBeenCalledWith();
+  });
+
+  it('loads the sales of today on their own, unaffected by the chosen range', async () => {
+    resolveAllOnce();
+    api.reportSales.mockImplementation((from: string, to: string) =>
+      Promise.resolve(from === to ? [{ date: from, total: 4500, count: 3 }] : [{ date: '2026-08-01', total: 1, count: 1 }]),
+    );
+
+    const { result } = renderHook(() => useReportsData('2026-08-01', '2026-08-05', true, '2026-10-17'));
+
+    await waitFor(() => expect(result.current.today).toEqual({ total: 4500, count: 3 }));
+    expect(api.reportSales).toHaveBeenCalledWith('2026-10-17', '2026-10-17');
+  });
+
+  it('loads every product sold in the range', async () => {
+    resolveAllOnce();
+    const row = { productId: 1, productName: 'x', packages: 2, subUnits: 0, subUnitName: null, revenue: 10 };
+    api.reportSoldProducts.mockResolvedValue([row]);
+
+    const { result } = renderHook(() => useReportsData('2026-08-01', '2026-08-05', true, '2026-10-17'));
+
+    await waitFor(() => expect(result.current.soldProducts).toEqual([row]));
+    expect(api.reportSoldProducts).toHaveBeenCalledWith('2026-08-01', '2026-08-05');
   });
 });

@@ -7,6 +7,7 @@ import { resolveRange } from '../lib/dateRange.js';
 import {
   getProfitReport,
   getRevenueByCategory,
+  getSoldProducts,
   getTopProducts,
   getWriteOffsReport,
 } from '../services/reports.service.js';
@@ -61,6 +62,15 @@ reportsRouter.get(
     const { from, to } = rangeSchema.parse(req.query);
     const { start, end } = resolveRange(from, to);
     res.json(await getTopProducts(start, end));
+  }),
+);
+
+reportsRouter.get(
+  '/sold-products',
+  asyncHandler(async (req, res) => {
+    const { from, to } = rangeSchema.parse(req.query);
+    const { start, end } = resolveRange(from, to);
+    res.json(await getSoldProducts(start, end));
   }),
 );
 

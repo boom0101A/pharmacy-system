@@ -11,10 +11,11 @@ function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-type Tab = 'sales' | 'top-products' | 'by-category' | 'expiry' | 'low-stock' | 'write-offs';
+type Tab = 'sales' | 'sold-products' | 'top-products' | 'by-category' | 'expiry' | 'low-stock' | 'write-offs';
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'sales', label: 'المبيعات' },
+  { key: 'sold-products', label: 'الأدوية المباعة' },
   { key: 'top-products', label: 'الأكثر مبيعاً' },
   { key: 'by-category', label: 'حسب التصنيف' },
   { key: 'expiry', label: 'الصلاحية' },
@@ -25,6 +26,7 @@ const TABS: { key: Tab; label: string }[] = [
 /** Maps each tab to the report key that feeds it, for the per-tab error banner below. */
 const TAB_REPORT_KEY = {
   sales: 'sales',
+  'sold-products': 'soldProducts',
   'top-products': 'topProducts',
   'by-category': 'byCategory',
   expiry: 'expiry',
@@ -40,6 +42,8 @@ const REPORT_LABEL: Record<string, string> = {
   lowStock: 'المخزون المنخفض',
   profit: 'تقرير الأرباح',
   writeOffs: 'سجل الخسائر',
+  soldProducts: 'الأدوية المباعة',
+  today: 'مبيعات اليوم',
 };
 
 export function Reports() {
@@ -51,7 +55,7 @@ export function Reports() {
   const [to, setTo] = useState(today);
   const [tab, setTab] = useState<Tab>('sales');
 
-  const { sales, topProducts, byCategory, expiry, lowStock, profit, writeOffs, errors } = useReportsData(
+  const { sales, topProducts, byCategory, expiry, lowStock, profit, writeOffs, soldProducts, today: todaySales, errors } = useReportsData(
     from,
     to,
     canSeeProfit,
@@ -83,8 +87,13 @@ export function Reports() {
       {canSeeProfit && errors.profit && (
         <p className={styles.error}>تعذّر تحميل {REPORT_LABEL.profit}: {errors.profit}</p>
       )}
+      {errors.today && <p className={styles.error}>تعذّر تحميل {REPORT_LABEL.today}: {errors.today}</p>}
       <div className={styles.summary}>
-        <SummaryCard label="إجمالي المبيعات" value={formatMoney(totalRevenue)} />
+        <SummaryCard
+          label={todaySales ? `مبيعات اليوم (${todaySales.count} فاتورة)` : 'مبيعات اليوم'}
+          value={todaySales ? formatMoney(todaySales.total) : '…'}
+        />
+        <SummaryCard label="مبيعات الفترة" value={formatMoney(totalRevenue)} />
         {canSeeProfit && <SummaryCard label="صافي الربح" value={formatMoney(totalProfit)} />}
         {canSeeProfit && <SummaryCard label="هامش الربح" value={`${margin}%`} />}
       </div>
@@ -121,6 +130,53 @@ export function Reports() {
           </ResponsiveContainer>
         </div>
       )}
+
+      {tab === 'sales' && sales.length > 0 && (
+        <table className={styles.table}>
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>عدد الفواتير</th>
+              <th>المجموع</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...sales].reverse().map((day) => (
+              <tr key={day.date}>
+                <td>{formatDate(day.date)}</td>
+                <td className="numeric">{day.count}</td>
+                <td className="numeric">{formatMoney(day.total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {tab === 'sold-products' &&
+        (soldProducts.length === 0 ? (
+          <p className={styles.empty}>لم يُبع أي دواء في هذه الفترة</p>
+        ) : (
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th>الصنف</th>
+                <th>علب</th>
+                <th>وحدات فرعية</th>
+                <th>قيمة المبيع</th>
+              </tr>
+            </thead>
+            <tbody>
+              {soldProducts.map((p) => (
+                <tr key={p.productId}>
+                  <td>{p.productName}</td>
+                  <td className="numeric">{p.packages}</td>
+                  <td className="numeric">{p.subUnits > 0 ? `${p.subUnits} ${p.subUnitName ?? ''}` : '—'}</td>
+                  <td className="numeric">{formatMoney(p.revenue)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ))}
 
       {tab === 'top-products' && (
         <table className={styles.table}>

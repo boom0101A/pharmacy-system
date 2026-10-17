@@ -23,6 +23,7 @@ import type {
   SaleInput,
   SaleListItem,
   SalesReportPoint,
+  SoldProductRow,
   Supplier,
   SupplierInput,
   TopProductPoint,
@@ -304,6 +305,9 @@ export const api = {
 
   reportSales: (from?: string, to?: string) =>
     request<SalesReportPoint[]>(`/reports/sales${rangeQuery(from, to)}`),
+  /** Every product sold in the range, net of returns — the full list, not a top ten. */
+  reportSoldProducts: (from?: string, to?: string) =>
+    request<SoldProductRow[]>(`/reports/sold-products${rangeQuery(from, to)}`),
   reportTopProducts: (from?: string, to?: string) =>
     request<TopProductPoint[]>(`/reports/top-products${rangeQuery(from, to)}`),
   reportProfit: (from?: string, to?: string) =>

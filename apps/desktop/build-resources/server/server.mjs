@@ -61165,6 +61165,33 @@ async function getTopProducts(start, end) {
     revenue: Number(r.revenue)
   }));
 }
+async function getSoldProducts(start, end) {
+  const rows2 = await prisma.$queryRaw`
+    WITH net AS (
+      SELECT si.product_id, si.is_sub_unit, si.unit_price,
+             si.quantity - COALESCE((SELECT SUM(ri.quantity) FROM return_items ri WHERE ri.sale_item_id = si.id), 0) AS qty
+      FROM sale_items si
+      JOIN sales s ON s.id = si.sale_id
+      WHERE s.date BETWEEN ${start} AND ${end}
+    )
+    SELECT n.product_id, p.name AS product_name, p.sub_unit_name,
+           COALESCE(SUM(n.qty) FILTER (WHERE NOT n.is_sub_unit), 0)::bigint AS packages,
+           COALESCE(SUM(n.qty) FILTER (WHERE n.is_sub_unit), 0)::bigint AS sub_units,
+           SUM(n.qty * n.unit_price)::text AS revenue
+    FROM net n
+    JOIN products p ON p.id = n.product_id
+    WHERE n.qty > 0
+    GROUP BY n.product_id, p.name, p.sub_unit_name
+    ORDER BY SUM(n.qty * n.unit_price) DESC, p.name`;
+  return rows2.map((r) => ({
+    productId: r.product_id,
+    productName: r.product_name,
+    packages: Number(r.packages),
+    subUnits: Number(r.sub_units),
+    subUnitName: r.sub_unit_name,
+    revenue: Number(r.revenue)
+  }));
+}
 async function getRevenueByCategory(start, end) {
   const rows2 = await prisma.$queryRaw`
     SELECT COALESCE(c.name, 'بلا تصنيف') AS category_name,
@@ -61252,6 +61279,11 @@ reportsRouter.get("/top-products", asyncHandler(async (req, res) => {
   const { from, to } = rangeSchema.parse(req.query);
   const { start, end } = resolveRange(from, to);
   res.json(await getTopProducts(start, end));
+}));
+reportsRouter.get("/sold-products", asyncHandler(async (req, res) => {
+  const { from, to } = rangeSchema.parse(req.query);
+  const { start, end } = resolveRange(from, to);
+  res.json(await getSoldProducts(start, end));
 }));
 reportsRouter.get("/by-category", asyncHandler(async (req, res) => {
   const { from, to } = rangeSchema.parse(req.query);

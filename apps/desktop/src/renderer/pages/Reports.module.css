@@ -93,3 +93,10 @@
   padding: var(--space-3);
   border-block-end: 1px solid var(--border-subtle);
 }
+
+/* Empty period on the sold-products tab — says so instead of an empty table. */
+.empty {
+  padding: var(--space-6) 0;
+  text-align: center;
+  color: var(--text-secondary);
+}
