@@ -61,7 +61,7 @@ async function dumpTables() {
 }
 
 /** Matches the naming scheme already used by every backup file this project has ever produced — colons aren't legal in a Windows filename. */
-function backupFilename(date: Date): string {
+export function backupFilename(date: Date): string {
   return `backup-${date.toISOString().replace(/:/g, '-')}.json`;
 }
 

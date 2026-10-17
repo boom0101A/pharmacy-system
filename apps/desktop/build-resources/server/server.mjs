@@ -37450,7 +37450,7 @@ var require_multer = __commonJS({
       }
       return makeMiddleware(setup.bind(this));
     };
-    function multer5(options) {
+    function multer6(options) {
       if (options === void 0) {
         return new Multer({});
       }
@@ -37459,7 +37459,7 @@ var require_multer = __commonJS({
       }
       throw new TypeError("Expected object for argument options");
     }
-    module.exports = multer5;
+    module.exports = multer6;
     module.exports.diskStorage = diskStorage;
     module.exports.memoryStorage = memoryStorage;
     module.exports.MulterError = MulterError;
@@ -61300,6 +61300,7 @@ reportsRouter.get("/profit", checkRole("admin"), asyncHandler(async (req, res) =
 var import_express12 = __toESM(require_express2(), 1);
 import fs6 from "node:fs/promises";
 import path7 from "node:path";
+var import_multer3 = __toESM(require_multer(), 1);
 
 // ../server/dist/src/services/restore.service.js
 import fs5 from "node:fs/promises";
@@ -61534,6 +61535,9 @@ async function restoreFromFile(name) {
       await fs5.rm(staged, { recursive: true, force: true });
   }
 }
+function parseBackup(raw) {
+  return backupSchema.parse(JSON.parse(raw));
+}
 
 // ../server/dist/src/routes/backup.routes.js
 var restoreSchema = external_exports.object({
@@ -61563,6 +61567,22 @@ backupRouter.get("/:name", asyncHandler(async (req, res) => {
   }
   res.download(file);
 }));
+var importUpload = (0, import_multer3.default)({ storage: import_multer3.default.memoryStorage(), limits: { fileSize: 100 * 1024 * 1024 } });
+backupRouter.post("/import", importUpload.single("file"), asyncHandler(async (req, res) => {
+  if (!req.file)
+    throw new AppError(400, "\u0627\u062E\u062A\u0631 \u0645\u0644\u0641 \u0627\u0644\u0646\u0633\u062E\u0629 \u0627\u0644\u0627\u062D\u062A\u064A\u0627\u0637\u064A\u0629");
+  try {
+    parseBackup(req.file.buffer.toString("utf8"));
+  } catch {
+    throw new AppError(400, "\u0627\u0644\u0645\u0644\u0641 \u0644\u064A\u0633 \u0646\u0633\u062E\u0629 \u0627\u062D\u062A\u064A\u0627\u0637\u064A\u0629 \u0635\u0627\u0644\u062D\u0629 \u0645\u0646 \u0647\u0630\u0627 \u0627\u0644\u0646\u0638\u0627\u0645");
+  }
+  await fs6.mkdir(config.backupDir, { recursive: true });
+  const name = backupFilename(/* @__PURE__ */ new Date());
+  const file = path7.join(config.backupDir, name);
+  await fs6.writeFile(`${file}.tmp`, req.file.buffer);
+  await fs6.rename(`${file}.tmp`, file);
+  res.status(201).json({ name });
+}));
 backupRouter.post("/:name/restore", asyncHandler(async (req, res) => {
   restoreSchema.parse(req.body);
   await restoreFromFile(req.params.name);
@@ -61573,7 +61593,7 @@ backupRouter.post("/:name/restore", asyncHandler(async (req, res) => {
 
 // ../server/dist/src/routes/branding.routes.js
 var import_express13 = __toESM(require_express2(), 1);
-var import_multer3 = __toESM(require_multer(), 1);
+var import_multer4 = __toESM(require_multer(), 1);
 
 // ../server/dist/src/services/branding.service.js
 import fs7 from "node:fs/promises";
@@ -61607,7 +61627,7 @@ async function getLogoInfo() {
 
 // ../server/dist/src/routes/branding.routes.js
 var brandingRouter = (0, import_express13.Router)();
-var upload2 = (0, import_multer3.default)({ storage: import_multer3.default.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+var upload2 = (0, import_multer4.default)({ storage: import_multer4.default.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 brandingRouter.get("/", asyncHandler(async (_req, res) => {
   res.json(await getLogoInfo());
 }));
@@ -61625,9 +61645,9 @@ brandingRouter.delete("/logo", requireAuth, checkRole("admin"), asyncHandler(asy
 
 // ../server/dist/src/routes/capture.routes.js
 var import_express14 = __toESM(require_express2(), 1);
-var import_multer4 = __toESM(require_multer(), 1);
+var import_multer5 = __toESM(require_multer(), 1);
 var captureRouter = (0, import_express14.Router)();
-var upload3 = (0, import_multer4.default)({ storage: import_multer4.default.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
+var upload3 = (0, import_multer5.default)({ storage: import_multer5.default.memoryStorage(), limits: { fileSize: 8 * 1024 * 1024 } });
 captureRouter.post("/upload", requireCaptureToken, upload3.single("image"), asyncHandler(async (req, res) => {
   if (!req.file) {
     throw new AppError(400, "\u0644\u0645 \u064A\u064F\u0631\u0641\u064E\u0639 \u0623\u064A \u0645\u0644\u0641");

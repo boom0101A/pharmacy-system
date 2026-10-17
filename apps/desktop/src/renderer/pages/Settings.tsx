@@ -10,6 +10,9 @@ import { api, getServerUrl, setServerUrl } from '../lib/api';
 import { useBranding } from '../store/branding';
 import { useAuth } from '../store/auth';
 import { RestoreBackupDialog } from './RestoreBackupDialog';
+import { ImportBackupButton } from './ImportBackupButton';
+import { LicenseRenewal } from '../components/LicenseRenewal';
+import { LICENSE_CHANGED_EVENT } from '../lib/useLicenseCheck';
 import { cleanIpcError, formatDate } from '../lib/cx';
 import { isSoundEnabled, setSoundEnabled } from '../lib/sounds.js';
 
@@ -337,6 +340,16 @@ export function Settings() {
         <p className={styles.hint}>
           الاستعادة تستبدل كل البيانات الحالية على كل الأجهزة، وتُحفظ نسخة من الوضع الحالي قبلها تلقائياً.
         </p>
+        <p className={styles.hint}>
+          للانتقال إلى جهاز جديد: نزّل نسخة من الجهاز القديم واحفظها على فلاش، ثم ارفعها هنا واستعدها. صور
+          الأدوية والشعار لا تُنقل.
+        </p>
+        <ImportBackupButton
+          onImported={(name) => {
+            api.backups().then(setBackups).catch(() => {});
+            setRestoreName(name);
+          }}
+        />
       </section>
 
       {license?.valid && (
@@ -345,13 +358,13 @@ export function Settings() {
             <ShieldCheck size={18} />
             الترخيص
           </h2>
-          <p className={styles.hint}>
-            مرخَّص لـ: <strong>{license.payload.licensedTo}</strong>
-            {' — '}
-            {license.payload.expiresAt
-              ? `صالح حتى ${formatDate(license.payload.expiresAt)}`
-              : 'ترخيص دائم'}
-          </p>
+          <LicenseRenewal
+            license={license}
+            onChanged={(next) => {
+              setLicense(next);
+              window.dispatchEvent(new CustomEvent(LICENSE_CHANGED_EVENT));
+            }}
+          />
         </section>
       )}
 

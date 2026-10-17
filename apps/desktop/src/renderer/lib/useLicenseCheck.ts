@@ -4,7 +4,12 @@ interface LicenseCheckState {
   /** null = still checking. */
   licensed: boolean | null;
   error: string | null;
+  /** null = perpetual (or not licensed). */
+  expiresAt: string | null;
 }
+
+/** Fired after Settings applies a renewal key, so the expiry banner follows at once. */
+export const LICENSE_CHANGED_EVENT = 'pharmacy:license-changed';
 
 /**
  * A rejected `getLicenseStatus()` IPC call (e.g. the machine-id registry read
@@ -15,16 +20,25 @@ interface LicenseCheckState {
 export function useLicenseCheck(): LicenseCheckState {
   const [licensed, setLicensed] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
 
   useEffect(() => {
-    window.pharmacy
-      .getLicenseStatus()
-      .then((status) => setLicensed(status.valid))
-      .catch((err: Error) => {
-        setError(err.message || 'تعذّر التحقق من الترخيص');
-        setLicensed(false);
-      });
+    function check() {
+      window.pharmacy
+        .getLicenseStatus()
+        .then((status) => {
+          setLicensed(status.valid);
+          setExpiresAt(status.valid ? status.payload.expiresAt : null);
+        })
+        .catch((err: Error) => {
+          setError(err.message || 'تعذّر التحقق من الترخيص');
+          setLicensed(false);
+        });
+    }
+    check();
+    window.addEventListener(LICENSE_CHANGED_EVENT, check);
+    return () => window.removeEventListener(LICENSE_CHANGED_EVENT, check);
   }, []);
 
-  return { licensed, error };
+  return { licensed, error, expiresAt };
 }

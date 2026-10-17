@@ -372,6 +372,9 @@ ipcMain.handle(
 
 ipcMain.handle('license:getMachineId', () => getMachineId());
 ipcMain.handle('license:getStatus', () => licenseStore.getStatus());
+ipcMain.handle('license:replace', (_event, key: unknown) =>
+  typeof key === 'string' ? licenseStore.replace(key) : { valid: false, error: 'مفتاح غير صالح' },
+);
 ipcMain.handle('license:activate', (_event, key: string) => {
   const result = licenseStore.activate(key);
   // A first launch starts unlicensed, so the bundled backend was held back

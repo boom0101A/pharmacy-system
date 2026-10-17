@@ -59,4 +59,24 @@ export const licenseStore = {
     }
     return result;
   },
+
+  /**
+   * Renewing from Settings while the current license still works. Never lets
+   * a pasted key shorten what the pharmacy already has — an old trial key
+   * pasted by mistake must not cut a perpetual license down to days.
+   */
+  replace(key: string): LicenseCheck {
+    const current = this.getStatus();
+    if (current.valid) {
+      const machine = safeGetMachineId();
+      if (!machine.ok) return { valid: false, error: machine.error };
+      const next = verifyLicenseKey(key, machine.id);
+      if (!next.valid) return next;
+      const end = (expiresAt: string | null) => (expiresAt === null ? Infinity : new Date(expiresAt).getTime());
+      if (end(next.payload.expiresAt) < end(current.payload.expiresAt)) {
+        return { valid: false, error: 'المفتاح الجديد أقصر من الترخيص الحالي — لم يُستبدل' };
+      }
+    }
+    return this.activate(key);
+  },
 };

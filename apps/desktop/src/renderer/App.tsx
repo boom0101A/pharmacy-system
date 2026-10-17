@@ -28,6 +28,7 @@ import { useConnectionPing } from './lib/useConnectionPing';
 import { useExpiryAlert } from './lib/useExpiryAlert';
 import { useLicenseCheck } from './lib/useLicenseCheck';
 import { ConnectionBanner } from './components/ConnectionBanner';
+import { LicenseExpiryBanner } from './components/LicenseExpiryBanner';
 import { BackendNotice } from './components/BackendNotice';
 import { useBackendStatus } from './lib/useBackendStatus';
 
@@ -53,7 +54,7 @@ export function App() {
   const [showSplash, setShowSplash] = useState(true);
   // Purely local (no network), so this resolves in a few milliseconds — well
   // before the splash's own dwell time ends.
-  const { licensed: checkedLicensed, error: licenseError } = useLicenseCheck();
+  const { licensed: checkedLicensed, error: licenseError, expiresAt: licenseExpiresAt } = useLicenseCheck();
   // Activation resolves the same run without waiting for a re-check.
   const [activated, setActivated] = useState(false);
   const licensed = activated || checkedLicensed;
@@ -126,6 +127,8 @@ export function App() {
         {/* Outside the router: a dead server is worth saying on the login screen
             too, where it is the actual reason the password "isn't working". */}
         <ConnectionBanner onRetry={recheckConnection} />
+        {/* Admin only: the cashier can't renew it, so it would only alarm them. */}
+        {user?.role === 'admin' && <LicenseExpiryBanner expiresAt={licenseExpiresAt} />}
         {/* HashRouter: Electron loads the app from a file:// URL in production. */}
         <HashRouter>
           {!user ? (

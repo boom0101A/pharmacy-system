@@ -317,6 +317,13 @@ export const api = {
   reportWriteOffs: () => request<WriteOffReportRow[]>('/reports/write-offs'),
 
   backups: () => request<BackupFile[]>('/backup'),
+  /** Stores a downloaded backup on this machine (nothing is replaced until it is restored). */
+  importBackup: async (file: Blob): Promise<{ name: string }> => {
+    const form = new FormData();
+    form.append('file', file, 'backup.json');
+    const res = await rawFetch('/backup/import', { method: 'POST', body: form });
+    return res.json();
+  },
   /** Replaces the whole database with this backup — the server snapshots the current state first. */
   restoreBackup: (name: string) =>
     request<void>(`/backup/${encodeURIComponent(name)}/restore`, {

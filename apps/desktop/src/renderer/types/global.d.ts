@@ -41,6 +41,8 @@ declare global {
       getMachineId: () => Promise<string>;
       getLicenseStatus: () => Promise<LicenseCheck>;
       activateLicense: (key: string) => Promise<LicenseCheck>;
+      /** Renewal from Settings: refuses a key that ends sooner than the current one. */
+      replaceLicense: (key: string) => Promise<LicenseCheck>;
       resetPassword: (input: {
         username: string;
         licenseKey: string;
