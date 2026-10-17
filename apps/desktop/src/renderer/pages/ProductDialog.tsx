@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Barcode, Camera, Printer, Upload } from 'lucide-react';
 import QRCode from 'qrcode';
 import type { Category, Product } from '@pharmacy/shared-types';
@@ -10,7 +10,8 @@ import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
 import { generateInternalBarcode } from '../lib/barcode.js';
 import { cleanIpcError, digitsOnly, productImageUrl } from '../lib/cx';
-import { reformatPriceInput } from '../lib/priceInput.js';
+import { parsePriceInput } from '../lib/priceInput.js';
+import { formatPriceInput, PriceInput } from '../components/ui/PriceInput';
 import { newCaptureFilename } from '../lib/alternativePick';
 
 interface Props {
@@ -68,8 +69,8 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
             barcode: product.barcode ?? '',
             categoryId: product.categoryId ? String(product.categoryId) : '',
             unit: product.unit,
-            salePrice: reformatPriceInput(String(product.salePrice), 0).formatted,
-            purchasePrice: reformatPriceInput(String(product.purchasePrice), 0).formatted,
+            salePrice: formatPriceInput(product.salePrice),
+            purchasePrice: formatPriceInput(product.purchasePrice),
             reorderLevel: String(product.reorderLevel),
             activeIngredient: product.activeIngredient ?? '',
             dosageForm: product.dosageForm ?? '',
@@ -77,7 +78,7 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
             divisible: product.unitsPerPackage !== null,
             unitsPerPackage: product.unitsPerPackage ? String(product.unitsPerPackage) : '',
             subUnitName: product.subUnitName ?? '',
-            subUnitPrice: product.subUnitPrice !== null ? String(product.subUnitPrice) : '',
+            subUnitPrice: formatPriceInput(product.subUnitPrice),
           }
         : EMPTY,
     );
@@ -118,25 +119,6 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
     return (value: (typeof EMPTY)[K]) => setForm((f) => ({ ...f, [key]: value }));
   }
 
-  /**
-   * Live thousands-separator formatting (see lib/priceInput.ts) — the only
-   * fiddly part is that reformatting on every keystroke would otherwise
-   * throw the cursor to the end of the field each time a comma shifts;
-   * restoring the caret has to wait until the browser has actually painted
-   * the newly-formatted value, hence the rAF instead of doing it inline.
-   */
-  function handlePriceChange(key: 'salePrice' | 'purchasePrice') {
-    return (e: ChangeEvent<HTMLInputElement>) => {
-      const input = e.target;
-      const cursorPos = input.selectionStart ?? input.value.length;
-      const { formatted, cursorPos: newCursorPos } = reformatPriceInput(input.value, cursorPos);
-      set(key)(formatted);
-      requestAnimationFrame(() => {
-        input.setSelectionRange(newCursorPos, newCursorPos);
-      });
-    };
-  }
-
   function pickImage(file: File) {
     setPendingImage(file);
     setImagePreview(URL.createObjectURL(file));
@@ -145,11 +127,11 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    const salePrice = Number(form.salePrice.replace(/,/g, ''));
-    const purchasePrice = Number(form.purchasePrice.replace(/,/g, ''));
+    const salePrice = parsePriceInput(form.salePrice);
+    const purchasePrice = parsePriceInput(form.purchasePrice);
     const reorderLevel = Number(form.reorderLevel);
-    if (!Number.isFinite(salePrice) || salePrice < 0) return toast.error('سعر البيع غير صالح', 'أدخل رقماً صحيحاً');
-    if (!Number.isFinite(purchasePrice) || purchasePrice < 0) return toast.error('سعر الشراء غير صالح', 'أدخل رقماً صحيحاً');
+    if (salePrice === null) return toast.error('سعر البيع غير صالح', 'أدخل رقماً صحيحاً');
+    if (purchasePrice === null) return toast.error('سعر الشراء غير صالح', 'أدخل رقماً صحيحاً');
     if (!Number.isFinite(reorderLevel) || reorderLevel < 0) return toast.error('حد إعادة الطلب غير صالح', 'أدخل رقماً صحيحاً');
 
     let unitsPerPackage: number | null = null;
@@ -160,8 +142,8 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
         return toast.error('عدد الأشرطة بالعلبة غير صالح', 'أدخل رقماً صحيحاً 2 أو أكثر');
       }
       if (!form.subUnitName.trim()) return toast.error('اسم الوحدة الفرعية مطلوب', 'مثال: شريط');
-      subUnitPrice = Number(form.subUnitPrice);
-      if (!Number.isFinite(subUnitPrice) || subUnitPrice < 0) {
+      subUnitPrice = parsePriceInput(form.subUnitPrice);
+      if (subUnitPrice === null) {
         return toast.error('سعر بيع الوحدة الفرعية غير صالح', 'أدخل رقماً صحيحاً');
       }
     }
@@ -423,11 +405,10 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
         )}
 
         {form.divisible && (
-          <Input
+          <PriceInput
             label="سعر بيع الوحدة الفرعية"
-            inputMode="decimal"
             value={form.subUnitPrice}
-            onChange={(e) => set('subUnitPrice')(e.target.value)}
+            onValueChange={set('subUnitPrice')}
           />
         )}
 
@@ -439,20 +420,16 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
             onChange={(e) => set('reorderLevel')(digitsOnly(e.target.value))}
             hint="ينبّه النظام عند الوصول لهذه الكمية"
           />
-          <Input
+          <PriceInput
             label="سعر الشراء"
-            inputMode="numeric"
-            dir="ltr"
             value={form.purchasePrice}
-            onChange={handlePriceChange('purchasePrice')}
+            onValueChange={set('purchasePrice')}
             required
           />
-          <Input
+          <PriceInput
             label="سعر البيع"
-            inputMode="numeric"
-            dir="ltr"
             value={form.salePrice}
-            onChange={handlePriceChange('salePrice')}
+            onValueChange={set('salePrice')}
             required
           />
         </div>

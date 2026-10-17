@@ -9,6 +9,7 @@ import { Input } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
 import { parsePriceInput } from '../lib/priceInput';
+import { formatPriceInput, PriceInput } from '../components/ui/PriceInput';
 import { useAuth } from '../store/auth';
 
 interface Props {
@@ -72,7 +73,7 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
       setQuantity('');
       setExpiryDate('');
       setBatchNumber('');
-      setPurchasePrice(String(product.purchasePrice));
+      setPurchasePrice(formatPriceInput(product.purchasePrice));
       loadBatches(product.id);
     }
   }, [product, loadBatches]);
@@ -195,12 +196,7 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
           value={batchNumber}
           onChange={(e) => setBatchNumber(e.target.value)}
         />
-        <Input
-          label="سعر الشراء"
-          inputMode="decimal"
-          value={purchasePrice}
-          onChange={(e) => setPurchasePrice(e.target.value)}
-        />
+        <PriceInput label="سعر الشراء" value={purchasePrice} onValueChange={setPurchasePrice} />
       </form>
 
       {batches.length > 0 && (

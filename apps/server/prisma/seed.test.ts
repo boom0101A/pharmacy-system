@@ -18,6 +18,13 @@ describe('seedDefaultAccounts', () => {
     expect(await bcrypt.compare('cashier123', cashier!.passwordHash)).toBe(true);
   });
 
+  it('flags both well-known default passwords to be changed on first login', async () => {
+    await seedDefaultAccounts();
+
+    const users = await prisma.user.findMany();
+    expect(users.map((u) => u.mustChangePassword)).toEqual([true, true]);
+  });
+
   it('never overwrites a real password already set for an existing admin account', async () => {
     const realHash = await bcrypt.hash('a-real-changed-password', 10);
     await prisma.user.create({

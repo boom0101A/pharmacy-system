@@ -39,6 +39,7 @@ export async function seedDefaultAccounts(): Promise<void> {
         passwordHash: await bcrypt.hash(account.password, 10),
         role: account.role,
         isActive: true,
+        mustChangePassword: true,
       },
     });
     console.log(`أُنشئ: ${account.username}`);

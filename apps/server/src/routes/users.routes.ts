@@ -36,6 +36,7 @@ function present(row: {
   username: string;
   role: string;
   isActive: boolean;
+  mustChangePassword: boolean;
   createdAt: Date;
 }): User {
   return {
@@ -44,6 +45,7 @@ function present(row: {
     username: row.username,
     role: row.role as User['role'],
     isActive: row.isActive,
+    mustChangePassword: row.mustChangePassword,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -66,6 +68,7 @@ usersRouter.post(
         username: data.username,
         passwordHash: await bcrypt.hash(data.password, 10),
         role: data.role,
+        mustChangePassword: true,
       },
     });
     res.status(201).json(present(user));
@@ -95,7 +98,10 @@ usersRouter.put(
         name: data.name,
         role: data.role,
         isActive: data.isActive,
-        ...(data.password ? { passwordHash: await bcrypt.hash(data.password, 10) } : {}),
+        // Your own password changed here is one you chose yourself.
+        ...(data.password
+          ? { passwordHash: await bcrypt.hash(data.password, 10), mustChangePassword: targetId !== req.auth!.userId }
+          : {}),
       },
     });
     res.json(present(user));

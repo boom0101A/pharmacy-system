@@ -72,7 +72,8 @@
   .field label { font-size: 0.875rem; font-weight: 600; color: var(--gray-12); }
 
   input[type='text'],
-  input[type='date'] {
+  input[type='date'],
+  select {
     padding: 0.6rem 0.75rem;
     font-size: 0.95rem;
     border: 1px solid var(--gray-7);
@@ -83,7 +84,8 @@
   }
 
   input[type='text']:focus,
-  input[type='date']:focus {
+  input[type='date']:focus,
+  select:focus {
     outline: none;
     border-color: var(--brand-9);
     box-shadow: 0 0 0 3px rgba(48, 164, 108, 0.18);
@@ -100,7 +102,9 @@
   }
   .checkboxRow input { width: 1.1rem; height: 1.1rem; }
 
-  input:disabled { background: var(--gray-2); color: var(--gray-11); }
+  input:disabled, select:disabled { background: var(--gray-2); color: var(--gray-11); }
+
+  .hint { font-size: 0.8rem; color: var(--gray-11); min-height: 1em; }
 
   button#submitBtn {
     width: 100%;
@@ -207,8 +211,26 @@
       </div>
 
       <div class="field">
+        <label for="duration">مدة الترخيص</label>
+        <select id="duration" disabled>
+          <option value="">مخصّص (من التقويم)</option>
+          <option value="d:1">يوم واحد</option>
+          <option value="d:3">3 أيام</option>
+          <option value="d:7">أسبوع</option>
+          <option value="d:14">أسبوعان</option>
+          <option value="m:1">شهر</option>
+          <option value="m:2">شهران</option>
+          <option value="m:3">3 أشهر</option>
+          <option value="m:6">6 أشهر</option>
+          <option value="m:12">سنة</option>
+          <option value="m:24">سنتان</option>
+        </select>
+      </div>
+
+      <div class="field">
         <label for="expiresAt">تاريخ الانتهاء</label>
         <input type="date" id="expiresAt" disabled />
+        <span class="hint" id="expiryHint"></span>
       </div>
 
       <button type="submit" id="submitBtn">توليد المفتاح</button>
@@ -234,9 +256,62 @@
     const copyBtn = document.getElementById('copyBtn');
     let lastKey = '';
 
+    const duration = document.getElementById('duration');
+    const expiryHint = document.getElementById('expiryHint');
+
+    function isoDate(d) {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    /** "d:3" → 3 days, "m:1" → one calendar month; 31 Jan + 1 month stops at the end of February. */
+    function addDuration(from, spec) {
+      const [unit, amountText] = spec.split(':');
+      const amount = Number(amountText);
+      const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+      if (unit === 'd') {
+        d.setDate(d.getDate() + amount);
+      } else {
+        const day = d.getDate();
+        d.setDate(1);
+        d.setMonth(d.getMonth() + amount);
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        d.setDate(Math.min(day, lastDay));
+      }
+      return d;
+    }
+
+    function updateHint() {
+      if (perpetual.checked || !expiresAt.value) {
+        expiryHint.textContent = '';
+        return;
+      }
+      const today = new Date();
+      const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const [y, m, d] = expiresAt.value.split('-').map(Number);
+      const days = Math.round((new Date(y, m - 1, d) - start) / 86400000);
+      expiryHint.textContent =
+        days > 0 ? `ينتهي المفتاح في ${expiresAt.value} (بعد ${days} يوم)` : 'هذا التاريخ ليس في المستقبل — المفتاح سيكون منتهياً';
+    }
+
     perpetual.addEventListener('change', () => {
       expiresAt.disabled = perpetual.checked;
-      if (perpetual.checked) expiresAt.value = '';
+      duration.disabled = perpetual.checked;
+      if (perpetual.checked) {
+        expiresAt.value = '';
+        duration.value = '';
+      }
+      updateHint();
+    });
+
+    duration.addEventListener('change', () => {
+      if (duration.value) expiresAt.value = isoDate(addDuration(new Date(), duration.value));
+      updateHint();
+    });
+
+    // A hand-picked date is no longer "one of the presets".
+    expiresAt.addEventListener('input', () => {
+      duration.value = '';
+      updateHint();
     });
 
     form.addEventListener('submit', async (e) => {

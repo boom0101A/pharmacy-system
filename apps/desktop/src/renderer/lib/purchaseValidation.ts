@@ -2,6 +2,8 @@ interface PurchaseLineLike {
   productName: string;
   quantity: number;
   unitPrice: number;
+  /** A free bonus line (10+1) — the only time a zero price is intended. */
+  bonus?: boolean;
 }
 
 /**
@@ -16,7 +18,7 @@ export function findInvalidPurchaseLine(lines: PurchaseLineLike[]): string | nul
     if (!Number.isInteger(line.quantity) || line.quantity <= 0) {
       return `الكمية غير صالحة لـ"${line.productName}" — يجب أن تكون رقماً صحيحاً أكبر من صفر`;
     }
-    if (!(line.unitPrice > 0)) {
+    if (!line.bonus && !(line.unitPrice > 0)) {
       return `سعر الشراء غير صالح لـ"${line.productName}" — يجب أن يكون أكبر من صفر`;
     }
   }

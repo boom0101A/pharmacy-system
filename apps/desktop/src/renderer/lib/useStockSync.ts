@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
-import { getServerUrl, SERVER_URL_CHANGED_EVENT } from './api';
+import { getServerUrl, getToken, SERVER_URL_CHANGED_EVENT } from './api';
 import { useStockVersion } from '../store/stockSync';
 
 let socket: Socket | null = null;
@@ -21,7 +21,8 @@ export function useStockSync(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
 
-    socket = io(serverUrl);
+    // A function, not a value: each reconnect reads the token current then.
+    socket = io(serverUrl, { auth: (cb) => cb({ token: getToken() }) });
     socket.on('stock:changed', () => bump());
 
     return () => {

@@ -11,13 +11,14 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { SkeletonRows } from '../components/ui/Skeleton';
 import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
-import { formatDate, formatMoney } from '../lib/cx';
+import { baghdadToday, cx, formatDate, formatMoney } from '../lib/cx';
 import { findInvalidPurchaseLine } from '../lib/purchaseValidation.js';
 import { suggestedReorderQuantity } from '../lib/reorder.js';
 
 interface DraftLine extends PurchaseLineInput {
   key: number;
   productName: string;
+  bonus: boolean;
 }
 
 let nextKey = 1;
@@ -30,6 +31,7 @@ export function Purchases() {
   const [supplierId, setSupplierId] = useState('');
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [saving, setSaving] = useState(false);
+  const [supplierMissing, setSupplierMissing] = useState(false);
 
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [loadingPurchases, setLoadingPurchases] = useState(true);
@@ -69,6 +71,7 @@ export function Purchases() {
         unitPrice: product.purchasePrice,
         batchNumber: null,
         expiryDate: null,
+        bonus: false,
       })),
     );
     toast.success(`أُضيف ${reorderProducts.length} صنف من المخزون المنخفض`);
@@ -87,8 +90,8 @@ export function Purchases() {
       .finally(() => setLoadingPurchases(false));
   }
 
+  // The same product may come twice: two batches with different expiry dates, or a bonus line.
   function addProduct(product: Product) {
-    if (lines.some((l) => l.productId === product.id)) return;
     setLines((prev) => [
       ...prev,
       {
@@ -99,6 +102,7 @@ export function Purchases() {
         unitPrice: product.purchasePrice,
         batchNumber: null,
         expiryDate: null,
+        bonus: false,
       },
     ]);
   }
@@ -111,10 +115,14 @@ export function Purchases() {
     setLines((prev) => prev.filter((l) => l.key !== key));
   }
 
-  const total = lines.reduce((sum, l) => sum + l.quantity * l.unitPrice, 0);
+  const today = baghdadToday();
+  const total = lines.reduce((sum, l) => sum + l.quantity * (l.bonus ? 0 : l.unitPrice), 0);
 
   async function submit() {
-    if (!supplierId) return toast.error('اختر المورّد أولاً');
+    if (!supplierId) {
+      setSupplierMissing(true);
+      return toast.error('اختر المورّد أولاً');
+    }
     if (lines.length === 0) return toast.error('أضف صنفاً واحداً على الأقل');
     const invalidLineMessage = findInvalidPurchaseLine(lines);
     if (invalidLineMessage) return toast.error(invalidLineMessage);
@@ -126,7 +134,7 @@ export function Purchases() {
         items: lines.map((l) => ({
           productId: l.productId,
           quantity: l.quantity,
-          unitPrice: l.unitPrice,
+          unitPrice: l.bonus ? 0 : l.unitPrice,
           batchNumber: l.batchNumber,
           expiryDate: l.expiryDate,
         })),
@@ -152,9 +160,13 @@ export function Purchases() {
             </label>
             <select
               id="purchase-supplier"
-              className={dataPageStyles.select}
+              className={cx(dataPageStyles.select, supplierMissing && styles.invalid)}
+              aria-invalid={supplierMissing}
               value={supplierId}
-              onChange={(e) => setSupplierId(e.target.value)}
+              onChange={(e) => {
+                setSupplierId(e.target.value);
+                setSupplierMissing(false);
+              }}
             >
               <option value="">اختر مورّداً</option>
               {suppliers.map((s) => (
@@ -176,6 +188,7 @@ export function Purchases() {
                 <th>الصنف</th>
                 <th>الكمية</th>
                 <th>سعر الشراء</th>
+                <th>بونص</th>
                 <th>رقم الدفعة</th>
                 <th>تاريخ الانتهاء</th>
                 <th />
@@ -196,11 +209,21 @@ export function Purchases() {
                   </td>
                   <td>
                     <NumberCellInput
+                      money
                       min={0}
                       aria-label={`سعر شراء `}
                       className={styles.cellInput}
-                      value={line.unitPrice}
+                      value={line.bonus ? 0 : line.unitPrice}
+                      disabled={line.bonus}
                       onCommit={(unitPrice) => updateLine(line.key, { unitPrice })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      aria-label={`بونص مجاني ${line.productName}`}
+                      checked={line.bonus}
+                      onChange={(e) => updateLine(line.key, { bonus: e.target.checked })}
                     />
                   </td>
                   <td>
@@ -216,6 +239,7 @@ export function Purchases() {
                       type="date"
                       aria-label={`تاريخ انتهاء `}
                       className={styles.cellInput}
+                      min={today}
                       value={line.expiryDate?.slice(0, 10) ?? ''}
                       onChange={(e) => updateLine(line.key, { expiryDate: e.target.value || null })}
                     />

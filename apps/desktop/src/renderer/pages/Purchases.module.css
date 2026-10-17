@@ -73,3 +73,8 @@
   font-size: var(--text-lg);
   font-weight: var(--weight-bold);
 }
+
+.invalid {
+  border-color: var(--danger-9, #e5484d);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger-9, #e5484d) 25%, transparent);
+}

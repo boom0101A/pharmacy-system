@@ -6,6 +6,7 @@ import { prisma } from '../prisma.js';
 import { AppError, asyncHandler } from '../middleware/errors.js';
 import { requireAuth, signToken } from '../middleware/auth.js';
 import { resetPasswordWithToken } from '../services/passwordReset.service.js';
+import { changePassword } from '../services/auth.service.js';
 
 export const authRouter = Router();
 
@@ -51,9 +52,26 @@ authRouter.post(
         username: user.username,
         role: user.role,
         isActive: user.isActive,
+        mustChangePassword: user.mustChangePassword,
         createdAt: user.createdAt.toISOString(),
       },
     });
+  }),
+);
+
+const changeSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(4, 'كلمة المرور قصيرة جداً'),
+});
+
+authRouter.post(
+  '/change-password',
+  loginLimiter,
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const { currentPassword, newPassword } = changeSchema.parse(req.body);
+    await changePassword(req.auth!.userId, currentPassword, newPassword);
+    res.status(204).end();
   }),
 );
 
@@ -85,6 +103,7 @@ authRouter.get(
       username: user.username,
       role: user.role,
       isActive: user.isActive,
+      mustChangePassword: user.mustChangePassword,
       createdAt: user.createdAt.toISOString(),
     });
   }),

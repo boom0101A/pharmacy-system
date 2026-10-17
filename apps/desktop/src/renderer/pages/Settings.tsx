@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, Download, Printer, Save, Server, ShieldCheck, Trash2, Upload, Volume2 } from 'lucide-react';
+import { Building2, Download, Printer, RotateCcw, Save, Server, ShieldCheck, Trash2, Upload, Volume2 } from 'lucide-react';
 import type { BackupFile } from '@pharmacy/shared-types';
 import styles from './Settings.module.css';
 import { Button } from '../components/ui/Button';
@@ -8,6 +8,8 @@ import { Input } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
 import { api, getServerUrl, setServerUrl } from '../lib/api';
 import { useBranding } from '../store/branding';
+import { useAuth } from '../store/auth';
+import { RestoreBackupDialog } from './RestoreBackupDialog';
 import { cleanIpcError, formatDate } from '../lib/cx';
 import { isSoundEnabled, setSoundEnabled } from '../lib/sounds.js';
 
@@ -36,6 +38,7 @@ export function Settings() {
 
   const [backups, setBackups] = useState<BackupFile[]>([]);
   const [downloadingBackup, setDownloadingBackup] = useState<string | null>(null);
+  const [restoreName, setRestoreName] = useState<string | null>(null);
 
   const [license, setLicense] = useState<LicenseCheck | null>(null);
   const [soundsOn, setSoundsOn] = useState(() => isSoundEnabled());
@@ -317,11 +320,23 @@ export function Settings() {
                 >
                   <Download size={14} />
                 </Button>
+                {b.name.startsWith('backup-') && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setRestoreName(b.name)}
+                    aria-label="استعادة هذه النسخة"
+                  >
+                    <RotateCcw size={14} />
+                  </Button>
+                )}
               </li>
             ))}
           </ul>
         )}
-        <p className={styles.hint}>الاستعادة تتم من جهاز الخادم فقط عبر سطر الأوامر — راجع دليل التشغيل.</p>
+        <p className={styles.hint}>
+          الاستعادة تستبدل كل البيانات الحالية على كل الأجهزة، وتُحفظ نسخة من الوضع الحالي قبلها تلقائياً.
+        </p>
       </section>
 
       {license?.valid && (
@@ -347,6 +362,16 @@ export function Settings() {
         description="سيعود التطبيق للأيقونة الافتراضية في كل الأجهزة وعلى الفواتير المطبوعة، حتى يُرفَع شعار جديد."
         confirmLabel="حذف"
         onConfirm={removeLogo}
+      />
+
+      <RestoreBackupDialog
+        name={restoreName}
+        onClose={() => setRestoreName(null)}
+        onRestored={() => {
+          setRestoreName(null);
+          // The restored users table may no longer hold this account or role.
+          useAuth.getState().logout();
+        }}
       />
     </div>
   );

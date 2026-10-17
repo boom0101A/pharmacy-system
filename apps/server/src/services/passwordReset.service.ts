@@ -30,6 +30,7 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
     where: { id: user.id },
     data: {
       passwordHash: await bcrypt.hash(newPassword, 10),
+      mustChangePassword: false,
       // A disabled admin with a forgotten password would otherwise leave
       // nobody able to manage the system at all.
       ...(user.role === 'admin' ? { isActive: true } : {}),

@@ -10,15 +10,19 @@ purchasesRouter.use(requireAuth);
 purchasesRouter.use(checkRole('admin', 'pharmacist'));
 
 export const purchaseSchema = z.object({
-  supplierId: z.number().int().positive(),
+  supplierId: z.number({ message: 'اختر المورّد' }).int().positive('اختر المورّد'),
   items: z
     .array(
       z.object({
         productId: z.number().int().positive(),
-        quantity: z.number().int().positive(),
-        unitPrice: z.number().nonnegative().finite(),
+        quantity: z.number({ message: 'الكمية غير صالحة' }).int('الكمية يجب أن تكون عدداً صحيحاً').positive('الكمية يجب أن تكون أكبر من صفر'),
+        unitPrice: z.number({ message: 'سعر الشراء غير صالح' }).nonnegative('سعر الشراء لا يكون سالباً').finite('سعر الشراء غير صالح'),
         batchNumber: z.string().trim().min(1).nullish(),
-        expiryDate: z.coerce.date().nullish(),
+        expiryDate: z.coerce
+          .date({ message: 'تاريخ الانتهاء غير صالح' })
+          .min(new Date('2000-01-01'), 'تاريخ الانتهاء غير صالح')
+          .max(new Date('2100-01-01'), 'تاريخ الانتهاء غير صالح')
+          .nullish(),
       }),
     )
     .min(1, 'فاتورة الشراء فارغة'),

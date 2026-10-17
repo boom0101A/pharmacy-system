@@ -32,6 +32,8 @@ model User {
   passwordHash String   @map("password_hash")
   role         Role
   isActive     Boolean  @default(true) @map("is_active")
+  // Set when someone other than the user picked the password (seed, admin).
+  mustChangePassword Boolean @default(false) @map("must_change_password")
   createdAt    DateTime @default(now()) @map("created_at")
 
   sales     Sale[]

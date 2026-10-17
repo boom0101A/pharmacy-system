@@ -11,6 +11,8 @@ interface AuthState {
   initializing: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  /** The server accepted a password the user chose — lift the first-login block. */
+  passwordChanged: () => void;
   /** Called when a 401 arrives on an already-authenticated request — the token is stale, not the user's fault. */
   sessionExpired: () => void;
   /** Validates a saved token against the server so closing and reopening the app doesn't demand a password every time. Safe to call more than once (React.StrictMode double-invokes effects) — a second call while the first is still in flight reuses it instead of firing a duplicate request. */
@@ -46,6 +48,11 @@ export const useAuth = create<AuthState>((set, get) => ({
     // The next cashier to sign in must never inherit this one's cart or discount.
     useCart.getState().clear();
     set({ user: null, error: null });
+  },
+
+  passwordChanged() {
+    const user = get().user;
+    if (user) set({ user: { ...user, mustChangePassword: false } });
   },
 
   sessionExpired() {

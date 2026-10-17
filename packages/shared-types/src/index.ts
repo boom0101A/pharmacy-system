@@ -6,6 +6,8 @@ export interface User {
   username: string;
   role: Role;
   isActive: boolean;
+  /** The password was set by someone else (seed or admin) — the app blocks everything until it's changed. */
+  mustChangePassword: boolean;
   createdAt: string;
 }
 

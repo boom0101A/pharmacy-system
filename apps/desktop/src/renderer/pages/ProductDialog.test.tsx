@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { Product } from '@pharmacy/shared-types';
 
@@ -44,6 +44,30 @@ function renderDialog(product: Product | null) {
     </ToastProvider>,
   );
 }
+
+describe('ProductDialog money fields', () => {
+  it('shows every price with thousands separators, the strip price included', () => {
+    renderDialog({ ...BASE_PRODUCT, salePrice: 16000, purchasePrice: 9000, unitsPerPackage: 2, subUnitName: 'شريط', subUnitPrice: 1000 });
+
+    expect((screen.getByLabelText('سعر البيع') as HTMLInputElement).value).toBe('16,000');
+    expect((screen.getByLabelText('سعر الشراء') as HTMLInputElement).value).toBe('9,000');
+    expect((screen.getByLabelText('سعر بيع الوحدة الفرعية') as HTMLInputElement).value).toBe('1,000');
+  });
+
+  it('formats the strip price while typing and saves it as a plain number', async () => {
+    const { api } = await import('../lib/api.js');
+    vi.mocked(api.updateProduct).mockResolvedValue({ ...BASE_PRODUCT });
+    renderDialog({ ...BASE_PRODUCT, unitsPerPackage: 2, subUnitName: 'شريط', subUnitPrice: 1000 });
+    const strip = screen.getByLabelText('سعر بيع الوحدة الفرعية') as HTMLInputElement;
+
+    fireEvent.change(strip, { target: { value: '1500' } });
+    expect(strip.value).toBe('1,500');
+    fireEvent.click(screen.getByRole('button', { name: 'حفظ' }));
+
+    await waitFor(() => expect(api.updateProduct).toHaveBeenCalled());
+    expect(vi.mocked(api.updateProduct).mock.calls[0][1]).toMatchObject({ subUnitPrice: 1500 });
+  });
+});
 
 describe('ProductDialog barcode actions', () => {
   it('shows neither barcode button when adding a new product', () => {

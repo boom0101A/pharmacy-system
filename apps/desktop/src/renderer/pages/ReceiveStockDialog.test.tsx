@@ -153,3 +153,28 @@ describe('ReceiveStockDialog switching products', () => {
     expect(screen.queryByDisplayValue('A-BATCH')).toBeNull();
   });
 });
+
+describe('ReceiveStockDialog purchase price', () => {
+  it('shows the price with thousands separators and sends the plain number', async () => {
+    vi.mocked(api.createBatch).mockResolvedValue({} as never);
+    render(
+      <ToastProvider>
+        <ReceiveStockDialog
+          product={{ ...(product as object), purchasePrice: 9000 } as typeof product}
+          onClose={() => {}}
+          onSaved={() => {}}
+        />
+      </ToastProvider>,
+    );
+    const price = screen.getByLabelText('سعر الشراء') as HTMLInputElement;
+    expect(price.value).toBe('9,000');
+
+    fireEvent.change(price, { target: { value: '12500' } });
+    expect(price.value).toBe('12,500');
+    fireEvent.change(screen.getByLabelText('الكمية'), { target: { value: '70' } });
+    fireEvent.submit(document.getElementById('batch-form')!);
+
+    await vi.waitFor(() => expect(api.createBatch).toHaveBeenCalled());
+    expect(vi.mocked(api.createBatch).mock.calls.at(-1)![0]).toMatchObject({ purchasePrice: 12500, quantity: 70 });
+  });
+});

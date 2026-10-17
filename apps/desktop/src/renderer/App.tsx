@@ -9,6 +9,7 @@ import { Splash } from './components/Splash';
 import { Button } from './components/ui/Button';
 import { ToastProvider } from './components/ui/Toast';
 import { Login } from './pages/Login';
+import { ChangePassword } from './pages/ChangePassword';
 import { Dashboard } from './pages/Dashboard';
 import { Pos } from './pages/Pos';
 import { Inventory } from './pages/Inventory';
@@ -130,6 +131,10 @@ export function App() {
           {!user ? (
             <Routes>
               <Route path="*" element={<Login />} />
+            </Routes>
+          ) : user.mustChangePassword ? (
+            <Routes>
+              <Route path="*" element={<ChangePassword />} />
             </Routes>
           ) : (
             <Routes>

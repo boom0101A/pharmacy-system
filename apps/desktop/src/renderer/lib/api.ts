@@ -201,6 +201,11 @@ export const api = {
     }),
   /** Validates a saved token and returns who it belongs to — used to restore a session on launch without asking for a password again. */
   me: () => request<User>('/auth/me'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<void>('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 
   /** Unauthenticated — the connection poll uses it before login too. */
   health: () => request<{ ok: boolean; lanUrl?: string }>('/health'),
@@ -312,6 +317,12 @@ export const api = {
   reportWriteOffs: () => request<WriteOffReportRow[]>('/reports/write-offs'),
 
   backups: () => request<BackupFile[]>('/backup'),
+  /** Replaces the whole database with this backup — the server snapshots the current state first. */
+  restoreBackup: (name: string) =>
+    request<void>(`/backup/${encodeURIComponent(name)}/restore`, {
+      method: 'POST',
+      body: JSON.stringify({ confirm: 'RESTORE' }),
+    }),
 
   branding: () => request<BrandingInfo>('/branding'),
   uploadLogo: async (blob: Blob): Promise<BrandingInfo> => {

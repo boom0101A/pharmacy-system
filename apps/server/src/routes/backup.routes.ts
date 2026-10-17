@@ -1,9 +1,17 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { AppError, asyncHandler } from '../middleware/errors.js';
 import { checkRole, requireAuth } from '../middleware/auth.js';
 import { config } from '../config.js';
+import { restoreFromFile } from '../services/restore.service.js';
+import { broadcastStockChanged } from '../sockets/stock.js';
+import { prisma } from '../prisma.js';
+
+const restoreSchema = z.object({
+  confirm: z.literal('RESTORE', { errorMap: () => ({ message: 'اكتب RESTORE لتأكيد الاستعادة' }) }),
+});
 
 export const backupRouter = Router();
 backupRouter.use(requireAuth);
@@ -39,5 +47,17 @@ backupRouter.get(
       throw new AppError(404, 'الملف غير موجود');
     }
     res.download(file);
+  }),
+);
+
+backupRouter.post(
+  '/:name/restore',
+  asyncHandler(async (req, res) => {
+    restoreSchema.parse(req.body);
+    await restoreFromFile(req.params.name);
+    // Every till is still showing stock from before the restore.
+    const products = await prisma.product.findMany({ select: { id: true } });
+    broadcastStockChanged(products.map((p) => p.id));
+    res.status(204).end();
   }),
 );

@@ -28,6 +28,10 @@ describe('findInvalidPurchaseLine', () => {
     expect(findInvalidPurchaseLine([line({ unitPrice: 0 })])).not.toBeNull();
   });
 
+  it('accepts a zero price on a line explicitly marked as a free bonus (10+1)', () => {
+    expect(findInvalidPurchaseLine([{ ...line({ unitPrice: 0 }), bonus: true }])).toBeNull();
+  });
+
   it('flags a non-integer quantity', () => {
     expect(findInvalidPurchaseLine([line({ quantity: 2.5 })])).not.toBeNull();
   });

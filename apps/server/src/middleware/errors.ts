@@ -29,7 +29,11 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
     return res.status(400).json({ error: 'تعذّر رفع الملف — تحقق من الحجم والنوع' });
   }
   if (err instanceof ZodError) {
-    return res.status(400).json({ error: 'بيانات غير صالحة', details: err.flatten() });
+    // Only the messages our schemas wrote in Arabic — zod's own defaults are English.
+    const reason = err.issues.find((issue) => /[؀-ۿ]/.test(issue.message))?.message;
+    return res
+      .status(400)
+      .json({ error: reason ? `بيانات غير صالحة — ${reason}` : 'بيانات غير صالحة', details: err.flatten() });
   }
   if (err instanceof AppError) {
     return res.status(err.status).json({ error: err.message });

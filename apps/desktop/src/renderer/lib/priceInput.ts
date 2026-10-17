@@ -8,10 +8,25 @@
  * that same digit-count in the freshly-formatted string — commas shifting
  * around never changes how many real digits precede the cursor.
  */
+/**
+ * An Arabic keyboard types ٠-٩ (or Persian ۰-۹) and ٬/٫ as separators —
+ * `Number()` and `\d` reject all of them. One-to-one per character, so a
+ * cursor position stays valid after normalizing.
+ */
+export function normalizeDigits(raw: string): string {
+  return raw.replace(/[٠-٩۰-۹٬٫]/g, (ch) => {
+    if (ch === '٬') return ',';
+    if (ch === '٫') return '.';
+    const code = ch.charCodeAt(0);
+    return String(code - (code >= 0x06f0 ? 0x06f0 : 0x0660));
+  });
+}
+
 export function reformatPriceInput(
-  rawValue: string,
+  rawInput: string,
   cursorPos: number,
 ): { formatted: string; cursorPos: number } {
+  const rawValue = normalizeDigits(rawInput);
   const digitsBeforeCursor = rawValue.slice(0, cursorPos).replace(/[^\d]/g, '').length;
   const digits = rawValue.replace(/[^\d]/g, '');
   const formatted = digits ? new Intl.NumberFormat('en-US').format(Number(digits)) : '';
@@ -39,7 +54,7 @@ export function reformatPriceInput(
  * inflating every profit figure built on that batch.
  */
 export function parsePriceInput(raw: string): number | null {
-  const cleaned = raw.replace(/[,\s]/g, '');
+  const cleaned = normalizeDigits(raw).replace(/[,\s]/g, '');
   if (cleaned === '') return 0;
   if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
   return Number(cleaned);

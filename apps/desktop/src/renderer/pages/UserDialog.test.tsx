@@ -16,6 +16,7 @@ const selfUser: UserFixture = {
   username: 'me',
   role: 'admin',
   isActive: true,
+  mustChangePassword: false,
   createdAt: new Date().toISOString(),
 };
 const otherUser: UserFixture = {
@@ -24,6 +25,7 @@ const otherUser: UserFixture = {
   username: 'other',
   role: 'cashier',
   isActive: true,
+  mustChangePassword: false,
   createdAt: new Date().toISOString(),
 };
 

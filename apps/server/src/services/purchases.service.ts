@@ -2,6 +2,8 @@ import type { Purchase, PurchaseInput } from '@pharmacy/shared-types';
 import { prisma, toNumber } from '../prisma.js';
 import { AppError } from '../middleware/errors.js';
 import { broadcastStockChanged } from '../sockets/stock.js';
+import { baghdadTodayIso } from '../lib/dateRange.js';
+import { fromMinorUnits, toMinorUnits } from '../lib/money.js';
 
 function present(row: {
   id: number;
@@ -63,7 +65,18 @@ export async function createPurchase(userId: number, input: PurchaseInput): Prom
     throw new AppError(400, 'فاتورة الشراء فارغة');
   }
 
-  const total = input.items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+  // Same rule the batch write-off and FEFO sale use: expiring today is still sellable.
+  const today = baghdadTodayIso();
+  for (const line of input.items) {
+    if (line.expiryDate && line.expiryDate.slice(0, 10) < today) {
+      const product = await prisma.product.findUnique({ where: { id: line.productId }, select: { name: true } });
+      throw new AppError(400, `تاريخ انتهاء "${product?.name ?? line.productId}" قد مضى — لا يمكن استلام دواء منتهي الصلاحية`);
+    }
+  }
+
+  const total = fromMinorUnits(
+    input.items.reduce((sum, i) => sum + i.quantity * toMinorUnits(i.unitPrice), 0),
+  );
 
   const purchase = await prisma.$transaction(async (tx) => {
     const created = await tx.purchase.create({
@@ -98,10 +111,13 @@ export async function createPurchase(userId: number, input: PurchaseInput): Prom
       });
       // The supplier's most recent cost becomes the product's reference
       // purchase price for margin reporting, without touching its sale price.
-      await tx.product.update({
-        where: { id: line.productId },
-        data: { purchasePrice: line.unitPrice },
-      });
+      // A free bonus line (10+1) is not a cost and must not zero it.
+      if (line.unitPrice > 0) {
+        await tx.product.update({
+          where: { id: line.productId },
+          data: { purchasePrice: line.unitPrice },
+        });
+      }
     }
 
     return tx.purchase.findUniqueOrThrow({ where: { id: created.id }, include });

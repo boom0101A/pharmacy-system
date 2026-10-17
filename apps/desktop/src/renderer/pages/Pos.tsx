@@ -22,6 +22,7 @@ import { ProductDialog } from './ProductDialog';
 import { subUnitAvailability, useCart } from '../store/cart';
 import { api, ApiError } from '../lib/api';
 import { findAlternativeProduct } from '../lib/alternativePick';
+import { parsePriceInput, reformatPriceInput } from '../lib/priceInput';
 import { cleanIpcError, cx, formatMoney, productImageUrl } from '../lib/cx';
 import { playSaleComplete, playWarningBeep } from '../lib/sounds.js';
 import { useAuth } from '../store/auth';
@@ -542,11 +543,11 @@ export function Pos() {
           <input
             id="discount"
             className={styles.discountInput}
-            type="number"
-            min={0}
-            value={cart.discount || ''}
+            inputMode="numeric"
+            dir="ltr"
+            value={cart.discount ? formatMoney(cart.discount) : ''}
             placeholder="0"
-            onChange={(e) => cart.setDiscount(Number(e.target.value) || 0)}
+            onChange={(e) => cart.setDiscount(parsePriceInput(reformatPriceInput(e.target.value, 0).formatted) ?? 0)}
           />
         </div>
 

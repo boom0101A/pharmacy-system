@@ -36,6 +36,33 @@ describe('NumberCellInput', () => {
     expect(input.value).toBe('5');
   });
 
+  it.each([
+    ['Arabic-Indic digits', '٨٠٠٠', 8000],
+    ['a thousands separator', '8,000', 8000],
+  ])('accepts %s', (_label, typed, expected) => {
+    const onCommit = vi.fn();
+    render(<NumberCellInput value={5} min={0} onCommit={onCommit} aria-label="price" />);
+    const input = screen.getByLabelText('price') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { value: typed } });
+    fireEvent.blur(input);
+
+    expect(onCommit).toHaveBeenCalledWith(expected);
+  });
+
+  it('as a money cell, shows thousands separators and still commits the plain number', () => {
+    const onCommit = vi.fn();
+    render(<NumberCellInput money value={8000} min={0} onCommit={onCommit} aria-label="price" />);
+    const input = screen.getByLabelText('price') as HTMLInputElement;
+    expect(input.value).toBe('8,000');
+
+    fireEvent.change(input, { target: { value: '12500' } });
+    expect(input.value).toBe('12,500');
+    fireEvent.blur(input);
+
+    expect(onCommit).toHaveBeenCalledWith(12500);
+  });
+
   it('reverts to the last committed value on blur when below the configured minimum', () => {
     const onCommit = vi.fn();
     render(<NumberCellInput value={5} min={1} onCommit={onCommit} aria-label="qty" />);

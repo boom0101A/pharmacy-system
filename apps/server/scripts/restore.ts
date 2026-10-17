@@ -15,24 +15,9 @@ import { isDirectCliRun } from '../src/lib/directRun.js';
 import { prisma } from '../src/prisma.js';
 import { config } from '../src/config.js';
 import { writeBackup } from '../src/backup.js';
+import { applyRestore, parseBackup, type BackupPayload } from '../src/services/restore.service.js';
 
-interface BackupPayload {
-  createdAt: string;
-  tables: {
-    users: unknown[];
-    categories: unknown[];
-    products: unknown[];
-    batches: unknown[];
-    suppliers: unknown[];
-    purchases: unknown[];
-    purchaseItems: unknown[];
-    sales: unknown[];
-    saleItems: unknown[];
-    returns: unknown[];
-    returnItems: unknown[];
-    batchWriteOffs: unknown[];
-  };
-}
+export { applyRestore };
 
 /** The database name out of DATABASE_URL, for the confirmation prompt — never printed from anywhere else, so what's on screen always matches what's about to be wiped. */
 function targetDatabaseName(): string {
@@ -47,61 +32,6 @@ async function listBackups(): Promise<string[]> {
   } catch {
     return [];
   }
-}
-
-/**
- * The actual wipe-and-reload, split out from `main()` so it can be exercised
- * directly (see restore.test-drive.mjs) without going through the CLI's TTY
- * confirmation prompt — that prompt has nothing to do with the correctness
- * of the delete/recreate/reseq-sequence logic itself.
- */
-export async function applyRestore(payload: BackupPayload): Promise<void> {
-  const t = payload.tables;
-  await prisma.$transaction(async (tx) => {
-    // Children before parents, so no foreign key ever points at a row that's
-    // about to disappear.
-    await tx.returnItem.deleteMany();
-    await tx.return.deleteMany();
-    await tx.saleItem.deleteMany();
-    await tx.sale.deleteMany();
-    await tx.purchaseItem.deleteMany();
-    await tx.purchase.deleteMany();
-    await tx.batchWriteOff.deleteMany();
-    await tx.batch.deleteMany();
-    await tx.product.deleteMany();
-    await tx.supplier.deleteMany();
-    await tx.category.deleteMany();
-    await tx.user.deleteMany();
-
-    // Parents before children, in exact reverse — and every row keeps its
-    // original id, so every foreign key recorded in a child row still points
-    // at the right parent once that child is reinserted below.
-    if (t.users.length) await tx.user.createMany({ data: t.users as never[] });
-    if (t.categories.length) await tx.category.createMany({ data: t.categories as never[] });
-    if (t.suppliers.length) await tx.supplier.createMany({ data: t.suppliers as never[] });
-    if (t.products.length) await tx.product.createMany({ data: t.products as never[] });
-    if (t.batches.length) await tx.batch.createMany({ data: t.batches as never[] });
-    if (t.batchWriteOffs.length) await tx.batchWriteOff.createMany({ data: t.batchWriteOffs as never[] });
-    if (t.purchases.length) await tx.purchase.createMany({ data: t.purchases as never[] });
-    if (t.purchaseItems.length) await tx.purchaseItem.createMany({ data: t.purchaseItems as never[] });
-    if (t.sales.length) await tx.sale.createMany({ data: t.sales as never[] });
-    if (t.saleItems.length) await tx.saleItem.createMany({ data: t.saleItems as never[] });
-    if (t.returns.length) await tx.return.createMany({ data: t.returns as never[] });
-    if (t.returnItems.length) await tx.returnItem.createMany({ data: t.returnItems as never[] });
-
-    // createMany with an explicit id never advances the table's own
-    // autoincrement sequence — without this, the next INSERT with no
-    // explicit id would collide with a restored row.
-    const tables = [
-      'users', 'categories', 'suppliers', 'products', 'batches', 'batch_write_offs',
-      'purchases', 'purchase_items', 'sales', 'sale_items', 'returns', 'return_items',
-    ];
-    for (const table of tables) {
-      await tx.$executeRawUnsafe(
-        `SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), COALESCE((SELECT MAX(id) FROM "${table}"), 1), true)`,
-      );
-    }
-  });
 }
 
 async function main() {
@@ -122,7 +52,7 @@ async function main() {
   const filePath = path.isAbsolute(filename) ? filename : path.join(config.backupDir, filename);
   let payload: BackupPayload;
   try {
-    payload = JSON.parse(await fs.readFile(filePath, 'utf8'));
+    payload = parseBackup(await fs.readFile(filePath, 'utf8'));
   } catch (err) {
     console.error(`تعذّرت قراءة ${filePath}: ${(err as Error).message}`);
     process.exitCode = 1;

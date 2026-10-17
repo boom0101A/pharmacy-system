@@ -42,7 +42,7 @@ const { Dashboard } = await import('./Dashboard');
 
 function renderDashboard(role: User['role']) {
   useAuth.setState({
-    user: { id: 1, name: 'مستخدم', username: 'u', role, isActive: true, createdAt: new Date().toISOString() },
+    user: { id: 1, name: 'مستخدم', username: 'u', role, isActive: true, mustChangePassword: false, createdAt: new Date().toISOString() },
   });
   render(
     <MemoryRouter>

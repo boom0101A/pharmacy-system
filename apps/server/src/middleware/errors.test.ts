@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Response } from 'express';
+import { z } from 'zod';
 import { errorHandler } from './errors.js';
 
 function fakeRes() {
@@ -9,6 +10,33 @@ function fakeRes() {
   };
   return res as unknown as Response;
 }
+
+describe('errorHandler validation errors', () => {
+  it('says which rule failed when the schema gave an Arabic message', () => {
+    const res = fakeRes();
+    const parse = () => z.object({ password: z.string().min(4, 'كلمة المرور قصيرة جداً') }).parse({ password: 'a' });
+
+    try {
+      parse();
+    } catch (err) {
+      errorHandler(err, {} as never, res, vi.fn());
+    }
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'بيانات غير صالحة — كلمة المرور قصيرة جداً' }));
+  });
+
+  it('keeps the generic Arabic message instead of leaking zod\'s English one', () => {
+    const res = fakeRes();
+    try {
+      z.object({ n: z.number() }).parse({ n: 'x' });
+    } catch (err) {
+      errorHandler(err, {} as never, res, vi.fn());
+    }
+
+    expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ error: 'بيانات غير صالحة' }));
+  });
+});
 
 describe('errorHandler body-parser errors', () => {
   it('reports malformed JSON as a 400 with an Arabic message, not the generic 500', () => {

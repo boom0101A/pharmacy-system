@@ -52,40 +52,45 @@ export function signCaptureToken(productId: number): string {
   return jwt.sign(payload, config.jwtSecret, { expiresIn: CAPTURE_TOKEN_TTL_SECONDS });
 }
 
-/** Rejects any request without a valid bearer token for a live, active user. */
-export async function requireAuth(req: Request, res: Response, next: NextFunction) {
-  const header = req.headers.authorization;
-  if (!header?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'مطلوب تسجيل الدخول' });
-  }
+/**
+ * A login-session token for a live, active user, or the Arabic reason it is
+ * not one. Shared by HTTP (`requireAuth`) and the stock socket.
+ */
+export async function verifySessionToken(
+  token: string | undefined,
+): Promise<{ auth: AuthPayload } | { error: string }> {
+  if (!token) return { error: 'مطلوب تسجيل الدخول' };
 
   let payload: AuthPayload & { scope?: string };
   try {
-    payload = jwt.verify(header.slice(7), config.jwtSecret) as AuthPayload & { scope?: string };
+    payload = jwt.verify(token, config.jwtSecret) as AuthPayload & { scope?: string };
   } catch {
-    return res.status(401).json({ error: 'الجلسة منتهية، سجّل الدخول من جديد' });
+    return { error: 'الجلسة منتهية، سجّل الدخول من جديد' };
   }
 
   // A scoped grant (the phone-capture token) is signed with the same secret
   // but is not a session. Without this check it would satisfy every route
   // that only calls requireAuth — the product catalogue included.
-  if (payload.scope) {
-    return res.status(401).json({ error: 'مطلوب تسجيل الدخول' });
-  }
+  if (payload.scope) return { error: 'مطلوب تسجيل الدخول' };
 
+  // The signature alone is not enough: an account disabled or demoted after
+  // its token was issued has to lose access now, not in twelve hours.
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: { id: true, role: true, isActive: true },
+  });
+  if (!user || !user.isActive) return { error: 'الحساب غير مفعّل — راجع مدير النظام' };
+
+  return { auth: { userId: user.id, role: user.role } };
+}
+
+/** Rejects any request without a valid bearer token for a live, active user. */
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
   try {
-    // The signature alone is not enough: an account disabled or demoted after
-    // its token was issued has to lose access now, not in twelve hours.
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { id: true, role: true, isActive: true },
-    });
-
-    if (!user || !user.isActive) {
-      return res.status(401).json({ error: 'الحساب غير مفعّل — راجع مدير النظام' });
-    }
-
-    req.auth = { userId: user.id, role: user.role };
+    const result = await verifySessionToken(header?.startsWith('Bearer ') ? header.slice(7) : undefined);
+    if ('error' in result) return res.status(401).json({ error: result.error });
+    req.auth = result.auth;
     next();
   } catch (err) {
     // An async middleware has to hand errors to Express itself.
