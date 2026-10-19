@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { prisma, toNumber } from '../prisma.js';
 import { AppError } from '../middleware/errors.js';
 import { broadcastStockChanged } from '../sockets/stock.js';
+import { ARCHIVED_MESSAGE } from './products.service.js';
 
 function mapSale(row: {
   id: number;
@@ -79,6 +80,7 @@ export async function createSale(userId: number, input: SaleInput): Promise<Sale
       if (!product) {
         throw new AppError(404, `الصنف رقم ${line.productId} غير موجود`);
       }
+      if (product.archivedAt) throw new AppError(409, `«${product.name}»: ${ARCHIVED_MESSAGE}`);
       affectedProductIds.add(product.id);
 
       // productSchema.refine() requires subUnitPrice on every new write, but

@@ -8,7 +8,6 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
-import { generateInternalBarcode } from '../lib/barcode.js';
 import { cleanIpcError, digitsOnly, productImageUrl } from '../lib/cx';
 import { parsePriceInput } from '../lib/priceInput.js';
 import { formatPriceInput, PriceInput } from '../components/ui/PriceInput';
@@ -51,6 +50,7 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
   const [uploadingImage, setUploadingImage] = useState(false);
   const [phoneCaptureOpen, setPhoneCaptureOpen] = useState(false);
   const [printingBarcode, setPrintingBarcode] = useState(false);
+  const [generatingBarcode, setGeneratingBarcode] = useState(false);
   // Only used while creating: the chosen picture and its local preview URL.
   const [pendingImage, setPendingImage] = useState<Blob | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -195,9 +195,18 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
     setPhoneCaptureOpen(true);
   }
 
-  function generateBarcode() {
-    if (!product) return;
-    set('barcode')(generateInternalBarcode(product.id));
+  // From the server: it is the only one that sees every till's products, so
+  // only it can promise the code is not already taken.
+  async function generateBarcode() {
+    setGeneratingBarcode(true);
+    try {
+      const { barcode } = await api.newBarcode();
+      set('barcode')(barcode);
+    } catch (err) {
+      toast.error('تعذّر توليد الباركود', (err as Error).message);
+    } finally {
+      setGeneratingBarcode(false);
+    }
   }
 
   async function printBarcode() {
@@ -294,15 +303,21 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
               dir="ltr"
               hint="امسح الباركود بالقارئ مباشرة"
             />
-            {product && (
+            {(!form.barcode || product?.barcode) && (
               <div className={styles.barcodeActions}>
                 {!form.barcode && (
-                  <Button type="button" variant="outline" size="sm" onClick={generateBarcode}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={generatingBarcode}
+                    onClick={() => void generateBarcode()}
+                  >
                     <Barcode size={14} />
                     توليد باركود
                   </Button>
                 )}
-                {product.barcode && (
+                {product?.barcode && (
                   <Button
                     type="button"
                     variant="outline"

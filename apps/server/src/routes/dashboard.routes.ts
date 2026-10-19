@@ -27,6 +27,7 @@ dashboardRouter.get(
       prisma.batch.findMany({
         where: {
           quantity: { gt: 0 },
+          product: { archivedAt: null },
           expiryDate: { gte: new Date(), lte: new Date(Date.now() + EXPIRY_WARNING_DAYS * 86_400_000) },
         },
         include: { product: { select: { id: true, name: true } } },

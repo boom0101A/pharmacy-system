@@ -4,6 +4,7 @@ import { AppError } from '../middleware/errors.js';
 import { broadcastStockChanged } from '../sockets/stock.js';
 import { baghdadTodayIso } from '../lib/dateRange.js';
 import { fromMinorUnits, toMinorUnits } from '../lib/money.js';
+import { ARCHIVED_MESSAGE } from './products.service.js';
 
 function present(row: {
   id: number;
@@ -66,6 +67,12 @@ export async function createPurchase(userId: number, input: PurchaseInput): Prom
   }
 
   // Same rule the batch write-off and FEFO sale use: expiring today is still sellable.
+  const archived = await prisma.product.findFirst({
+    where: { id: { in: input.items.map((i) => i.productId) }, archivedAt: { not: null } },
+    select: { name: true },
+  });
+  if (archived) throw new AppError(409, `«${archived.name}»: ${ARCHIVED_MESSAGE}`);
+
   const today = baghdadTodayIso();
   for (const line of input.items) {
     if (line.expiryDate && line.expiryDate.slice(0, 10) < today) {

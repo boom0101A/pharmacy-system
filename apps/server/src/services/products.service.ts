@@ -2,6 +2,8 @@ import type { Product, ProductAlternative } from '@pharmacy/shared-types';
 import { Prisma } from '@prisma/client';
 import { prisma, toNumber } from '../prisma.js';
 import { baghdadTodayIso } from '../lib/dateRange.js';
+import { internalBarcode } from '../lib/barcode.js';
+import { AppError } from '../middleware/errors.js';
 
 // A product "قارب على الانتهاء" (expiring soon) inside this many days of its
 // nearest batch — chosen to give a pharmacist a working month's notice.
@@ -98,22 +100,28 @@ const MAX_LIMIT = 500;
 
 export async function listProducts(options: {
   search?: string;
-  status?: 'low' | 'expiring' | 'out';
+  status?: 'low' | 'expiring' | 'out' | 'archived';
   limit?: number;
   offset?: number;
 }): Promise<Product[]> {
-  const where = options.search
-    ? {
-        OR: [
-          { name: { contains: options.search, mode: 'insensitive' as const } },
-          { barcode: { equals: options.search } },
-          { activeIngredient: { contains: options.search, mode: 'insensitive' as const } },
-        ],
-      }
-    : undefined;
+  const archived = options.status === 'archived';
+  const where: Prisma.ProductWhereInput = {
+    archivedAt: archived ? { not: null } : null,
+    ...(options.search
+      ? {
+          OR: [
+            { name: { contains: options.search, mode: 'insensitive' as const } },
+            { barcode: { equals: options.search } },
+            { activeIngredient: { contains: options.search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {}),
+  };
 
   const rows = await productWithAggregates(where);
-  const presented = rows.map(present).filter((p) => matchesStatus(p, options.status));
+  const presented = rows
+    .map(present)
+    .filter((p) => archived || matchesStatus(p, options.status as 'low' | 'expiring' | 'out' | undefined));
   presented.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
 
   const offset = options.offset ?? 0;
@@ -124,14 +132,17 @@ export async function listProducts(options: {
 export async function productStats(
   search?: string,
 ): Promise<{ total: number; low: number; expiring: number; out: number }> {
-  const where = search
-    ? {
-        OR: [
-          { name: { contains: search, mode: 'insensitive' as const } },
-          { barcode: { equals: search } },
-        ],
-      }
-    : undefined;
+  const where: Prisma.ProductWhereInput = {
+    archivedAt: null,
+    ...(search
+      ? {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' as const } },
+            { barcode: { equals: search } },
+          ],
+        }
+      : {}),
+  };
   const rows = (await productWithAggregates(where)).map(present);
 
   return {
@@ -150,13 +161,13 @@ export async function findById(id: number): Promise<Product | null> {
 
 /** Barcode scanner lookup — an exact match, used by the POS screen. */
 export async function findByBarcode(barcode: string): Promise<Product | null> {
-  const rows = await productWithAggregates({ barcode });
+  const rows = await productWithAggregates({ barcode, archivedAt: null });
   return rows[0] ? present(rows[0]) : null;
 }
 
 export async function productIngredients(): Promise<string[]> {
   const rows = await prisma.product.findMany({
-    where: { activeIngredient: { not: null } },
+    where: { activeIngredient: { not: null }, archivedAt: null },
     select: { activeIngredient: true },
     distinct: ['activeIngredient'],
     orderBy: { activeIngredient: 'asc' },
@@ -172,6 +183,7 @@ export async function productAlternatives(id: number): Promise<ProductAlternativ
   const rows = await productWithAggregates({
     activeIngredient: { equals: product.activeIngredient, mode: 'insensitive' },
     id: { not: id },
+    archivedAt: null,
   });
   return rows
     .map(present)
@@ -185,14 +197,66 @@ export async function productAlternatives(id: number): Promise<ProductAlternativ
     }));
 }
 
+/**
+ * Names the product that already holds this barcode — the bare unique-index
+ * error ("هذه القيمة مستخدمة بالفعل") left the pharmacist guessing which one.
+ */
+async function assertBarcodeFree(barcode: string | null | undefined, ownId?: number) {
+  if (!barcode) return;
+  const holder = await prisma.product.findUnique({ where: { barcode }, select: { id: true, name: true } });
+  if (holder && holder.id !== ownId) {
+    throw new AppError(409, `هذا الباركود مستخدم للصنف «${holder.name}»`);
+  }
+}
+
+/** A fresh internal barcode no product has yet; the unique index still guards the rare race between two tills. */
+export async function newUniqueBarcode(random: () => number = Math.random): Promise<string> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = internalBarcode(random);
+    if (!(await prisma.product.findUnique({ where: { barcode: code }, select: { id: true } }))) return code;
+  }
+  throw new AppError(503, 'تعذّر توليد باركود فريد — أعد المحاولة');
+}
+
 export async function createProduct(data: ProductCreateData): Promise<Product> {
+  await assertBarcodeFree(data.barcode);
   const row = await prisma.product.create({ data });
   const rows = await productWithAggregates({ id: row.id });
   return present(rows[0]);
 }
 
 export async function updateProduct(id: number, data: ProductUpdateData): Promise<Product> {
+  await assertBarcodeFree(data.barcode as string | null | undefined, id);
   await prisma.product.update({ where: { id }, data });
+  const rows = await productWithAggregates({ id });
+  return present(rows[0]);
+}
+
+/** Thrown by every path that would put new stock in or take stock out. */
+export const ARCHIVED_MESSAGE = 'هذا الصنف مؤرشف — استرجعه من «المؤرشفة» في المخزون أولاً';
+
+/**
+ * Removes a product from the shelf. With no invoice pointing at it, it is
+ * really deleted; once a sale or purchase references it, deleting would
+ * rewrite old invoices and reports, so it is archived instead — hidden from
+ * every operational screen, history intact, restorable. Its barcode is
+ * released so the same medicine can be added again later.
+ */
+export async function archiveOrDeleteProduct(id: number): Promise<{ archived: boolean }> {
+  const [soldCount, purchasedCount] = await Promise.all([
+    prisma.saleItem.count({ where: { productId: id } }),
+    prisma.purchaseItem.count({ where: { productId: id } }),
+  ]);
+  if (soldCount === 0 && purchasedCount === 0) {
+    await prisma.product.delete({ where: { id } });
+    return { archived: false };
+  }
+  await prisma.product.update({ where: { id }, data: { archivedAt: new Date(), barcode: null } });
+  return { archived: true };
+}
+
+export async function restoreProduct(id: number): Promise<Product> {
+  await prisma.product.update({ where: { id }, data: { archivedAt: null } });
   const rows = await productWithAggregates({ id });
   return present(rows[0]);
 }

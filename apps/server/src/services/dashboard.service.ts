@@ -25,7 +25,8 @@ export async function lowStockList(limit: number): Promise<{ id: number; name: s
     SELECT p.id, p.name, SUM(b.quantity)::bigint AS stock
     FROM products p
     JOIN batches b ON b.product_id = p.id
-    WHERE b.expiry_date IS NULL OR b.expiry_date >= (now() AT TIME ZONE 'Asia/Baghdad')::date
+    WHERE p.archived_at IS NULL
+      AND (b.expiry_date IS NULL OR b.expiry_date >= (now() AT TIME ZONE 'Asia/Baghdad')::date)
     GROUP BY p.id, p.name, p.reorder_level
     HAVING SUM(b.quantity) > 0 AND SUM(b.quantity) <= p.reorder_level
     ORDER BY SUM(b.quantity) ASC, p.name ASC

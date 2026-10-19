@@ -7,6 +7,7 @@ import { broadcastStockChanged } from '../sockets/stock.js';
 import { deleteBatch, writeOffBatch } from '../services/batches.service.js';
 import { parseIdParam } from '../lib/parseIdParam.js';
 import { withoutCostFor } from '../lib/costVisibility.js';
+import { ARCHIVED_MESSAGE } from '../services/products.service.js';
 
 export const batchesRouter = Router();
 batchesRouter.use(requireAuth);
@@ -63,6 +64,7 @@ batchesRouter.post(
     if (!product) {
       throw new AppError(404, 'الصنف غير موجود');
     }
+    if (product.archivedAt) throw new AppError(409, ARCHIVED_MESSAGE);
 
     const batch = await prisma.batch.create({
       data: {

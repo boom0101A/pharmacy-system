@@ -225,7 +225,7 @@ export const api = {
    */
   products: (
     search?: string,
-    opts: { status?: 'low' | 'expiring' | 'out'; limit?: number; offset?: number } = {},
+    opts: { status?: 'low' | 'expiring' | 'out' | 'archived'; limit?: number; offset?: number } = {},
   ) => {
     const params = new URLSearchParams();
     if (search) params.set('search', search);
@@ -240,6 +240,8 @@ export const api = {
       `/products/stats${search ? `?search=${encodeURIComponent(search)}` : ''}`,
     ),
   productById: (id: number) => request<Product>(`/products/${id}`),
+  /** A 12-digit internal barcode no product has yet — fills the field, does not save. */
+  newBarcode: () => request<{ barcode: string }>('/products/barcode/new'),
   productByBarcode: (barcode: string) =>
     request<Product>(`/products/barcode/${encodeURIComponent(barcode)}`),
   /** Suggestions only — a failure here must not block adding a product. */
@@ -251,7 +253,9 @@ export const api = {
     request<Product>('/products', { method: 'POST', body: JSON.stringify(data) }),
   updateProduct: (id: number, data: ProductInput) =>
     request<Product>(`/products/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deleteProduct: (id: number) => request<void>(`/products/${id}`, { method: 'DELETE' }),
+  /** Archived (not deleted) when invoices point at it — see archiveOrDeleteProduct on the server. */
+  deleteProduct: (id: number) => request<{ archived: boolean }>(`/products/${id}`, { method: 'DELETE' }),
+  restoreProduct: (id: number) => request<Product>(`/products/${id}/restore`, { method: 'POST' }),
   /** The URL behind the QR code — short-lived, and good only for this product's photo. */
   createCaptureToken: (id: number) =>
     request<{ url: string; expiresInSeconds: number }>(`/products/${id}/capture-token`, {

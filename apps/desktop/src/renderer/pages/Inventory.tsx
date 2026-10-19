@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
+  Archive,
+  ArchiveRestore,
   Clock,
   Package,
   PackageMinus,
@@ -36,14 +38,14 @@ const TONE_CLASS = {
 const PAGE_SIZE = 40;
 const LOW_STOCK_ALERT_MS = 8000;
 
-type StatusFilter = 'all' | 'low' | 'expiring' | 'out';
+type StatusFilter = 'all' | 'low' | 'expiring' | 'out' | 'archived';
 
 export function Inventory() {
   const toast = useToast();
   const navigate = useNavigate();
   const { can } = useAuth();
   const canEdit = can('admin', 'pharmacist');
-  const canDelete = can('admin');
+  const canDelete = can('admin', 'pharmacist');
   const stockVersion = useStockVersion((s) => s.version);
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -202,12 +204,18 @@ export function Inventory() {
             <td>{formatDate(product.nearestExpiry)}</td>
             <td>
               <div className={styles.actions}>
-                {canEdit && (
+                {statusFilter === 'archived' && canEdit && (
+                  <Button variant="outline" size="sm" onClick={() => void restore(product)}>
+                    <ArchiveRestore size={15} />
+                    استرجاع
+                  </Button>
+                )}
+                {statusFilter !== 'archived' && canEdit && (
                   <Button variant="outline" size="sm" onClick={() => setReceivingFor(product)}>
                     إدخال كمية
                   </Button>
                 )}
-                {canEdit && (
+                {statusFilter !== 'archived' && canEdit && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -220,7 +228,7 @@ export function Inventory() {
                     <Pencil size={15} />
                   </Button>
                 )}
-                {canDelete && (
+                {statusFilter !== 'archived' && canDelete && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -235,19 +243,35 @@ export function Inventory() {
           </tr>
         );
       }),
-    [visible, canEdit, canDelete],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [visible, canEdit, canDelete, statusFilter],
   );
-  const shownCount = statusFilter === 'all' ? counts.total : counts[statusFilter];
+  const shownCount =
+    statusFilter === 'all' ? counts.total : statusFilter === 'archived' ? visible.length : counts[statusFilter];
 
   async function remove(product: Product) {
     try {
-      await api.deleteProduct(product.id);
-      toast.success('تم حذف الصنف', undefined, { kind: 'delete' });
+      const { archived } = await api.deleteProduct(product.id);
+      toast.success(
+        archived ? 'تمت أرشفة الصنف' : 'تم حذف الصنف',
+        archived ? 'له فواتير سابقة فبقيت كما هي — يمكن استرجاعه من «المؤرشفة»' : undefined,
+        { kind: 'delete' },
+      );
       load(search, statusFilter);
     } catch (err) {
       toast.error('تعذّر الحذف', (err as Error).message);
     } finally {
       setDeletingProduct(null);
+    }
+  }
+
+  async function restore(product: Product) {
+    try {
+      await api.restoreProduct(product.id);
+      toast.success('تم استرجاع الصنف', product.name);
+      load(search, statusFilter);
+    } catch (err) {
+      toast.error('تعذّر الاسترجاع', (err as Error).message);
     }
   }
 
@@ -285,6 +309,19 @@ export function Inventory() {
             );
           })}
         </div>
+
+        {canEdit && (
+          <div>
+            <Button
+              variant={statusFilter === 'archived' ? 'primary' : 'ghost'}
+              size="sm"
+              onClick={() => setStatusFilter(statusFilter === 'archived' ? 'all' : 'archived')}
+            >
+              <Archive size={15} />
+              {statusFilter === 'archived' ? 'العودة إلى كل الأصناف' : 'الأصناف المؤرشفة'}
+            </Button>
+          </div>
+        )}
 
         <div className={styles.card}>
           <div className={styles.toolbar}>
@@ -412,9 +449,10 @@ export function Inventory() {
         onOpenChange={(open) => !open && setDeletingProduct(null)}
         title={`حذف "${deletingProduct?.name ?? ''}"؟`}
         description={
-          deletingProduct && deletingProduct.stock > 0
-            ? `سيُحذف الدواء وكل دفعاته (${deletingProduct.stock} ${deletingProduct.unit} بالمخزون). لا يمكن التراجع. الدواء الذي بِيع سابقاً سيرفض النظام حذفه حفاظاً على سجلّ الفواتير.`
-            : 'لا يمكن التراجع عن هذا الإجراء.'
+          'إن كان للدواء فواتير بيع أو شراء سابقة فسيُؤرشف: يختفي من المخزون والبيع، وتبقى فواتيره وتقاريره كما هي، ويمكن استرجاعه من «المؤرشفة». وإن لم تكن له فواتير فسيُحذف نهائياً.' +
+          (deletingProduct && deletingProduct.stock > 0
+            ? ` المخزون المتبقي (${deletingProduct.stock} ${deletingProduct.unit}) لن يُباع.`
+            : '')
         }
         onConfirm={() => deletingProduct && remove(deletingProduct)}
       />

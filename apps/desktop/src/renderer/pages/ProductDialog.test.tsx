@@ -9,6 +9,7 @@ vi.mock('../lib/api.js', () => ({
     productIngredients: vi.fn().mockResolvedValue([]),
     createProduct: vi.fn(),
     updateProduct: vi.fn(),
+    newBarcode: vi.fn(),
   },
 }));
 
@@ -70,10 +71,21 @@ describe('ProductDialog money fields', () => {
 });
 
 describe('ProductDialog barcode actions', () => {
-  it('shows neither barcode button when adding a new product', () => {
+  it('offers to generate a barcode for a brand-new product too, but not to print one', () => {
     renderDialog(null);
-    expect(screen.queryByRole('button', { name: 'توليد باركود' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'توليد باركود' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'طباعة الباركود' })).not.toBeInTheDocument();
+  });
+
+  it('fills a new product\'s barcode with the unique code the server hands out', async () => {
+    const { api } = await import('../lib/api.js');
+    vi.mocked(api.newBarcode).mockResolvedValue({ barcode: '204718293652' });
+    renderDialog(null);
+
+    fireEvent.click(screen.getByRole('button', { name: 'توليد باركود' }));
+
+    await waitFor(() => expect(screen.getByLabelText('الباركود')).toHaveValue('204718293652'));
+    expect(screen.queryByRole('button', { name: 'توليد باركود' })).not.toBeInTheDocument();
   });
 
   it('shows only the generate button when editing a product with no barcode yet', () => {
@@ -88,12 +100,13 @@ describe('ProductDialog barcode actions', () => {
     expect(screen.getByRole('button', { name: 'طباعة الباركود' })).toBeInTheDocument();
   });
 
-  it('fills the barcode field with a generated code derived from the product id', async () => {
+  it('fills a saved product\'s empty barcode the same way', async () => {
+    const { api } = await import('../lib/api.js');
+    vi.mocked(api.newBarcode).mockResolvedValue({ barcode: '209999999993' });
     renderDialog({ ...BASE_PRODUCT, barcode: null });
-    const { default: userEvent } = await import('@testing-library/user-event');
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'توليد باركود' }));
 
-    expect(screen.getByLabelText('الباركود')).toHaveValue('200000000005');
+    fireEvent.click(screen.getByRole('button', { name: 'توليد باركود' }));
+
+    await waitFor(() => expect(screen.getByLabelText('الباركود')).toHaveValue('209999999993'));
   });
 });

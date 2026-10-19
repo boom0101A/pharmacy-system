@@ -57,6 +57,8 @@ model Product {
   id            Int      @id @default(autoincrement())
   name          String
   barcode       String?  @unique
+  // Set instead of deleting once invoices point at it: gone from the shelf, kept in history.
+  archivedAt    DateTime? @map("archived_at")
   categoryId    Int?     @map("category_id")
   unit          String   @default("علبة")
   salePrice     Decimal  @default(0) @map("sale_price") @db.Decimal(12, 2)

@@ -91,7 +91,7 @@ reportsRouter.get(
     const cutoff = to ?? new Date(Date.now() + 60 * 86_400_000);
 
     const rows = await prisma.batch.findMany({
-      where: { quantity: { gt: 0 }, expiryDate: { lte: cutoff } },
+      where: { quantity: { gt: 0 }, expiryDate: { lte: cutoff }, product: { archivedAt: null } },
       include: { product: { select: { id: true, name: true } } },
       orderBy: { expiryDate: 'asc' },
       take: 200,
@@ -114,6 +114,7 @@ reportsRouter.get(
   '/low-stock',
   asyncHandler(async (_req, res) => {
     const rows = await prisma.product.findMany({
+      where: { archivedAt: null },
       include: { batches: { select: { quantity: true } } },
     });
 

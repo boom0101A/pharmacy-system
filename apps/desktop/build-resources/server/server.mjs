@@ -59869,6 +59869,16 @@ function baghdadTodayIso(now = /* @__PURE__ */ new Date()) {
   return new Date(now.getTime() + BAGHDAD_OFFSET_MS).toISOString().slice(0, 10);
 }
 
+// ../server/dist/src/lib/barcode.js
+function upcCheckDigit(first11) {
+  const sum = [...first11].reduce((acc, d, i) => acc + Number(d) * (i % 2 === 0 ? 3 : 1), 0);
+  return (10 - sum % 10) % 10;
+}
+function internalBarcode(random = Math.random) {
+  const body = "20" + String(Math.floor(random() * 1e9)).padStart(9, "0");
+  return body + upcCheckDigit(body);
+}
+
 // ../server/dist/src/services/products.service.js
 var EXPIRY_WARNING_DAYS = 30;
 function productWithAggregates(where) {
@@ -59926,27 +59936,34 @@ function matchesStatus(p, status) {
 var DEFAULT_LIMIT = 100;
 var MAX_LIMIT = 500;
 async function listProducts(options) {
-  const where = options.search ? {
-    OR: [
-      { name: { contains: options.search, mode: "insensitive" } },
-      { barcode: { equals: options.search } },
-      { activeIngredient: { contains: options.search, mode: "insensitive" } }
-    ]
-  } : void 0;
+  const archived = options.status === "archived";
+  const where = {
+    archivedAt: archived ? { not: null } : null,
+    ...options.search ? {
+      OR: [
+        { name: { contains: options.search, mode: "insensitive" } },
+        { barcode: { equals: options.search } },
+        { activeIngredient: { contains: options.search, mode: "insensitive" } }
+      ]
+    } : {}
+  };
   const rows2 = await productWithAggregates(where);
-  const presented = rows2.map(present).filter((p) => matchesStatus(p, options.status));
+  const presented = rows2.map(present).filter((p) => archived || matchesStatus(p, options.status));
   presented.sort((a, b) => a.name.localeCompare(b.name, "ar"));
   const offset = options.offset ?? 0;
   const limit = Math.min(options.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
   return presented.slice(offset, offset + limit);
 }
 async function productStats(search) {
-  const where = search ? {
-    OR: [
-      { name: { contains: search, mode: "insensitive" } },
-      { barcode: { equals: search } }
-    ]
-  } : void 0;
+  const where = {
+    archivedAt: null,
+    ...search ? {
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { barcode: { equals: search } }
+      ]
+    } : {}
+  };
   const rows2 = (await productWithAggregates(where)).map(present);
   return {
     total: rows2.length,
@@ -59960,12 +59977,12 @@ async function findById(id) {
   return rows2[0] ? present(rows2[0]) : null;
 }
 async function findByBarcode(barcode) {
-  const rows2 = await productWithAggregates({ barcode });
+  const rows2 = await productWithAggregates({ barcode, archivedAt: null });
   return rows2[0] ? present(rows2[0]) : null;
 }
 async function productIngredients() {
   const rows2 = await prisma.product.findMany({
-    where: { activeIngredient: { not: null } },
+    where: { activeIngredient: { not: null }, archivedAt: null },
     select: { activeIngredient: true },
     distinct: ["activeIngredient"],
     orderBy: { activeIngredient: "asc" }
@@ -59978,7 +59995,8 @@ async function productAlternatives(id) {
     return [];
   const rows2 = await productWithAggregates({
     activeIngredient: { equals: product.activeIngredient, mode: "insensitive" },
-    id: { not: id }
+    id: { not: id },
+    archivedAt: null
   });
   return rows2.map(present).filter((p) => p.stock > 0).map((p) => ({
     id: p.id,
@@ -59988,13 +60006,49 @@ async function productAlternatives(id) {
     unit: p.unit
   }));
 }
+async function assertBarcodeFree(barcode, ownId) {
+  if (!barcode)
+    return;
+  const holder = await prisma.product.findUnique({ where: { barcode }, select: { id: true, name: true } });
+  if (holder && holder.id !== ownId) {
+    throw new AppError(409, `\u0647\u0630\u0627 \u0627\u0644\u0628\u0627\u0631\u0643\u0648\u062F \u0645\u0633\u062A\u062E\u062F\u0645 \u0644\u0644\u0635\u0646\u0641 \xAB${holder.name}\xBB`);
+  }
+}
+async function newUniqueBarcode(random = Math.random) {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = internalBarcode(random);
+    if (!await prisma.product.findUnique({ where: { barcode: code }, select: { id: true } }))
+      return code;
+  }
+  throw new AppError(503, "\u062A\u0639\u0630\u0651\u0631 \u062A\u0648\u0644\u064A\u062F \u0628\u0627\u0631\u0643\u0648\u062F \u0641\u0631\u064A\u062F \u2014 \u0623\u0639\u062F \u0627\u0644\u0645\u062D\u0627\u0648\u0644\u0629");
+}
 async function createProduct(data) {
+  await assertBarcodeFree(data.barcode);
   const row = await prisma.product.create({ data });
   const rows2 = await productWithAggregates({ id: row.id });
   return present(rows2[0]);
 }
 async function updateProduct(id, data) {
+  await assertBarcodeFree(data.barcode, id);
   await prisma.product.update({ where: { id }, data });
+  const rows2 = await productWithAggregates({ id });
+  return present(rows2[0]);
+}
+var ARCHIVED_MESSAGE = "\u0647\u0630\u0627 \u0627\u0644\u0635\u0646\u0641 \u0645\u0624\u0631\u0634\u0641 \u2014 \u0627\u0633\u062A\u0631\u062C\u0639\u0647 \u0645\u0646 \xAB\u0627\u0644\u0645\u0624\u0631\u0634\u0641\u0629\xBB \u0641\u064A \u0627\u0644\u0645\u062E\u0632\u0648\u0646 \u0623\u0648\u0644\u0627\u064B";
+async function archiveOrDeleteProduct(id) {
+  const [soldCount, purchasedCount] = await Promise.all([
+    prisma.saleItem.count({ where: { productId: id } }),
+    prisma.purchaseItem.count({ where: { productId: id } })
+  ]);
+  if (soldCount === 0 && purchasedCount === 0) {
+    await prisma.product.delete({ where: { id } });
+    return { archived: false };
+  }
+  await prisma.product.update({ where: { id }, data: { archivedAt: /* @__PURE__ */ new Date(), barcode: null } });
+  return { archived: true };
+}
+async function restoreProduct(id) {
+  await prisma.product.update({ where: { id }, data: { archivedAt: null } });
   const rows2 = await productWithAggregates({ id });
   return present(rows2[0]);
 }
@@ -60010,7 +60064,8 @@ async function lowStockList(limit) {
     SELECT p.id, p.name, SUM(b.quantity)::bigint AS stock
     FROM products p
     JOIN batches b ON b.product_id = p.id
-    WHERE b.expiry_date IS NULL OR b.expiry_date >= (now() AT TIME ZONE 'Asia/Baghdad')::date
+    WHERE p.archived_at IS NULL
+      AND (b.expiry_date IS NULL OR b.expiry_date >= (now() AT TIME ZONE 'Asia/Baghdad')::date)
     GROUP BY p.id, p.name, p.reorder_level
     HAVING SUM(b.quantity) > 0 AND SUM(b.quantity) <= p.reorder_level
     ORDER BY SUM(b.quantity) ASC, p.name ASC
@@ -60035,6 +60090,7 @@ dashboardRouter.get("/", asyncHandler(async (req, res) => {
     prisma.batch.findMany({
       where: {
         quantity: { gt: 0 },
+        product: { archivedAt: null },
         expiryDate: { gte: /* @__PURE__ */ new Date(), lte: new Date(Date.now() + EXPIRY_WARNING_DAYS2 * 864e5) }
       },
       include: { product: { select: { id: true, name: true } } },
@@ -60309,7 +60365,7 @@ function toCreateData(data) {
 var toUpdateData = toCreateData;
 var listQuerySchema = external_exports.object({
   search: external_exports.string().optional(),
-  status: external_exports.enum(["low", "expiring", "out"]).optional(),
+  status: external_exports.enum(["low", "expiring", "out", "archived"]).optional(),
   limit: external_exports.coerce.number().int().positive().optional(),
   offset: external_exports.coerce.number().int().nonnegative().optional()
 });
@@ -60323,6 +60379,9 @@ productsRouter.get("/stats", asyncHandler(async (req, res) => {
 }));
 productsRouter.get("/ingredients", asyncHandler(async (_req, res) => {
   res.json(await productIngredients());
+}));
+productsRouter.get("/barcode/new", checkRole("admin", "pharmacist"), asyncHandler(async (_req, res) => {
+  res.json({ barcode: await newUniqueBarcode() });
 }));
 productsRouter.get("/barcode/:barcode", asyncHandler(async (req, res) => {
   const product = await findByBarcode(req.params.barcode);
@@ -60357,25 +60416,24 @@ productsRouter.put("/:id", checkRole("admin", "pharmacist"), asyncHandler(async 
   }
   res.json(await updateProduct(id, toUpdateData(data)));
 }));
-productsRouter.delete("/:id", checkRole("admin"), asyncHandler(async (req, res) => {
+productsRouter.delete("/:id", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
   const id = parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641");
   const product = await prisma.product.findUnique({ where: { id } });
   if (!product) {
     throw new AppError(404, "\u0627\u0644\u062F\u0648\u0627\u0621 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
   }
-  const [soldCount, purchasedCount] = await Promise.all([
-    prisma.saleItem.count({ where: { productId: id } }),
-    prisma.purchaseItem.count({ where: { productId: id } })
-  ]);
-  if (soldCount > 0 || purchasedCount > 0) {
-    throw new AppError(409, "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u062F\u0648\u0627\u0621 \u0644\u0647 \u0641\u0648\u0627\u062A\u064A\u0631 \u0628\u064A\u0639 \u0623\u0648 \u0634\u0631\u0627\u0621 \u0633\u0627\u0628\u0642\u0629 \u2014 \u0633\u062C\u0644\u0651 \u0627\u0644\u0641\u0648\u0627\u062A\u064A\u0631 \u0648\u0627\u0644\u062A\u0642\u0627\u0631\u064A\u0631 \u064A\u0639\u062A\u0645\u062F \u0639\u0644\u064A\u0647");
-  }
-  await prisma.product.delete({ where: { id } });
-  if (product.imageFilename) {
+  const result = await archiveOrDeleteProduct(id);
+  if (!result.archived && product.imageFilename) {
     await fs3.unlink(path4.join(uploadDir2(), product.imageFilename)).catch(() => {
     });
   }
-  res.status(204).end();
+  res.json(result);
+}));
+productsRouter.post("/:id/restore", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
+  const id = parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641");
+  if (!await prisma.product.findUnique({ where: { id } }))
+    throw new AppError(404, "\u0627\u0644\u062F\u0648\u0627\u0621 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
+  res.json(await restoreProduct(id));
 }));
 productsRouter.post("/:id/capture-token", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
   const id = Number(req.params.id);
@@ -60493,6 +60551,8 @@ batchesRouter.post("/", checkRole("admin", "pharmacist"), asyncHandler(async (re
   if (!product) {
     throw new AppError(404, "\u0627\u0644\u0635\u0646\u0641 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
   }
+  if (product.archivedAt)
+    throw new AppError(409, ARCHIVED_MESSAGE);
   const batch = await prisma.batch.create({
     data: {
       productId: data.productId,
@@ -60619,6 +60679,8 @@ async function createSale(userId, input) {
       if (!product) {
         throw new AppError(404, `\u0627\u0644\u0635\u0646\u0641 \u0631\u0642\u0645 ${line.productId} \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F`);
       }
+      if (product.archivedAt)
+        throw new AppError(409, `\xAB${product.name}\xBB: ${ARCHIVED_MESSAGE}`);
       affectedProductIds.add(product.id);
       if (line.isSubUnit && product.subUnitPrice === null) {
         throw new AppError(400, `"${product.name}" \u0628\u0644\u0627 \u0633\u0639\u0631 \u0645\u062D\u062F\u062F \u0644\u0644\u0648\u062D\u062F\u0629 \u0627\u0644\u0641\u0631\u0639\u064A\u0629 \u2014 \u0631\u0627\u062C\u0639 \u0628\u064A\u0627\u0646\u0627\u062A \u0627\u0644\u0635\u0646\u0641`);
@@ -61035,6 +61097,12 @@ async function createPurchase(userId, input) {
   if (input.items.length === 0) {
     throw new AppError(400, "\u0641\u0627\u062A\u0648\u0631\u0629 \u0627\u0644\u0634\u0631\u0627\u0621 \u0641\u0627\u0631\u063A\u0629");
   }
+  const archived = await prisma.product.findFirst({
+    where: { id: { in: input.items.map((i) => i.productId) }, archivedAt: { not: null } },
+    select: { name: true }
+  });
+  if (archived)
+    throw new AppError(409, `\xAB${archived.name}\xBB: ${ARCHIVED_MESSAGE}`);
   const today = baghdadTodayIso();
   for (const line of input.items) {
     if (line.expiryDate && line.expiryDate.slice(0, 10) < today) {
@@ -61294,7 +61362,7 @@ reportsRouter.get("/expiry", asyncHandler(async (req, res) => {
   const { to } = rangeSchema.parse(req.query);
   const cutoff = to ?? new Date(Date.now() + 60 * 864e5);
   const rows2 = await prisma.batch.findMany({
-    where: { quantity: { gt: 0 }, expiryDate: { lte: cutoff } },
+    where: { quantity: { gt: 0 }, expiryDate: { lte: cutoff }, product: { archivedAt: null } },
     include: { product: { select: { id: true, name: true } } },
     orderBy: { expiryDate: "asc" },
     take: 200
@@ -61310,6 +61378,7 @@ reportsRouter.get("/expiry", asyncHandler(async (req, res) => {
 }));
 reportsRouter.get("/low-stock", asyncHandler(async (_req, res) => {
   const rows2 = await prisma.product.findMany({
+    where: { archivedAt: null },
     include: { batches: { select: { quantity: true } } }
   });
   res.json(rows2.map((p) => ({

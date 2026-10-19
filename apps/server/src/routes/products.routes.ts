@@ -74,7 +74,7 @@ const toUpdateData = toCreateData;
 
 const listQuerySchema = z.object({
   search: z.string().optional(),
-  status: z.enum(['low', 'expiring', 'out']).optional(),
+  status: z.enum(['low', 'expiring', 'out', 'archived']).optional(),
   limit: z.coerce.number().int().positive().optional(),
   offset: z.coerce.number().int().nonnegative().optional(),
 });
@@ -100,6 +100,15 @@ productsRouter.get(
   '/ingredients',
   asyncHandler(async (_req, res) => {
     res.json(await products.productIngredients());
+  }),
+);
+
+// Before '/barcode/:barcode', which would otherwise take "new" as a barcode.
+productsRouter.get(
+  '/barcode/new',
+  checkRole('admin', 'pharmacist'),
+  asyncHandler(async (_req, res) => {
+    res.json({ barcode: await products.newUniqueBarcode() });
   }),
 );
 
@@ -171,7 +180,7 @@ productsRouter.put(
 
 productsRouter.delete(
   '/:id',
-  checkRole('admin'),
+  checkRole('admin', 'pharmacist'),
   asyncHandler(async (req, res) => {
     const id = parseIdParam(req.params.id, 'معرّف الصنف');
     const product = await prisma.product.findUnique({ where: { id } });
@@ -179,29 +188,25 @@ productsRouter.delete(
       throw new AppError(404, 'الدواء غير موجود');
     }
 
-    // The database would refuse this anyway (the sale/purchase relations are
-    // restrict), but its generic foreign-key message doesn't tell a pharmacist
-    // *why* — and "history exists" is the one reason worth naming precisely.
-    const [soldCount, purchasedCount] = await Promise.all([
-      prisma.saleItem.count({ where: { productId: id } }),
-      prisma.purchaseItem.count({ where: { productId: id } }),
-    ]);
-    if (soldCount > 0 || purchasedCount > 0) {
-      throw new AppError(
-        409,
-        'لا يمكن حذف دواء له فواتير بيع أو شراء سابقة — سجلّ الفواتير والتقارير يعتمد عليه',
-      );
-    }
+    const result = await products.archiveOrDeleteProduct(id);
 
-    await prisma.product.delete({ where: { id } });
-
-    // Best-effort: past the guard above nothing else references this product,
-    // so the file is genuinely orphaned now.
-    if (product.imageFilename) {
+    // Only a real delete orphans the photo — an archived product keeps it for
+    // the day it is restored.
+    if (!result.archived && product.imageFilename) {
       await fs.unlink(path.join(uploadDir(), product.imageFilename)).catch(() => {});
     }
 
-    res.status(204).end();
+    res.json(result);
+  }),
+);
+
+productsRouter.post(
+  '/:id/restore',
+  checkRole('admin', 'pharmacist'),
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id, 'معرّف الصنف');
+    if (!(await prisma.product.findUnique({ where: { id } }))) throw new AppError(404, 'الدواء غير موجود');
+    res.json(await products.restoreProduct(id));
   }),
 );
 
