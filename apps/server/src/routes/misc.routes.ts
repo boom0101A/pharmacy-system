@@ -46,9 +46,23 @@ categoriesRouter.delete(
       throw new AppError(404, 'التصنيف غير موجود');
     }
 
-    // Products keep existing — the relation is onDelete: SetNull, so they
-    // just lose the link rather than being deleted along with the category.
-    await prisma.category.delete({ where: { id } });
-    res.status(204).end();
+    // Products are never deleted with their category. With ?moveTo they go to
+    // that category (archived ones too, so a restored product isn't orphaned);
+    // without it the relation's onDelete: SetNull leaves them uncategorised.
+    const moveTo = req.query.moveTo === undefined ? null : Number(req.query.moveTo);
+    if (moveTo !== null) {
+      const target =
+        Number.isInteger(moveTo) && moveTo !== id ? await prisma.category.findUnique({ where: { id: moveTo } }) : null;
+      if (!target) throw new AppError(400, 'اختر تصنيفاً آخر موجوداً لنقل الأدوية إليه');
+    }
+
+    const moved = await prisma.$transaction(async (tx) => {
+      const { count } = moveTo !== null
+        ? await tx.product.updateMany({ where: { categoryId: id }, data: { categoryId: moveTo } })
+        : { count: 0 };
+      await tx.category.delete({ where: { id } });
+      return count;
+    });
+    res.json({ moved });
   }),
 );

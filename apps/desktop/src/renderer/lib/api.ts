@@ -217,7 +217,9 @@ export const api = {
   createCategory: (name: string) =>
     request<Category>('/categories', { method: 'POST', body: JSON.stringify({ name }) }),
   /** Products keep existing — the relation is onDelete: SetNull, so they just lose the link. */
-  deleteCategory: (id: number) => request<void>(`/categories/${id}`, { method: 'DELETE' }),
+  /** Its products move to `moveTo`, or become uncategorised — they are never deleted. */
+  deleteCategory: (id: number, moveTo?: number) =>
+    request<{ moved: number }>(`/categories/${id}${moveTo ? `?moveTo=${moveTo}` : ''}`, { method: 'DELETE' }),
 
   /**
    * The server caps how many rows it returns, so pass a limit that suits the

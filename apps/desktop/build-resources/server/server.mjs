@@ -60235,8 +60235,18 @@ categoriesRouter.delete("/:id", checkRole("admin", "pharmacist"), asyncHandler(a
   if (!category) {
     throw new AppError(404, "\u0627\u0644\u062A\u0635\u0646\u064A\u0641 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F");
   }
-  await prisma.category.delete({ where: { id } });
-  res.status(204).end();
+  const moveTo = req.query.moveTo === void 0 ? null : Number(req.query.moveTo);
+  if (moveTo !== null) {
+    const target = Number.isInteger(moveTo) && moveTo !== id ? await prisma.category.findUnique({ where: { id: moveTo } }) : null;
+    if (!target)
+      throw new AppError(400, "\u0627\u062E\u062A\u0631 \u062A\u0635\u0646\u064A\u0641\u0627\u064B \u0622\u062E\u0631 \u0645\u0648\u062C\u0648\u062F\u0627\u064B \u0644\u0646\u0642\u0644 \u0627\u0644\u0623\u062F\u0648\u064A\u0629 \u0625\u0644\u064A\u0647");
+  }
+  const moved = await prisma.$transaction(async (tx) => {
+    const { count } = moveTo !== null ? await tx.product.updateMany({ where: { categoryId: id }, data: { categoryId: moveTo } }) : { count: 0 };
+    await tx.category.delete({ where: { id } });
+    return count;
+  });
+  res.json({ moved });
 }));
 
 // ../server/dist/src/routes/products.routes.js

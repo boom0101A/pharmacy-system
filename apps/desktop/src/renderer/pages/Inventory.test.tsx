@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -46,17 +46,46 @@ describe('Inventory — deleting a product that was sold', () => {
     api.productStats.mockResolvedValue({ total: 1, low: 0, expiring: 0, out: 0 });
   });
 
-  it('lets the pharmacist delete, and says it was archived when it had invoices', async () => {
-    api.deleteProduct.mockResolvedValue({ archived: true });
-    renderPage();
-
+  async function confirmDelete() {
     fireEvent.click(await screen.findByRole('button', { name: 'حذف بنادول' }));
     const dialog = await screen.findByRole('alertdialog');
     expect(within(dialog).getByText(/سيُؤرشف/)).toBeTruthy();
     fireEvent.click(within(dialog).getByRole('button', { name: 'حذف' }));
+  }
 
-    await waitFor(() => expect(api.deleteProduct).toHaveBeenCalledWith(7));
-    expect(await screen.findByText('تمت أرشفة الصنف')).toBeTruthy();
+  it('hides the row at once but only deletes on the server after 5 seconds', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      api.deleteProduct.mockResolvedValue({ archived: true });
+      renderPage();
+      await confirmDelete();
+
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'حذف بنادول' })).toBeNull());
+      expect(screen.getByText('حُذف «بنادول»')).toBeTruthy();
+      await act(() => vi.advanceTimersByTimeAsync(4000));
+      expect(api.deleteProduct).not.toHaveBeenCalled();
+
+      await act(() => vi.advanceTimersByTimeAsync(1500));
+      expect(api.deleteProduct).toHaveBeenCalledWith(7);
+      expect(await screen.findByText('تمت أرشفة الصنف')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('undo brings the row back and never touches the server', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderPage();
+      await confirmDelete();
+
+      fireEvent.click(await screen.findByRole('button', { name: /تراجع/ }));
+      expect(await screen.findByRole('button', { name: 'حذف بنادول' })).toBeTruthy();
+      await act(() => vi.advanceTimersByTimeAsync(8000));
+      expect(api.deleteProduct).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('lists archived products with a restore button', async () => {

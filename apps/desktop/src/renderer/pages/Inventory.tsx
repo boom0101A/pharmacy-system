@@ -58,6 +58,8 @@ export function Inventory() {
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [receivingFor, setReceivingFor] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  // Hidden while their undo window is open; deleted on the server only when it closes.
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(() => new Set());
   // The low-stock banner greets you on arrival and then gets out of the way.
   const [lowStockAlertDone, setLowStockAlertDone] = useState(false);
 
@@ -161,7 +163,7 @@ export function Inventory() {
     { key: 'out', label: 'نفد', count: counts.out, icon: PackageX, tone: 'danger' },
   ] as const;
 
-  const visible = products;
+  const visible = useMemo(() => products.filter((p) => !pendingDeleteIds.has(p.id)), [products, pendingDeleteIds]);
 
   /**
    * Built only when the rows themselves change, not on every keystroke in the
@@ -249,20 +251,40 @@ export function Inventory() {
   const shownCount =
     statusFilter === 'all' ? counts.total : statusFilter === 'archived' ? visible.length : counts[statusFilter];
 
-  async function remove(product: Product) {
-    try {
-      const { archived } = await api.deleteProduct(product.id);
-      toast.success(
-        archived ? 'تمت أرشفة الصنف' : 'تم حذف الصنف',
-        archived ? 'له فواتير سابقة فبقيت كما هي — يمكن استرجاعه من «المؤرشفة»' : undefined,
-        { kind: 'delete' },
-      );
-      load(search, statusFilter);
-    } catch (err) {
-      toast.error('تعذّر الحذف', (err as Error).message);
-    } finally {
-      setDeletingProduct(null);
-    }
+  const unhide = (id: number) =>
+    setPendingDeleteIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+
+  /**
+   * Deferred: the row disappears now, but the server only hears about it once
+   * the undo window closes — a real delete cannot be taken back afterwards.
+   */
+  function remove(product: Product) {
+    setDeletingProduct(null);
+    setPendingDeleteIds((prev) => new Set(prev).add(product.id));
+    toast.undoable({
+      title: `حُذف «${product.name}»`,
+      description: 'يمكنك التراجع خلال ثوانٍ',
+      onUndo: () => unhide(product.id),
+      onCommit: () => {
+        api
+          .deleteProduct(product.id)
+          .then(async ({ archived }) => {
+            if (archived) {
+              toast.success('تمت أرشفة الصنف', 'له فواتير سابقة فبقيت كما هي — يمكن استرجاعه من «المؤرشفة»', {
+                silent: true,
+              });
+            }
+            // Un-hidden only after the reload, or the row flashes back for a moment.
+            await load(search, statusFilter);
+          })
+          .catch((err: Error) => toast.error('تعذّر الحذف', err.message))
+          .finally(() => unhide(product.id));
+      },
+    });
   }
 
   async function restore(product: Product) {

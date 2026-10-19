@@ -4,7 +4,7 @@ import { AlertTriangle, Clock, DollarSign, Receipt, Tags, X } from 'lucide-react
 import type { Category, DashboardSummary } from '@pharmacy/shared-types';
 import styles from './Dashboard.module.css';
 import { Button } from '../components/ui/Button';
-import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { DeleteCategoryDialog } from './DeleteCategoryDialog';
 import { Input } from '../components/ui/Input';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useToast } from '../components/ui/Toast';
@@ -42,6 +42,14 @@ export function Dashboard() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [addingCategory, setAddingCategory] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
+  // Hidden while their undo window is open; deleted on the server only when it closes.
+  const [pendingCategoryIds, setPendingCategoryIds] = useState<Set<number>>(() => new Set());
+  const unhideCategory = (id: number) =>
+    setPendingCategoryIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
 
   function loadCategories() {
     api.categories().then(setCategories).catch(() => setCategories([]));
@@ -72,16 +80,27 @@ export function Dashboard() {
     }
   }
 
-  async function removeCategory(category: Category) {
-    try {
-      await api.deleteCategory(category.id);
-      toast.success('تم حذف التصنيف', undefined, { kind: 'delete' });
-      loadCategories();
-    } catch (err) {
-      toast.error('تعذّر الحذف', (err as Error).message);
-    } finally {
-      setDeletingCategory(null);
-    }
+  /** Deferred like product deletion: nothing reaches the server until the undo window closes. */
+  function removeCategory(category: Category, moveTo: Category | null) {
+    setDeletingCategory(null);
+    setPendingCategoryIds((prev) => new Set(prev).add(category.id));
+    toast.undoable({
+      title: `حُذف تصنيف «${category.name}»`,
+      description: category.productCount
+        ? moveTo
+          ? `ونُقلت أدويته إلى «${moveTo.name}»`
+          : 'وأصبحت أدويته بدون تصنيف'
+        : 'يمكنك التراجع خلال ثوانٍ',
+      onUndo: () => unhideCategory(category.id),
+      onCommit: () => {
+        api
+          .deleteCategory(category.id, moveTo?.id)
+          // Un-hidden only after the reload, or the chip flashes back for a moment.
+          .then(() => api.categories().then(setCategories))
+          .catch((err: Error) => toast.error('تعذّر حذف التصنيف', err.message))
+          .finally(() => unhideCategory(category.id));
+      },
+    });
   }
 
   if (loading || !summary) {
@@ -196,7 +215,7 @@ export function Dashboard() {
             <p className={styles.listEmpty}>لا توجد تصنيفات بعد</p>
           ) : (
             <ul className={styles.categoryChips}>
-              {categories.map((category) => (
+              {categories.filter((c) => !pendingCategoryIds.has(c.id)).map((category) => (
                 <li key={category.id} className={styles.categoryChip}>
                   <Tags size={13} />
                   <span>{category.name}</span>
@@ -218,16 +237,11 @@ export function Dashboard() {
         </section>
       )}
 
-      <ConfirmDialog
-        open={deletingCategory !== null}
-        onOpenChange={(open) => !open && setDeletingCategory(null)}
-        title={`حذف تصنيف "${deletingCategory?.name ?? ''}"؟`}
-        description={
-          deletingCategory && deletingCategory.productCount
-            ? `${deletingCategory.productCount} دواء مرتبط بهذا التصنيف — لن يُحذف أي دواء، فقط يُزال ربطه بالتصنيف.`
-            : 'لا يمكن التراجع عن هذا الإجراء.'
-        }
-        onConfirm={() => deletingCategory && removeCategory(deletingCategory)}
+      <DeleteCategoryDialog
+        category={deletingCategory}
+        categories={categories}
+        onCancel={() => setDeletingCategory(null)}
+        onConfirm={(moveTo) => deletingCategory && removeCategory(deletingCategory, moveTo)}
       />
     </div>
   );
