@@ -22,6 +22,7 @@ import type {
   SaleDetail,
   SaleInput,
   SaleListItem,
+  SalesHistoryPage,
   SalesReportPoint,
   SoldProductRow,
   Supplier,
@@ -284,6 +285,12 @@ export const api = {
   createSale: (data: SaleInput) =>
     request<Sale>('/sales', { method: 'POST', body: JSON.stringify(data) }),
   saleById: (id: number) => request<SaleDetail>(`/sales/${id}`),
+  /** Past invoices for any period, one page at a time; `count`/`sum` cover the whole period. */
+  salesHistory: (opts: { from: string; to: string; q?: string; limit: number; offset: number }) => {
+    const params = new URLSearchParams({ from: opts.from, to: opts.to, limit: String(opts.limit), offset: String(opts.offset) });
+    if (opts.q) params.set('q', opts.q);
+    return request<SalesHistoryPage>(`/sales/history?${params}`);
+  },
   /** Same-day browse list for the returns screen — admin/pharmacist only, matching the server's role gate. */
   salesByDate: (date: string) => request<SaleListItem[]>(`/sales${rangeQuery(date, date)}`),
 

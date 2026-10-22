@@ -16,6 +16,7 @@ import { Inventory } from './pages/Inventory';
 import { Suppliers } from './pages/Suppliers';
 import { Purchases } from './pages/Purchases';
 import { Returns } from './pages/Returns';
+import { SalesHistory } from './pages/SalesHistory';
 import { Reports } from './pages/Reports';
 import { Users } from './pages/Users';
 import { Settings } from './pages/Settings';
@@ -26,7 +27,7 @@ import { correctedLocalServerUrl } from './lib/serverMode';
 import { useStockSync } from './lib/useStockSync';
 import { useConnectionPing } from './lib/useConnectionPing';
 import { useExpiryAlert } from './lib/useExpiryAlert';
-import { useLicenseCheck } from './lib/useLicenseCheck';
+import { LICENSE_CHANGED_EVENT, useLicenseCheck } from './lib/useLicenseCheck';
 import { ConnectionBanner } from './components/ConnectionBanner';
 import { LicenseExpiryBanner } from './components/LicenseExpiryBanner';
 import { BackendNotice } from './components/BackendNotice';
@@ -55,9 +56,9 @@ export function App() {
   // Purely local (no network), so this resolves in a few milliseconds — well
   // before the splash's own dwell time ends.
   const { licensed: checkedLicensed, error: licenseError, expiresAt: licenseExpiresAt } = useLicenseCheck();
-  // Activation resolves the same run without waiting for a re-check.
-  const [activated, setActivated] = useState(false);
-  const licensed = activated || checkedLicensed;
+  // Always the live check — a flag set on activation would keep a key that
+  // later expires unlocked for the rest of the session.
+  const licensed = checkedLicensed;
   // Stable so a connection ping re-rendering mid-fade can't restart its timer.
   const finishSplash = useCallback(() => setShowSplash(false), []);
 
@@ -102,7 +103,7 @@ export function App() {
   // Blocks everything else — a stale/mismatched/expired license means the
   // rest of the app (including the server login itself) never renders.
   if (!licensed) {
-    return <Activation onActivated={() => setActivated(true)} />;
+    return <Activation onActivated={() => window.dispatchEvent(new CustomEvent(LICENSE_CHANGED_EVENT))} />;
   }
 
   // Only reached on a slow network where /auth/me hasn't answered yet — most
@@ -145,6 +146,7 @@ export function App() {
                 <Route index element={<Dashboard />} />
                 <Route path="pos" element={<Pos />} />
                 <Route path="returns" element={<Returns />} />
+                {canManageStock && <Route path="history" element={<SalesHistory />} />}
                 <Route path="inventory" element={<Inventory />} />
                 {canManageStock && <Route path="suppliers" element={<Suppliers />} />}
                 {canManageStock && <Route path="purchases" element={<Purchases />} />}

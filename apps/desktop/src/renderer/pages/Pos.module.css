@@ -308,11 +308,13 @@
   gap: var(--space-2);
 }
 
+/* 44px: the touch-target minimum — a pharmacist's finger on a touchscreen
+   till, not just a mouse pointer. */
 .cartLineControls button {
   display: grid;
   place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2.75rem;
+  height: 2.75rem;
   background: var(--surface-sunken);
   border: none;
   border-radius: var(--radius-sm);
@@ -321,7 +323,8 @@
 
 .qtyInput {
   width: 3.5rem;
-  height: 1.75rem;
+  height: 2.75rem;
+  font-size: var(--text-base);
   text-align: center;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
@@ -417,4 +420,57 @@
   .lastReceiptIcon {
     animation-delay: 0ms !important;
   }
+}
+
+/* ---- Hidden product grid (scanner-only tills) ---- */
+
+.scanRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.scanRow .scanBar {
+  flex: 1;
+}
+
+.hideToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+  height: 3rem;
+  padding: 0 var(--space-4);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+
+.hideToggle:hover {
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+.hideToggle[aria-pressed='true'] {
+  background: var(--brand-3);
+  color: var(--brand-11);
+  border-color: var(--brand-7);
+}
+
+.hideToggle:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+/* A product with no category says so, quietly — a hint that it needs one. */
+.categoryMissing {
+  color: var(--text-muted);
+  font-style: italic;
 }

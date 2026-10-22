@@ -26,3 +26,11 @@ describe('baghdadToday', () => {
     expect(baghdadToday()).toBe('2026-09-13');
   });
 });
+
+describe('digitsOnly', () => {
+  it('keeps digits typed on an Arabic keyboard, as plain digits', async () => {
+    const { digitsOnly } = await import('./cx');
+    expect(digitsOnly('١٠٤٢')).toBe('1042');
+    expect(digitsOnly('۱۲ علبة')).toBe('12');
+  });
+});

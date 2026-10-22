@@ -12,6 +12,7 @@ import { api } from '../lib/api';
 import { cx, formatMoney } from '../lib/cx';
 import { useCountUp } from '../lib/useCountUp';
 import { useAuth } from '../store/auth';
+import { usePendingDeletes } from '../store/pendingDeletes';
 import { useStockVersion } from '../store/stockSync';
 
 export function Dashboard() {
@@ -43,13 +44,13 @@ export function Dashboard() {
   const [addingCategory, setAddingCategory] = useState(false);
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null);
   // Hidden while their undo window is open; deleted on the server only when it closes.
-  const [pendingCategoryIds, setPendingCategoryIds] = useState<Set<number>>(() => new Set());
-  const unhideCategory = (id: number) =>
-    setPendingCategoryIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+  const pendingCategoryIds = usePendingDeletes((s) => s.category);
+  const hidePending = usePendingDeletes((s) => s.hide);
+  const unhidePending = usePendingDeletes((s) => s.unhide);
+  const unhideCategory = (id: number) => unhidePending('category', id);
+  // Pending ones are already gone as far as the user is concerned — including
+  // as a destination for another category's medicines.
+  const liveCategories = categories.filter((c) => !pendingCategoryIds.has(c.id));
 
   function loadCategories() {
     api.categories().then(setCategories).catch(() => setCategories([]));
@@ -83,7 +84,7 @@ export function Dashboard() {
   /** Deferred like product deletion: nothing reaches the server until the undo window closes. */
   function removeCategory(category: Category, moveTo: Category | null) {
     setDeletingCategory(null);
-    setPendingCategoryIds((prev) => new Set(prev).add(category.id));
+    hidePending('category', category.id);
     toast.undoable({
       title: `حُذف تصنيف «${category.name}»`,
       description: category.productCount
@@ -211,11 +212,11 @@ export function Dashboard() {
             </Button>
           </form>
 
-          {categories.length === 0 ? (
+          {liveCategories.length === 0 ? (
             <p className={styles.listEmpty}>لا توجد تصنيفات بعد</p>
           ) : (
             <ul className={styles.categoryChips}>
-              {categories.filter((c) => !pendingCategoryIds.has(c.id)).map((category) => (
+              {liveCategories.map((category) => (
                 <li key={category.id} className={styles.categoryChip}>
                   <Tags size={13} />
                   <span>{category.name}</span>
@@ -239,7 +240,7 @@ export function Dashboard() {
 
       <DeleteCategoryDialog
         category={deletingCategory}
-        categories={categories}
+        categories={liveCategories}
         onCancel={() => setDeletingCategory(null)}
         onConfirm={(moveTo) => deletingCategory && removeCategory(deletingCategory, moveTo)}
       />

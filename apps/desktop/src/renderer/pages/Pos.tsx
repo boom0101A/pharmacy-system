@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import {
   CheckCircle2,
+  Eye,
+  EyeOff,
   Minus,
   Pencil,
   Pill,
@@ -23,6 +25,8 @@ import { subUnitAvailability, useCart } from '../store/cart';
 import { api, ApiError } from '../lib/api';
 import { findAlternativeProduct } from '../lib/alternativePick';
 import { parsePriceInput, reformatPriceInput } from '../lib/priceInput';
+import { usePosProductsHidden } from '../lib/usePosProductsHidden';
+import { EmptyState } from '../components/ui/EmptyState';
 import { cleanIpcError, cx, formatMoney, productImageUrl } from '../lib/cx';
 import { playSaleComplete, playWarningBeep } from '../lib/sounds.js';
 import { useAuth } from '../store/auth';
@@ -140,6 +144,13 @@ export function Pos() {
   useEffect(() => {
     refocus();
   }, []);
+
+  // Hidden only from view: the catalogue fetch below still runs, because its
+  // results keep the cart's available quantities in sync.
+  const [productsHidden, toggleProductsHidden] = usePosProductsHidden();
+  const gridVisible = !productsHidden || query.trim() !== '';
+  const gridVisibleRef = useRef(gridVisible);
+  gridVisibleRef.current = gridVisible;
 
   // Debounced catalogue search; a scanner submits before this ever fires.
   useEffect(() => {
@@ -315,7 +326,11 @@ export function Pos() {
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (dialogOpenRef.current) return;
 
-      if (event.key === 'F12') {
+      if (event.key === 'F8') {
+        event.preventDefault();
+        toggleProductsHidden();
+        refocus();
+      } else if (event.key === 'F12') {
         event.preventDefault();
         if (!submitting && online) checkout();
       } else if (event.key === 'F4') {
@@ -325,7 +340,7 @@ export function Pos() {
         // Only while the scan field holds focus. Anywhere else these keys still
         // belong to whatever is focused — the cart's number inputs step their
         // value with them, and stealing that would break quantity editing.
-        if (document.activeElement !== scanRef.current) return;
+        if (document.activeElement !== scanRef.current || !gridVisibleRef.current) return;
         const list = productsRef.current;
         if (list.length === 0) return;
         event.preventDefault();
@@ -358,109 +373,134 @@ export function Pos() {
   return (
     <div className={styles.layout}>
       <div className={styles.left}>
-        <form className={styles.scanBar} onSubmit={handleScan}>
-          <ScanBarcode className={styles.scanIcon} size={22} />
-          <input
-            ref={scanRef}
-            className={styles.scanInput}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onBlur={() => setTimeout(refocus, 0)}
-            placeholder="امسح الباركود أو ابحث بالاسم…"
-            aria-label="بحث أو مسح باركود"
-          />
-        </form>
-
-        <div className={styles.results}>
-          {loadingProducts &&
-            Array.from({ length: 8 }, (_, i) => (
-              <div key={`skeleton-${i}`} className={styles.productSkeleton}>
-                <Skeleton height="7rem" radius="var(--radius-md)" />
-                <Skeleton width="70%" height="1rem" />
-                <Skeleton width="40%" height="0.875rem" />
-              </div>
-            ))}
-
-          {!loadingProducts &&
-            products.map((product, index) => (
-              <div
-                key={product.id}
-                data-product-index={index}
-                className={cx(styles.productCard, index === activeIndex && styles.productCardActive)}
-              >
-                <button
-                  className={styles.productMain}
-                  onClick={() => addProduct(product)}
-                  disabled={product.stock <= 0}
-                >
-                  <span className={styles.productThumb}>
-                    {product.imageFilename ? (
-                      <img src={productImageUrl(product.imageFilename)!} alt="" />
-                    ) : (
-                      <Pill size={22} strokeWidth={1.5} />
-                    )}
-                  </span>
-                  <span className={styles.productName}>{product.name}</span>
-                  <span className={styles.lineUnitPrice}>{product.unit}</span>
-                  <span className={styles.productMeta}>
-                    <span className={`${styles.productPrice} numeric`}>
-                      {formatMoney(product.salePrice)}
-                    </span>
-                    {product.stock <= 0 && product.looseSubUnits > 0 ? (
-                      <Badge tone="warning">
-                        {product.looseSubUnits} {product.subUnitName ?? "وحدة"}
-                      </Badge>
-                    ) : product.stock <= 0 ? (
-                      <Badge tone="danger">نفد</Badge>
-                    ) : product.stock <= product.reorderLevel ? (
-                      <Badge tone="warning">{product.stock} متبقٍ</Badge>
-                    ) : (
-                      <Badge tone="success">{product.stock}</Badge>
-                    )}
-                  </span>
-                </button>
-
-                {canEdit && (
-                  <button
-                    className={styles.editButton}
-                    onClick={() => {
-                      dialogOpenRef.current = true;
-                      setEditing(product);
-                    }}
-                    aria-label={`تعديل ${product.name}`}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                )}
-
-                {product.unitsPerPackage && product.subUnitPrice !== null && (
-                  <button
-                    type="button"
-                    className={styles.subUnitButton}
-                    onClick={() => addProduct(product, true)}
-                    disabled={subUnitAvailability(product) <= 0}
-                  >
-                    <Plus size={12} />
-                    {product.subUnitName} · {formatMoney(product.subUnitPrice)}
-                  </button>
-                )}
-
-                {product.stock <= 0 && product.activeIngredient && (
-                  <button
-                    type="button"
-                    className={styles.alternativesButton}
-                    onClick={() => {
-                      dialogOpenRef.current = true;
-                      setAlternativesFor(product);
-                    }}
-                  >
-                    <Repeat size={12} />
-                    عرض البدائل المتوفرة
-                  </button>
-                )}
-              </div>
-            ))}
+        <div className={styles.scanRow}>
+          <form className={styles.scanBar} onSubmit={handleScan}>
+            <ScanBarcode className={styles.scanIcon} size={22} />
+            <input
+              ref={scanRef}
+              className={styles.scanInput}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onBlur={() => setTimeout(refocus, 0)}
+              placeholder="امسح الباركود أو ابحث بالاسم…"
+              aria-label="بحث أو مسح باركود"
+            />
+          </form>
+          <button
+            type="button"
+            className={styles.hideToggle}
+            aria-pressed={productsHidden}
+            title="F8"
+            onClick={() => {
+              toggleProductsHidden();
+              refocus();
+            }}
+          >
+            {productsHidden ? <Eye size={18} /> : <EyeOff size={18} />}
+            {productsHidden ? 'إظهار الأدوية' : 'إخفاء الأدوية'}
+          </button>
         </div>
+
+        {!gridVisible ? (
+          <EmptyState
+            icon={<ScanBarcode size={28} />}
+            title="الأدوية مخفية"
+            description="امسح الباركود أو اكتب اسم الدواء في الخانة أعلاه"
+          />
+        ) : (
+          <div className={styles.results}>
+            {loadingProducts &&
+              Array.from({ length: 8 }, (_, i) => (
+                <div key={`skeleton-${i}`} className={styles.productSkeleton}>
+                  <Skeleton height="7rem" radius="var(--radius-md)" />
+                  <Skeleton width="70%" height="1rem" />
+                  <Skeleton width="40%" height="0.875rem" />
+                </div>
+              ))}
+
+            {!loadingProducts &&
+              products.map((product, index) => (
+                <div
+                  key={product.id}
+                  data-product-index={index}
+                  className={cx(styles.productCard, index === activeIndex && styles.productCardActive)}
+                >
+                  <button
+                    className={styles.productMain}
+                    onClick={() => addProduct(product)}
+                    disabled={product.stock <= 0}
+                  >
+                    <span className={styles.productThumb}>
+                      {product.imageFilename ? (
+                        <img src={productImageUrl(product.imageFilename)!} alt="" />
+                      ) : (
+                        <Pill size={22} strokeWidth={1.5} />
+                      )}
+                    </span>
+                    <span className={styles.productName}>{product.name}</span>
+                    <span className={cx(styles.lineUnitPrice, !product.categoryName && styles.categoryMissing)}>
+                      {product.categoryName ?? 'بدون تصنيف'}
+                    </span>
+                    <span className={styles.productMeta}>
+                      <span className={`${styles.productPrice} numeric`}>
+                        {formatMoney(product.salePrice)}
+                      </span>
+                      {product.stock <= 0 && product.looseSubUnits > 0 ? (
+                        <Badge tone="warning">
+                          {product.looseSubUnits} {product.subUnitName ?? "وحدة"}
+                        </Badge>
+                      ) : product.stock <= 0 ? (
+                        <Badge tone="danger">نفد</Badge>
+                      ) : product.stock <= product.reorderLevel ? (
+                        <Badge tone="warning">{product.stock} متبقٍ</Badge>
+                      ) : (
+                        <Badge tone="success">{product.stock}</Badge>
+                      )}
+                    </span>
+                  </button>
+
+                  {canEdit && (
+                    <button
+                      className={styles.editButton}
+                      onClick={() => {
+                        dialogOpenRef.current = true;
+                        setEditing(product);
+                      }}
+                      aria-label={`تعديل ${product.name}`}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+
+                  {product.unitsPerPackage && product.subUnitPrice !== null && (
+                    <button
+                      type="button"
+                      className={styles.subUnitButton}
+                      onClick={() => addProduct(product, true)}
+                      disabled={subUnitAvailability(product) <= 0}
+                    >
+                      <Plus size={12} />
+                      {product.subUnitName} · {formatMoney(product.subUnitPrice)}
+                    </button>
+                  )}
+
+                  {product.stock <= 0 && product.activeIngredient && (
+                    <button
+                      type="button"
+                      className={styles.alternativesButton}
+                      onClick={() => {
+                        dialogOpenRef.current = true;
+                        setAlternativesFor(product);
+                      }}
+                    >
+                      <Repeat size={12} />
+                      عرض البدائل المتوفرة
+                    </button>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
       </div>
 
       <aside className={styles.cart}>

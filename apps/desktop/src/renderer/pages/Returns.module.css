@@ -259,3 +259,8 @@
   font-size: var(--text-xs);
   font-weight: var(--weight-medium);
 }
+
+/* Back to the day's invoices — 44px tall so it is easy to hit on a touchscreen. */
+.backButton {
+  min-height: 2.75rem;
+}

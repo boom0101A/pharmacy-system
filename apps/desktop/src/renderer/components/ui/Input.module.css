@@ -56,3 +56,9 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
 }
+
+/* Required field marker — drawn by CSS so it never becomes part of the label text. */
+.labelRequired::after {
+  content: ' *';
+  color: var(--danger-11);
+}

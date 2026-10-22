@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { Category } from '@pharmacy/shared-types';
 import { Dialog } from '../components/ui/Dialog';
 import { Button } from '../components/ui/Button';
+import form from '../styles/dialogForm.module.css';
 
 interface DeleteCategoryDialogProps {
   /** The category being deleted; the dialog is open while this is set. */
@@ -44,24 +45,16 @@ export function DeleteCategoryDialog({ category, categories, onCancel, onConfirm
       }
     >
       {count > 0 && (
-        <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-          <p style={{ margin: 0 }}>
+        <div className={form.stack}>
+          <p className={form.text}>
             {count} دواء مرتبط بهذا التصنيف — لن يُحذف أي دواء، اختر أين تنتقل:
           </p>
-          <label style={{ display: 'grid', gap: 'var(--space-1)', fontSize: 'var(--text-sm)', fontWeight: 600 }}>
+          <label className={form.fieldLabel}>
             انقل أدويته إلى
             <select
               value={targetId}
               onChange={(e) => setTargetId(e.target.value)}
-              style={{
-                height: '2.5rem',
-                padding: '0 var(--space-3)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 'var(--radius-md)',
-                font: 'inherit',
-                fontWeight: 400,
-                background: 'var(--surface-card)',
-              }}
+              className={form.select}
             >
               <option value="">بدون تصنيف</option>
               {others.map((c) => (

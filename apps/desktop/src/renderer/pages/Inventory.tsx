@@ -25,6 +25,7 @@ import { ReceiveStockDialog } from './ReceiveStockDialog';
 import { api } from '../lib/api';
 import { useAuth } from '../store/auth';
 import { useStockVersion } from '../store/stockSync';
+import { usePendingDeletes } from '../store/pendingDeletes';
 import { useToast } from '../components/ui/Toast';
 import { cx, formatDate, formatMoney } from '../lib/cx';
 
@@ -59,7 +60,9 @@ export function Inventory() {
   const [receivingFor, setReceivingFor] = useState<Product | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
   // Hidden while their undo window is open; deleted on the server only when it closes.
-  const [pendingDeleteIds, setPendingDeleteIds] = useState<Set<number>>(() => new Set());
+  const pendingDeleteIds = usePendingDeletes((s) => s.product);
+  const hidePending = usePendingDeletes((s) => s.hide);
+  const unhidePending = usePendingDeletes((s) => s.unhide);
   // The low-stock banner greets you on arrival and then gets out of the way.
   const [lowStockAlertDone, setLowStockAlertDone] = useState(false);
 
@@ -251,12 +254,7 @@ export function Inventory() {
   const shownCount =
     statusFilter === 'all' ? counts.total : statusFilter === 'archived' ? visible.length : counts[statusFilter];
 
-  const unhide = (id: number) =>
-    setPendingDeleteIds((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
+  const unhide = (id: number) => unhidePending('product', id);
 
   /**
    * Deferred: the row disappears now, but the server only hears about it once
@@ -264,7 +262,7 @@ export function Inventory() {
    */
   function remove(product: Product) {
     setDeletingProduct(null);
-    setPendingDeleteIds((prev) => new Set(prev).add(product.id));
+    hidePending('product', product.id);
     toast.undoable({
       title: `حُذف «${product.name}»`,
       description: 'يمكنك التراجع خلال ثوانٍ',

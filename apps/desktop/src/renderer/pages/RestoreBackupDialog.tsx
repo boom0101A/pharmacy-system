@@ -3,6 +3,7 @@ import { Dialog } from '../components/ui/Dialog';
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { api } from '../lib/api';
+import form from '../styles/dialogForm.module.css';
 
 interface RestoreBackupDialogProps {
   /** The backup to restore; the dialog is open while this is set. */
@@ -65,9 +66,9 @@ export function RestoreBackupDialog({ name, onClose, onRestored }: RestoreBackup
         </>
       }
     >
-      <form id="restore-backup-form" onSubmit={handleSubmit} style={{ display: 'grid', gap: 'var(--space-3)' }}>
+      <form id="restore-backup-form" onSubmit={handleSubmit} className={form.stack}>
         {error && (
-          <div role="alert" style={{ color: 'var(--danger-11, #c00)', fontSize: 'var(--text-sm)' }}>
+          <div role="alert" className={form.alert}>
             {error}
           </div>
         )}

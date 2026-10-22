@@ -8,7 +8,7 @@ import { config } from '../../config.js';
 import { prisma } from '../../prisma.js';
 import { app } from '../../app.js';
 import { signToken } from '../../middleware/auth.js';
-import { writeBackup } from '../../backup.js';
+import { hasRecentBackup, writeBackup } from '../../backup.js';
 import { restoreFromFile } from '../../services/restore.service.js';
 
 let server: Server;
@@ -88,5 +88,24 @@ describe('uploading a backup file from another machine', () => {
 
   it('is for the admin only', async () => {
     expect((await upload(await tokenFor('cashier'), '{}')).status).toBe(403);
+  });
+});
+
+describe('an uploaded backup is not this machine own backup', () => {
+  it('does not count as a recent backup, so the daily one still runs', async () => {
+    const token = await tokenFor('admin');
+    const old = {
+      createdAt: '2026-09-01T00:00:00.000Z',
+      tables: Object.fromEntries(
+        ['users', 'categories', 'products', 'batches', 'suppliers', 'purchases', 'purchaseItems', 'sales', 'saleItems', 'returns', 'returnItems'].map((t) => [t, []]),
+      ),
+    };
+
+    const res = await upload(token, JSON.stringify(old));
+    const { name } = (await res.json()) as { name: string };
+
+    expect(name).toMatch(/^backup-.+-imported\.json$/);
+    expect(await hasRecentBackup()).toBe(false);
+    await expect(restoreFromFile(name)).resolves.toBeUndefined();
   });
 });

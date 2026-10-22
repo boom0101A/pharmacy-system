@@ -4,6 +4,7 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { getServerUrl } from '../lib/api';
 import { cleanIpcError } from '../lib/cx';
+import form from '../styles/dialogForm.module.css';
 
 interface ResetPasswordDialogProps {
   open: boolean;
@@ -68,9 +69,9 @@ export function ResetPasswordDialog({ open, onClose, onDone }: ResetPasswordDial
         </>
       }
     >
-      <form id="reset-password-form" onSubmit={handleSubmit} style={{ display: 'grid', gap: 'var(--space-3)' }}>
+      <form id="reset-password-form" onSubmit={handleSubmit} className={form.stack}>
         {error && (
-          <div role="alert" style={{ color: 'var(--danger-11, #c00)', fontSize: 'var(--text-sm)' }}>
+          <div role="alert" className={form.alert}>
             {error}
           </div>
         )}

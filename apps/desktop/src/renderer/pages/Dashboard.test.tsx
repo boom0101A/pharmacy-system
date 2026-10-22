@@ -115,3 +115,26 @@ describe('Dashboard — deleting a category', () => {
     }
   });
 });
+
+describe('Dashboard — a category on its way out', () => {
+  it('is not offered as a destination for another category’s medicines', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const { api } = await import('../lib/api.js');
+      const A = { id: 11, name: 'أ', productCount: 2 };
+      const B = { id: 12, name: 'ب', productCount: 2 };
+      const C = { id: 13, name: 'ج', productCount: 0 };
+      vi.mocked(api.categories).mockResolvedValue([A, B, C]);
+      renderDashboard('pharmacist');
+
+      fireEvent.click(await screen.findByRole('button', { name: 'حذف أ' }));
+      fireEvent.click(screen.getByRole('button', { name: 'حذف' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'حذف ب' }));
+
+      const select = (await screen.findByLabelText('انقل أدويته إلى')) as HTMLSelectElement;
+      expect([...select.options].map((o) => o.textContent)).toEqual(['بدون تصنيف', 'ج']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

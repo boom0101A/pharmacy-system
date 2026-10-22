@@ -1,0 +1,115 @@
+.page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.filters {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.preset {
+  height: 2.75rem;
+  padding: 0 var(--space-4);
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-full);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+
+.preset:hover {
+  background: var(--surface-hover);
+}
+
+.presetActive {
+  background: var(--brand-3);
+  color: var(--brand-11);
+  border-color: var(--brand-7);
+}
+
+.preset:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.search {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 14rem));
+  gap: var(--space-3);
+}
+
+.summaryCard {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.summaryValue {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+}
+
+.summaryLabel {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.row {
+  cursor: pointer;
+}
+
+.row:hover td {
+  background: var(--brand-2);
+}
+
+.returned {
+  display: inline-block;
+  margin-inline-start: var(--space-2);
+  padding: 0 var(--space-2);
+  background: var(--warn-3);
+  color: var(--warn-11);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.more {
+  display: flex;
+  justify-content: center;
+}
+
+.totals {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-5);
+  margin-block-start: var(--space-3);
+  font-size: var(--text-sm);
+}

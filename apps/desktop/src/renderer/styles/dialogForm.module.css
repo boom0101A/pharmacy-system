@@ -1,0 +1,59 @@
+/* Shared layout for the small forms inside dialogs and settings cards. */
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.stackTight {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.text {
+  margin: 0;
+}
+
+.alert {
+  color: var(--danger-11);
+  font-size: var(--text-sm);
+}
+
+.notice {
+  color: var(--success-11);
+  font-size: var(--text-sm);
+}
+
+.code {
+  user-select: all;
+}
+
+.fieldLabel {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.select {
+  height: 2.5rem;
+  padding: 0 var(--space-3);
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-weight: var(--weight-regular);
+}
+
+.select:focus {
+  outline: none;
+  border-color: var(--brand-9);
+  box-shadow: var(--shadow-focus);
+}

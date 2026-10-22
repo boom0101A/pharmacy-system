@@ -14,7 +14,8 @@ categoriesRouter.get(
       orderBy: { name: 'asc' },
       // Lets the delete confirmation say how many products it will unlink
       // without anyone having to fetch the whole catalogue to count them.
-      include: { _count: { select: { products: true } } },
+      // Archived medicines still belong to the category, but the count matches the inventory.
+      include: { _count: { select: { products: { where: { archivedAt: null } } } } },
     });
 
     res.json(

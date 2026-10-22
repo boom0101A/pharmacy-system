@@ -8,8 +8,9 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
 import { api } from '../lib/api';
-import { cleanIpcError, digitsOnly, productImageUrl } from '../lib/cx';
+import { cleanIpcError, cx, digitsOnly, productImageUrl } from '../lib/cx';
 import { parsePriceInput } from '../lib/priceInput.js';
+import { REQUIRED_LABELS, validateProductForm, type ProductFormErrors } from '../lib/productValidation';
 import { formatPriceInput, PriceInput } from '../components/ui/PriceInput';
 import { newCaptureFilename } from '../lib/alternativePick';
 
@@ -39,9 +40,18 @@ const EMPTY = {
   subUnitPrice: '',
 };
 
+/** Arabic counting: خانة واحدة / خانتين / 3–10 خانات / 11+ خانة. */
+function fieldCount(n: number): string {
+  if (n === 1) return 'خانة واحدة';
+  if (n === 2) return 'خانتين';
+  return n <= 10 ? `${n} خانات` : `${n} خانة`;
+}
+
 export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAutoFocus }: Props) {
   const toast = useToast();
   const [form, setForm] = useState(EMPTY);
+  // Every forgotten/invalid field at once; a field's entry goes as soon as it is edited.
+  const [errors, setErrors] = useState<ProductFormErrors>({});
   const [categories, setCategories] = useState<Category[]>([]);
   const [ingredients, setIngredients] = useState<string[]>([]);
   const ingredientListId = useId();
@@ -62,6 +72,7 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
     // Suggestions only — a failure here must not block adding a product.
     api.productIngredients().then(setIngredients).catch(() => setIngredients([]));
 
+    setErrors({});
     setForm(
       product
         ? {
@@ -116,7 +127,15 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
   }, [open, saving]);
 
   function set<K extends keyof typeof EMPTY>(key: K) {
-    return (value: (typeof EMPTY)[K]) => setForm((f) => ({ ...f, [key]: value }));
+    return (value: (typeof EMPTY)[K]) => {
+      setForm((f) => ({ ...f, [key]: value }));
+      setErrors((prev) => {
+        if (!(key in prev)) return prev;
+        const next = { ...prev };
+        delete next[key as keyof ProductFormErrors];
+        return next;
+      });
+    };
   }
 
   function pickImage(file: File) {
@@ -127,26 +146,19 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
 
-    const salePrice = parsePriceInput(form.salePrice);
-    const purchasePrice = parsePriceInput(form.purchasePrice);
-    const reorderLevel = Number(form.reorderLevel);
-    if (salePrice === null) return toast.error('سعر البيع غير صالح', 'أدخل رقماً صحيحاً');
-    if (purchasePrice === null) return toast.error('سعر الشراء غير صالح', 'أدخل رقماً صحيحاً');
-    if (!Number.isFinite(reorderLevel) || reorderLevel < 0) return toast.error('حد إعادة الطلب غير صالح', 'أدخل رقماً صحيحاً');
-
-    let unitsPerPackage: number | null = null;
-    let subUnitPrice: number | null = null;
-    if (form.divisible) {
-      unitsPerPackage = Number(form.unitsPerPackage);
-      if (!Number.isInteger(unitsPerPackage) || unitsPerPackage < 2) {
-        return toast.error('عدد الأشرطة بالعلبة غير صالح', 'أدخل رقماً صحيحاً 2 أو أكثر');
-      }
-      if (!form.subUnitName.trim()) return toast.error('اسم الوحدة الفرعية مطلوب', 'مثال: شريط');
-      subUnitPrice = parsePriceInput(form.subUnitPrice);
-      if (subUnitPrice === null) {
-        return toast.error('سعر بيع الوحدة الفرعية غير صالح', 'أدخل رقماً صحيحاً');
-      }
+    const found = validateProductForm(form);
+    if (Object.keys(found).length > 0) {
+      setErrors(found);
+      // After React has painted the red fields.
+      setTimeout(() => document.querySelector<HTMLElement>('#product-form [aria-invalid="true"]')?.focus(), 0);
+      return;
     }
+
+    const salePrice = parsePriceInput(form.salePrice) ?? 0;
+    const purchasePrice = parsePriceInput(form.purchasePrice) ?? 0;
+    const reorderLevel = Number(form.reorderLevel);
+    const unitsPerPackage = form.divisible ? Number(form.unitsPerPackage) : null;
+    const subUnitPrice = form.divisible ? (parsePriceInput(form.subUnitPrice) ?? 0) : null;
 
     const data = {
       name: form.name.trim(),
@@ -245,7 +257,17 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
         </>
       }
     >
-      <form id="product-form" className={styles.formGrid} onSubmit={handleSubmit}>
+      <form id="product-form" className={styles.formGrid} onSubmit={handleSubmit} noValidate>
+        {Object.keys(errors).length > 0 && (
+          <div role="alert" className={styles.formAlert}>
+            نسيت {fieldCount(Object.keys(errors).length)}:{' '}
+            {(Object.keys(REQUIRED_LABELS) as (keyof ProductFormErrors)[])
+              .filter((k) => errors[k])
+              .map((k) => REQUIRED_LABELS[k])
+              .join('، ')}
+          </div>
+        )}
+        <p className={styles.requiredNote}>الخانات المعلّمة بـ* إلزامية</p>
         <div className={styles.imageRow}>
           <div className={styles.imagePreview}>
             {imagePreview || imageFilename ? (
@@ -288,9 +310,10 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
 
         <Input
           label="اسم الدواء"
+          markRequired
+          error={errors.name}
           value={form.name}
           onChange={(e) => set('name')(e.target.value)}
-          required
           autoFocus
         />
 
@@ -298,6 +321,8 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
           <div className={styles.field}>
             <Input
               label="الباركود"
+              markRequired
+              error={errors.barcode}
               value={form.barcode}
               onChange={(e) => set('barcode')(e.target.value)}
               dir="ltr"
@@ -333,22 +358,28 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
             )}
           </div>
           <div className={styles.field}>
-            <label className={styles.label} htmlFor="product-category">
+            <label className={cx(styles.label, styles.labelRequired)} htmlFor="product-category">
               التصنيف
             </label>
             <select
               id="product-category"
-              className={styles.select}
+              className={cx(styles.select, errors.categoryId && styles.selectInvalid)}
+              aria-invalid={errors.categoryId ? true : undefined}
               value={form.categoryId}
               onChange={(e) => set('categoryId')(e.target.value)}
             >
-              <option value="">بدون تصنيف</option>
+              <option value="">اختر التصنيف…</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
                 </option>
               ))}
             </select>
+            {errors.categoryId && (
+              <span className={styles.fieldError} role="alert">
+                {errors.categoryId}
+              </span>
+            )}
           </div>
         </div>
 
@@ -406,12 +437,16 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
           <div className={styles.row}>
             <Input
               label="عدد الأشرطة بالعلبة"
+              markRequired
+              error={errors.unitsPerPackage}
               inputMode="numeric"
               value={form.unitsPerPackage}
               onChange={(e) => set('unitsPerPackage')(digitsOnly(e.target.value))}
             />
             <Input
               label="اسم الوحدة الفرعية"
+              markRequired
+              error={errors.subUnitName}
               value={form.subUnitName}
               onChange={(e) => set('subUnitName')(e.target.value)}
               placeholder="شريط"
@@ -422,6 +457,8 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
         {form.divisible && (
           <PriceInput
             label="سعر بيع الوحدة الفرعية"
+            markRequired
+            error={errors.subUnitPrice}
             value={form.subUnitPrice}
             onValueChange={set('subUnitPrice')}
           />
@@ -430,6 +467,8 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
         <div className={styles.row}>
           <Input
             label="حد إعادة الطلب"
+            markRequired
+            error={errors.reorderLevel}
             inputMode="numeric"
             value={form.reorderLevel}
             onChange={(e) => set('reorderLevel')(digitsOnly(e.target.value))}
@@ -437,15 +476,17 @@ export function ProductDialog({ open, onOpenChange, product, onSaved, onCloseAut
           />
           <PriceInput
             label="سعر الشراء"
+            markRequired
+            error={errors.purchasePrice}
             value={form.purchasePrice}
             onValueChange={set('purchasePrice')}
-            required
           />
           <PriceInput
             label="سعر البيع"
+            markRequired
+            error={errors.salePrice}
             value={form.salePrice}
             onValueChange={set('salePrice')}
-            required
           />
         </div>
       </form>

@@ -60218,7 +60218,8 @@ categoriesRouter.get("/", asyncHandler(async (_req, res) => {
     orderBy: { name: "asc" },
     // Lets the delete confirmation say how many products it will unlink
     // without anyone having to fetch the whole catalogue to count them.
-    include: { _count: { select: { products: true } } }
+    // Archived medicines still belong to the category, but the count matches the inventory.
+    include: { _count: { select: { products: { where: { archivedAt: null } } } } }
   });
   res.json(rows2.map((row) => ({ id: row.id, name: row.name, productCount: row._count.products })));
 }));
@@ -60804,6 +60805,51 @@ async function createSale(userId, input) {
   return mapSale(result.sale);
 }
 
+// ../server/dist/src/lib/money.js
+var MINOR_UNITS_PER_MAJOR = 100;
+function toMinorUnits(major) {
+  return Math.round(major * MINOR_UNITS_PER_MAJOR);
+}
+function fromMinorUnits(minor) {
+  return minor / MINOR_UNITS_PER_MAJOR;
+}
+
+// ../server/dist/src/services/salesHistory.service.js
+var HISTORY_MAX_LIMIT = 200;
+async function listSalesHistory(options) {
+  const where = {
+    date: { gte: options.start, lte: options.end },
+    ...options.saleId ? { id: options.saleId } : {}
+  };
+  const [rows2, totals] = await Promise.all([
+    prisma.sale.findMany({
+      where,
+      include: {
+        user: { select: { name: true } },
+        _count: { select: { items: true } },
+        returns: { select: { total: true } }
+      },
+      orderBy: [{ date: "desc" }, { id: "desc" }],
+      take: Math.min(options.limit, HISTORY_MAX_LIMIT),
+      skip: options.offset
+    }),
+    prisma.sale.aggregate({ where, _count: { _all: true }, _sum: { total: true } })
+  ]);
+  return {
+    rows: rows2.map((sale) => ({
+      id: sale.id,
+      date: sale.date.toISOString(),
+      userName: sale.user.name,
+      itemCount: sale._count.items,
+      discount: toNumber(sale.discount),
+      total: toNumber(sale.total),
+      returnedTotal: fromMinorUnits(sale.returns.reduce((sum, r) => sum + toMinorUnits(toNumber(r.total)), 0))
+    })),
+    count: totals._count._all,
+    sum: totals._sum.total ? toNumber(totals._sum.total) : 0
+  };
+}
+
 // ../server/dist/src/routes/sales.routes.js
 var salesRouter = (0, import_express7.Router)();
 salesRouter.use(requireAuth);
@@ -60819,6 +60865,18 @@ var saleSchema = external_exports.object({
 salesRouter.post("/", asyncHandler(async (req, res) => {
   const input = saleSchema.parse(req.body);
   res.status(201).json(await createSale(req.auth.userId, input));
+}));
+var historySchema = external_exports.object({
+  from: external_exports.coerce.date().optional(),
+  to: external_exports.coerce.date().optional(),
+  q: external_exports.string().regex(/^\d*$/, "\u0631\u0642\u0645 \u0627\u0644\u0641\u0627\u062A\u0648\u0631\u0629 \u0623\u0631\u0642\u0627\u0645 \u0641\u0642\u0637").optional(),
+  limit: external_exports.coerce.number().int().positive().max(HISTORY_MAX_LIMIT).default(50),
+  offset: external_exports.coerce.number().int().nonnegative().default(0)
+});
+salesRouter.get("/history", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
+  const { from, to, q, limit, offset } = historySchema.parse(req.query);
+  const { start, end } = resolveRange(from, to);
+  res.json(await listSalesHistory({ start, end, saleId: q ? Number(q) : void 0, limit, offset }));
 }));
 salesRouter.get("/:id", asyncHandler(async (req, res) => {
   const sale = await prisma.sale.findUnique({
@@ -60892,15 +60950,6 @@ salesRouter.get("/", checkRole("admin", "pharmacist"), asyncHandler(async (req, 
 
 // ../server/dist/src/routes/returns.routes.js
 var import_express8 = __toESM(require_express2(), 1);
-
-// ../server/dist/src/lib/money.js
-var MINOR_UNITS_PER_MAJOR = 100;
-function toMinorUnits(major) {
-  return Math.round(major * MINOR_UNITS_PER_MAJOR);
-}
-function fromMinorUnits(minor) {
-  return minor / MINOR_UNITS_PER_MAJOR;
-}
 
 // ../server/dist/src/services/returns.service.js
 async function createReturn(userId, input) {
@@ -61688,7 +61737,7 @@ backupRouter.post("/import", importUpload.single("file"), asyncHandler(async (re
     throw new AppError(400, "\u0627\u0644\u0645\u0644\u0641 \u0644\u064A\u0633 \u0646\u0633\u062E\u0629 \u0627\u062D\u062A\u064A\u0627\u0637\u064A\u0629 \u0635\u0627\u0644\u062D\u0629 \u0645\u0646 \u0647\u0630\u0627 \u0627\u0644\u0646\u0638\u0627\u0645");
   }
   await fs6.mkdir(config.backupDir, { recursive: true });
-  const name = backupFilename(/* @__PURE__ */ new Date());
+  const name = backupFilename(/* @__PURE__ */ new Date()).replace(/\.json$/, "-imported.json");
   const file = path7.join(config.backupDir, name);
   await fs6.writeFile(`${file}.tmp`, req.file.buffer);
   await fs6.rename(`${file}.tmp`, file);

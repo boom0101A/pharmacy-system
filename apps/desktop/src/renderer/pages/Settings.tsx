@@ -312,7 +312,12 @@ export function Settings() {
           <ul className={styles.backupList}>
             {backups.slice(0, 10).map((b) => (
               <li key={b.name}>
-                <span>{formatDate(b.createdAt)}</span>
+                <span>
+                  {formatDate(b.createdAt)}
+                  {b.name.endsWith('-imported.json') && (
+                    <span title="نسخة رُفعت من ملف — ليست من هذا الجهاز"> (مرفوعة)</span>
+                  )}
+                </span>
                 <span className="numeric">{Math.round(b.sizeBytes / 1024)} كيلوبايت</span>
                 <Button
                   variant="ghost"

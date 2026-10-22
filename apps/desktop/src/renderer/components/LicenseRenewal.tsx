@@ -4,6 +4,7 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { formatDate } from '../lib/cx';
 import { licenseDaysLeft } from '../lib/licenseDays';
+import form from '../styles/dialogForm.module.css';
 
 interface LicenseRenewalProps {
   license: { valid: true; payload: LicensePayload };
@@ -54,16 +55,16 @@ export function LicenseRenewal({ license, onChanged }: LicenseRenewalProps) {
   }
 
   return (
-    <div style={{ display: 'grid', gap: 'var(--space-3)' }}>
-      <p style={{ margin: 0 }}>
+    <div className={form.stack}>
+      <p className={form.text}>
         <ShieldCheck size={14} /> مرخَّص لـ: <strong>{licensedTo}</strong>
         {' — '}
         {expiresAt ? `صالح حتى ${formatDate(expiresAt)} (بعد ${days} يوم)` : 'ترخيص دائم'}
       </p>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+      <div className={form.row}>
         <span>رمز الجهاز:</span>
-        <code dir="ltr" style={{ userSelect: 'all' }}>{machineId ?? '…'}</code>
+        <code dir="ltr" className={form.code}>{machineId ?? '…'}</code>
         <Button
           type="button"
           variant="ghost"
@@ -76,7 +77,7 @@ export function LicenseRenewal({ license, onChanged }: LicenseRenewalProps) {
         </Button>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'grid', gap: 'var(--space-2)' }}>
+      <form onSubmit={handleSubmit} className={form.stackTight}>
         <Input
           label="مفتاح جديد (تمديد أو ترخيص دائم)"
           value={key}
@@ -87,7 +88,7 @@ export function LicenseRenewal({ license, onChanged }: LicenseRenewalProps) {
           error={error ?? undefined}
         />
         {notice && (
-          <div role="status" style={{ color: 'var(--brand-11, #218358)', fontSize: 'var(--text-sm)' }}>
+          <div role="status" className={form.notice}>
             {notice}
           </div>
         )}

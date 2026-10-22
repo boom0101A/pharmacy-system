@@ -99,3 +99,33 @@ describe('Inventory — deleting a product that was sold', () => {
     await waitFor(() => expect(api.restoreProduct).toHaveBeenCalledWith(7));
   });
 });
+
+describe('Inventory — a pending delete survives leaving the page', () => {
+  it('keeps the row hidden when the page is opened again within the undo window', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      window.matchMedia = vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() });
+      api.products.mockResolvedValue([PRODUCT]);
+      api.productStats.mockResolvedValue({ total: 1, low: 0, expiring: 0, out: 0 });
+      api.deleteProduct.mockResolvedValue({ archived: false });
+      const first = render(
+        <MemoryRouter>
+          <ToastProvider>
+            <Inventory />
+          </ToastProvider>
+        </MemoryRouter>,
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'حذف بنادول' }));
+      fireEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'حذف' }));
+      await waitFor(() => expect(screen.queryByRole('button', { name: 'حذف بنادول' })).toBeNull());
+
+      first.unmount();
+      renderPage();
+      await act(() => vi.advanceTimersByTimeAsync(1000));
+
+      expect(screen.queryByRole('button', { name: 'حذف بنادول' })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

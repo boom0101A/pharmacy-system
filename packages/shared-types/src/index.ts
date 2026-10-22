@@ -269,6 +269,25 @@ export interface SalesReportPoint {
   count: number;
 }
 
+/** One invoice in the sales history list; open it with GET /api/sales/:id for its lines. */
+export interface SalesHistoryRow {
+  id: number;
+  date: string;
+  userName: string;
+  itemCount: number;
+  discount: number;
+  total: number;
+  /** Refunded from this invoice so far. */
+  returnedTotal: number;
+}
+
+export interface SalesHistoryPage {
+  rows: SalesHistoryRow[];
+  /** For the whole period, not just this page. */
+  count: number;
+  sum: number;
+}
+
 /** One product's net sales in a period (returns already taken out). */
 export interface SoldProductRow {
   productId: number;

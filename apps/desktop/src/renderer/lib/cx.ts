@@ -1,4 +1,5 @@
 import { getServerUrl } from './api';
+import { normalizeDigits } from './priceInput';
 
 /** Joins class names, dropping falsy values. Keeps CSS Module call sites tidy. */
 export function cx(...classes: Array<string | false | null | undefined>): string {
@@ -44,9 +45,9 @@ export function cleanIpcError(message: string): string {
   return message.replace(/^Error invoking remote method '[^']*':\s*(?:Error:\s*)?/, '');
 }
 
-/** Strips everything but digits — turns a comma-formatted price input back into raw digits. */
+/** Strips everything but digits — Arabic-keyboard digits (٠-٩) become plain ones first, not dropped. */
 export function digitsOnly(value: string): string {
-  return value.replace(/[^\d]/g, '');
+  return normalizeDigits(value).replace(/[^\d]/g, '');
 }
 
 /** Comma-grouped thousands for a raw digit string while typing, e.g. "2500" -> "2,500". */

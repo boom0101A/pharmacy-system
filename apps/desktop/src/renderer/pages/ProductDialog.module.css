@@ -126,3 +126,40 @@
   direction: ltr;
   word-break: break-all;
 }
+
+/* ---- Required fields ---- */
+.formAlert {
+  grid-column: 1 / -1;
+  padding: var(--space-3) var(--space-4);
+  background: var(--danger-3);
+  border: 1px solid var(--danger-6);
+  border-radius: var(--radius-md);
+  color: var(--danger-11);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.requiredNote {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
+
+.labelRequired::after {
+  content: ' *';
+  color: var(--danger-11);
+}
+
+.selectInvalid {
+  border-color: var(--danger-9);
+}
+
+.selectInvalid:focus {
+  box-shadow: 0 0 0 3px var(--danger-3);
+}
+
+.fieldError {
+  font-size: var(--text-xs);
+  color: var(--danger-11);
+}

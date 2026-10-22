@@ -6,6 +6,7 @@ import { checkRole, requireAuth } from '../middleware/auth.js';
 import { createSale } from '../services/sales.service.js';
 import { resolveRange } from '../lib/dateRange.js';
 import { parseIdParam } from '../lib/parseIdParam.js';
+import { HISTORY_MAX_LIMIT, listSalesHistory } from '../services/salesHistory.service.js';
 
 export const salesRouter = Router();
 salesRouter.use(requireAuth);
@@ -35,6 +36,25 @@ salesRouter.post(
 
 // A cashier looks up a sale by number to process a return against it — same
 // permission level as ringing up the original sale.
+const historySchema = z.object({
+  from: z.coerce.date().optional(),
+  to: z.coerce.date().optional(),
+  q: z.string().regex(/^\d*$/, 'رقم الفاتورة أرقام فقط').optional(),
+  limit: z.coerce.number().int().positive().max(HISTORY_MAX_LIMIT).default(50),
+  offset: z.coerce.number().int().nonnegative().default(0),
+});
+
+// Before '/:id', which would otherwise read "history" as an invoice number.
+salesRouter.get(
+  '/history',
+  checkRole('admin', 'pharmacist'),
+  asyncHandler(async (req, res) => {
+    const { from, to, q, limit, offset } = historySchema.parse(req.query);
+    const { start, end } = resolveRange(from, to);
+    res.json(await listSalesHistory({ start, end, saleId: q ? Number(q) : undefined, limit, offset }));
+  }),
+);
+
 salesRouter.get(
   '/:id',
   asyncHandler(async (req, res) => {

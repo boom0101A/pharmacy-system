@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LogOut,
   Package,
+  ReceiptText,
   ScanBarcode,
   Settings,
   ShoppingBag,
@@ -45,6 +46,13 @@ const NAV: NavEntry[] = [
     label: 'الإرجاعات',
     icon: <Undo2 size={18} />,
     roles: ['admin', 'pharmacist', 'cashier'],
+  },
+  {
+    to: '/history',
+    label: 'سجل الفواتير',
+    icon: <ReceiptText size={18} />,
+    // Same as the reports: the cashier is kept away from sales totals.
+    roles: ['admin', 'pharmacist'],
   },
   {
     to: '/inventory',

@@ -50,11 +50,13 @@
   border-radius: var(--radius-sm);
 }
 
+/* 44px touch target, as in the POS cart. */
 .removeLine {
   display: grid;
   place-items: center;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-sm);
   background: none;
   border: none;
   color: var(--danger-11);

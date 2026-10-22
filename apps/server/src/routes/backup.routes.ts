@@ -72,7 +72,9 @@ backupRouter.post(
     }
 
     await fs.mkdir(config.backupDir, { recursive: true });
-    const name = backupFilename(new Date());
+    // "-imported" keeps it out of hasRecentBackup(): another machine's data
+    // must never stand in for today's backup of this one.
+    const name = backupFilename(new Date()).replace(/\.json$/, '-imported.json');
     const file = path.join(config.backupDir, name);
     await fs.writeFile(`${file}.tmp`, req.file.buffer);
     await fs.rename(`${file}.tmp`, file);

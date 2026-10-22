@@ -7,10 +7,12 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   hint?: string;
+  /** Shows a red asterisk after the label (CSS only, so the label text itself stays "اسم الدواء"). */
+  markRequired?: boolean;
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
-  { label, error, hint, className, id, ...props },
+  { label, error, hint, markRequired, className, id, ...props },
   ref,
 ) {
   const generatedId = useId();
@@ -19,7 +21,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <div className={styles.field}>
       {label && (
-        <Label.Root className={styles.label} htmlFor={inputId}>
+        <Label.Root className={cx(styles.label, markRequired && styles.labelRequired)} htmlFor={inputId}>
           {label}
         </Label.Root>
       )}

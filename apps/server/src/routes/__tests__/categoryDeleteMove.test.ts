@@ -72,3 +72,15 @@ describe('deleting a category that still has medicines', () => {
     expect((await del(from.id, '', 'cashier')).status).toBe(403);
   });
 });
+
+describe('the medicine count on a category', () => {
+  it('leaves archived medicines out, matching what the inventory shows', async () => {
+    const { from } = await setup();
+    const user = await prisma.user.create({ data: { name: 'م', username: `p-${Math.random()}`, passwordHash: 'x', role: 'pharmacist' } });
+
+    const res = await fetch(base, { headers: { Authorization: `Bearer ${signToken({ userId: user.id, role: 'pharmacist' })}` } });
+    const rows = (await res.json()) as { id: number; productCount: number }[];
+
+    expect(rows.find((c) => c.id === from.id)?.productCount).toBe(1);
+  });
+});
