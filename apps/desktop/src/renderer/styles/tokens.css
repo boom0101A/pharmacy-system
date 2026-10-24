@@ -1,98 +1,151 @@
 /*
- * Design tokens for the whole app.
+ * Design tokens for the whole app — "Liquid Glass".
  *
- * Colour steps follow the Radix scale convention:
- *   1-2 backgrounds · 3-5 component fills · 6-8 borders
- *   9-10 solid fills · 11 low-contrast text · 12 high-contrast text
+ * Every value here is taken literally from the owner's design file
+ * (pharmacy-liquid-glass.html): emerald → teal → aqua, green-tinted text,
+ * translucent glass surfaces over a moving ambient backdrop. The one
+ * deliberate deviation: gradients that carry white text (--grad-button)
+ * start at #059669 instead of #10b981, so button labels stay readable.
  *
- * The palette is deliberately green (health, trust) with a blue accent for
- * actions, amber for low stock and red for expiry/out-of-stock. There is no
- * purple/violet family anywhere in this file, by design.
+ * Token *names* are the app's long-standing ones (--brand-*, --text-*,
+ * --surface-*, …) so every module keeps working; the design file's own names
+ * (--glass-bg, --line, --grad-brand, …) are defined alongside them.
+ *
+ * Two per-machine switches live on <html> (see lib/appearance.ts):
+ *   .dark — the file's dark theme (deep green, not grey).
+ *   .perf — "performance mode": no blur, no moving backdrop, solid surfaces.
  */
 
-@import '@radix-ui/colors/gray.css';
-@import '@radix-ui/colors/green.css';
-@import '@radix-ui/colors/green-alpha.css';
-@import '@radix-ui/colors/blue.css';
-@import '@radix-ui/colors/cyan.css';
-@import '@radix-ui/colors/amber.css';
-@import '@radix-ui/colors/red.css';
 @import '@radix-ui/colors/white-alpha.css';
 @import '@radix-ui/colors/black-alpha.css';
 
 :root {
-  /* ---- Brand ---------------------------------------------------------- */
-  --brand-1: var(--green-1);
-  --brand-2: var(--green-2);
-  --brand-3: var(--green-3);
-  --brand-4: var(--green-4);
-  --brand-6: var(--green-6);
-  --brand-7: var(--green-7);
-  --brand-9: var(--green-9);
-  --brand-10: var(--green-10);
-  --brand-11: var(--green-11);
-  --brand-12: var(--green-12);
+  color-scheme: light;
 
-  /* ---- Accent (links, secondary actions) ------------------------------ */
-  --accent-3: var(--blue-3);
-  --accent-6: var(--blue-6);
-  --accent-9: var(--blue-9);
-  --accent-10: var(--blue-10);
-  --accent-11: var(--blue-11);
+  /* ---- Design-file palette ------------------------------------------- */
+  --bg-base: #eaf5f1;
+  --blob-1: rgba(16, 185, 129, 0.45);
+  --blob-2: rgba(20, 184, 166, 0.4);
+  --blob-3: rgba(34, 211, 238, 0.3);
+  --blob-4: rgba(167, 243, 208, 0.55);
 
-  /*
-   * ---- Highlight (signature) -------------------------------------------
-   * Cyan, and used deliberately sparingly: the brand mark and the one hero
-   * figure on the dashboard. It carries no state meaning — green still means
-   * success, blue action, amber low stock, red expiry/danger. Spending it on
-   * anything routine is what would stop it reading as a signature at all.
-   */
-  --highlight-3: var(--cyan-3);
-  --highlight-6: var(--cyan-6);
-  --highlight-9: var(--cyan-9);
-  --highlight-10: var(--cyan-10);
-  --highlight-11: var(--cyan-11);
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-bg-strong: rgba(255, 255, 255, 0.78);
+  --glass-bg-soft: rgba(255, 255, 255, 0.38);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-edge: rgba(255, 255, 255, 0.95);
+  --glass-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 -1px 0 rgba(6, 78, 59, 0.04) inset,
+    0 10px 30px -10px rgba(6, 78, 59, 0.18), 0 2px 6px rgba(6, 78, 59, 0.06);
+  /* The diagonal sheen laid over every glass card (::before). */
+  /* The file lays this at .45 through soft-light at .55 opacity — the same
+     result as a plain .25 white, without a pseudo-element per card. */
+  --glass-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0) 38%);
+  /* A whole filter value: use as `backdrop-filter: var(--glass-blur)`. */
+  --glass-blur: blur(22px) saturate(180%);
+
+  --line: rgba(6, 78, 59, 0.1);
+  --line-strong: rgba(6, 78, 59, 0.18);
+  --input-bg: rgba(255, 255, 255, 0.82);
+  --row-hover: rgba(16, 185, 129, 0.07);
+  --th-bg: rgba(236, 253, 245, 0.65);
+
+  --ok-bg: rgba(16, 185, 129, 0.14);
+  --ok-fg: #047857;
+  --warn-bg: rgba(245, 158, 11, 0.16);
+  --warn-fg: #a16207;
+  --danger-bg: rgba(244, 63, 94, 0.13);
+  --danger-fg: #be123c;
+  --info-bg: rgba(14, 165, 233, 0.13);
+  --info-fg: #0369a1;
+
+  --grad-brand: linear-gradient(135deg, #10b981 0%, #0d9488 55%, #0891b2 100%);
+  /* Same ramp, started one step deeper: white text sits on this one. */
+  /* Every stop keeps white text at 5.3:1 or better (#047857 · #0f766e · #0e7490). */
+  --grad-button: linear-gradient(135deg, #047857 0%, #0f766e 55%, #0e7490 100%);
+  --grad-danger: linear-gradient(135deg, #e11d48, #be123c);
+  /* A figure painted in the gradient (the till total, the sign-in headline). */
+  --grad-text: var(--grad-button);
+  /* A gap then a solid ring: 3.4:1 against the page, so it is actually seen. */
+  --focus: 0 0 0 2px var(--surface-card), 0 0 0 4px #059669;
+
+  /* ---- Brand (emerald) ------------------------------------------------ */
+  --brand-1: #f3fdf9;
+  --brand-2: rgba(16, 185, 129, 0.07);
+  --brand-3: rgba(16, 185, 129, 0.14);
+  --brand-4: rgba(16, 185, 129, 0.22);
+  --brand-6: rgba(16, 185, 129, 0.35);
+  --brand-7: #34d399;
+  --brand-9: #10b981;
+  --brand-10: #059669;
+  --brand-11: #047857;
+  --brand-12: #064e3b;
+
+  /* ---- Accent (info: links, notices) ---------------------------------- */
+  --accent-3: var(--info-bg);
+  --accent-6: rgba(14, 165, 233, 0.35);
+  --accent-9: #0ea5e9;
+  --accent-10: #0284c7;
+  --accent-11: var(--info-fg);
+
+  /* ---- Highlight (teal / aqua — the signature end of the gradient) ----- */
+  --highlight-3: rgba(20, 184, 166, 0.14);
+  --highlight-6: rgba(20, 184, 166, 0.35);
+  --highlight-9: #14b8a6;
+  --highlight-10: #0d9488;
+  --highlight-11: #0f766e;
 
   /* ---- Status --------------------------------------------------------- */
-  --warn-3: var(--amber-3);
-  --warn-6: var(--amber-6);
-  --warn-9: var(--amber-9);
-  --warn-11: var(--amber-11);
+  --warn-3: var(--warn-bg);
+  --warn-6: rgba(245, 158, 11, 0.35);
+  --warn-9: #f59e0b;
+  --warn-11: var(--warn-fg);
 
-  --danger-3: var(--red-3);
-  --danger-6: var(--red-6);
-  --danger-9: var(--red-9);
-  --danger-10: var(--red-10);
-  --danger-11: var(--red-11);
+  --danger-3: var(--danger-bg);
+  --danger-6: rgba(244, 63, 94, 0.35);
+  --danger-9: #e11d48;
+  --danger-10: #be123c;
+  --danger-11: var(--danger-fg);
   /* "Success" is the brand green — named separately for readability at call sites. */
-  --success-3: var(--brand-3);
-  --success-11: var(--brand-11);
+  --success-3: var(--ok-bg);
+  --success-11: var(--ok-fg);
 
   /* ---- Surfaces ------------------------------------------------------- */
-  --surface-page: var(--gray-2);
-  --surface-card: #fff;
-  --surface-sunken: var(--gray-3);
-  --surface-hover: var(--gray-4);
+  --surface-page: var(--bg-base);
+  /* Opaque on purpose: sticky table headers and anything that must hide
+     what scrolls beneath it. Everything else uses the glass tokens. */
+  --surface-card: #f7fcfa;
+  --surface-sunken: var(--glass-bg-soft);
+  --surface-hover: rgba(6, 78, 59, 0.06);
+  --surface-hover-brand: var(--row-hover);
+  --surface-glass: var(--glass-bg);
+  --surface-glass-strong: var(--glass-bg-strong);
+  --surface-backdrop: var(--bg-base);
+  /* Always dark, in both themes: the splash and the undo toast. */
+  --surface-inverse: #0b2a22;
+  --surface-inverse-2: #04140f;
 
-  --border-subtle: var(--gray-5);
-  --border-default: var(--gray-7);
-  --border-strong: var(--gray-8);
+  --border-subtle: var(--line);
+  --border-default: var(--line-strong);
+  --border-strong: rgba(6, 78, 59, 0.28);
 
-  --text-primary: var(--gray-12);
-  --text-secondary: var(--gray-11);
-  /* Not gray-10 (#838383, 3.8:1 on white — fails WCAG AA for the hints and
-     empty states that use it). #6f6f6f is 5.0:1 and still lighter than
-     --text-secondary, so the hierarchy holds. */
-  --text-muted: #6f6f6f;
+  --text-primary: #0b2a22;
+  --text-secondary: #3f5f56;
+  /* One step deeper than the design file's #6b8a80 (3.2:1 over a blob): 4.6:1 at worst. */
+  --text-muted: #4f7066;
   --text-on-solid: #fff;
 
+  /* Older names, kept so existing modules keep resolving. */
+  --gradient-brand: var(--grad-brand);
+  --gradient-solid: var(--grad-button);
+  --gradient-text: var(--grad-text);
+
   /* ---- Typography ------------------------------------------------------ */
-  --font-sans: 'Cairo', 'Tajawal', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Cairo', 'Tajawal', system-ui, 'Segoe UI', sans-serif;
   /*
    * Cairo again, not a separate face: its digits are already fixed-width
    * (measured — "111111" and "000000" take the same advance), so prices stay
-   * aligned in a column while matching the Arabic they sit beside. The
-   * monospace fallbacks only apply on a machine where Cairo failed to load.
+   * aligned in a column while matching the Arabic they sit beside.
    */
   --font-numeric: 'Cairo', ui-monospace, 'Segoe UI', sans-serif;
 
@@ -109,6 +162,8 @@
   --weight-medium: 500;
   --weight-semibold: 600;
   --weight-bold: 700;
+  --weight-heavy: 800;
+  --weight-black: 900;
 
   --leading-tight: 1.2;
   --leading-normal: 1.55;
@@ -125,24 +180,20 @@
   --space-12: 3rem;
 
   /* ---- Radius ---------------------------------------------------------- */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 26px;
   --radius-full: 9999px;
 
   /* ---- Elevation ------------------------------------------------------- */
-  --shadow-sm: 0 1px 2px var(--black-a3);
-  --shadow-md: 0 2px 4px var(--black-a3), 0 4px 12px var(--black-a2);
-  --shadow-lg: 0 8px 24px var(--black-a4), 0 2px 6px var(--black-a3);
-  --shadow-focus: 0 0 0 3px var(--brand-4);
-  /*
-   * A green-tinted lift for the few elements that are themselves green
-   * (primary buttons, a hovered product card). Neutral black under a
-   * saturated colour reads as grey haze; a shadow carrying a little of the
-   * element's own hue is what makes the lift look intentional.
-   */
-  --shadow-brand: 0 2px 6px var(--green-a5), 0 8px 20px var(--green-a4);
+  --shadow-sm: 0 1px 2px rgba(6, 78, 59, 0.08);
+  --shadow-md: 0 2px 6px rgba(6, 78, 59, 0.06), 0 10px 30px -10px rgba(6, 78, 59, 0.18);
+  --shadow-lg: 0 14px 40px -12px rgba(6, 78, 59, 0.3), 0 2px 8px rgba(6, 78, 59, 0.08);
+  --shadow-focus: var(--focus);
+  /* The green lift under anything that is itself green (buttons, the mark). */
+  --shadow-brand: 0 1px 0 rgba(255, 255, 255, 0.45) inset, 0 6px 16px -6px rgba(5, 150, 105, 0.6);
+  --shadow-brand-hover: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 10px 22px -8px rgba(5, 150, 105, 0.7);
 
   /* ---- Layering ----------------------------------------------------------
    * Anything positioned states its layer from this scale. A positioned element
@@ -155,30 +206,106 @@
   --z-dialog: 50;
   --z-toast: 100;
 
-  /* ---- Motion ---------------------------------------------------------- */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
-  /*
-   * Overshoots slightly past its target before settling. Reserved for the two
-   * moments that confirm the till did what the cashier asked — an item landing
-   * in the cart, a sale completing. Everyday feedback stays on --ease-out:
-   * a bounce on every button is what makes an interface feel restless.
-   */
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --duration-fast: 120ms;
+  /* ---- Motion (the design file's curves) -------------------------------- */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Overshoots then settles: the nav indicator, a toast, a pop-in. */
+  --ease-spring: cubic-bezier(0.3, 1.3, 0.5, 1);
+  --ease-pop: cubic-bezier(0.3, 1.6, 0.5, 1);
+  --duration-fast: 150ms;
   --duration-normal: 200ms;
-  /* Only for the once-per-launch splash entrance; UI feedback stays fast. */
-  --duration-slow: 480ms;
+  --duration-page: 350ms;
+  --duration-slow: 450ms;
 
   /* ---- Layout ---------------------------------------------------------- */
-  --sidebar-width: 15rem;
-  --topbar-height: 4rem;
+  --sidebar-width: 16rem;
+  --topbar-height: 3.5rem;
+  /* The floating shell: gap between the panes and from the window edge. */
+  --shell-gap: 14px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+/*
+ * ---- Dark theme — the design file's [data-theme="dark"] block --------------
+ * :root.dark outranks the plain :root above.
+ */
+:root.dark {
+  color-scheme: dark;
+
+  --bg-base: #04140f;
+  --blob-1: rgba(16, 185, 129, 0.3);
+  --blob-2: rgba(13, 148, 136, 0.32);
+  --blob-3: rgba(8, 145, 178, 0.26);
+  --blob-4: rgba(6, 95, 70, 0.45);
+
+  --glass-bg: rgba(15, 40, 33, 0.5);
+  --glass-bg-strong: rgba(12, 34, 28, 0.8);
+  --glass-bg-soft: rgba(20, 50, 42, 0.35);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-edge: rgba(255, 255, 255, 0.18);
+  --glass-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 12px 34px -10px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --glass-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0) 38%);
+
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.15);
+  --input-bg: rgba(4, 20, 15, 0.55);
+  --row-hover: rgba(52, 211, 153, 0.08);
+  --th-bg: rgba(255, 255, 255, 0.04);
+
+  --ok-bg: rgba(52, 211, 153, 0.16);
+  --ok-fg: #6ee7b7;
+  --warn-bg: rgba(245, 158, 11, 0.18);
+  --warn-fg: #fcd34d;
+  --danger-bg: rgba(244, 63, 94, 0.18);
+  --danger-fg: #fda4af;
+  --info-bg: rgba(14, 165, 233, 0.18);
+  --info-fg: #7dd3fc;
+  --focus: 0 0 0 2px #04140f, 0 0 0 4px #34d399;
+  /* On the dark surfaces the bright end of the ramp is the readable one. */
+  --grad-text: var(--grad-brand);
+
+  --brand-1: #062019;
+  --brand-2: rgba(52, 211, 153, 0.08);
+  --brand-3: rgba(52, 211, 153, 0.16);
+  --brand-4: rgba(52, 211, 153, 0.25);
+  --brand-6: rgba(52, 211, 153, 0.35);
+  --brand-7: #34d399;
+  --brand-9: #10b981;
+  --brand-10: #34d399;
+  --brand-11: #6ee7b7;
+  --brand-12: #d1fae5;
+
+  --highlight-3: rgba(45, 212, 191, 0.16);
+  --highlight-6: rgba(45, 212, 191, 0.35);
+  --highlight-11: #5eead4;
+
+  --surface-card: #0c221c;
+  --surface-hover: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.22);
+
+  --text-primary: #e6f6f0;
+  --text-secondary: #a6c7bc;
+  --text-muted: #7a9a90;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 34px -10px rgba(0, 0, 0, 0.6);
+  --shadow-lg: 0 16px 44px -12px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/*
+ * ---- Performance mode -------------------------------------------------------
+ * For a till that stutters: no moving backdrop (components/Backdrop hides
+ * itself), no blur anywhere, solid surfaces. `backdrop-filter: none` rather
+ * than blur(0), which would still cost a compositing layer per element.
+ */
+:root.perf {
+  --glass-bg: var(--surface-card);
+  --glass-bg-strong: var(--surface-card);
+  --glass-bg-soft: var(--surface-hover);
+  --input-bg: var(--surface-card);
+  --glass-sheen: none;
+}
+
+:root.perf *,
+:root.perf *::before,
+:root.perf *::after {
+  backdrop-filter: none !important;
 }

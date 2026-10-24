@@ -13,8 +13,9 @@
   max-width: 24rem;
   padding: var(--space-8);
   text-align: center;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
 }

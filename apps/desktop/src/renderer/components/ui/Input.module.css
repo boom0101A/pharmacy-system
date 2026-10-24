@@ -6,21 +6,23 @@
 
 .label {
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-semibold);
   color: var(--text-secondary);
 }
 
 .input {
   height: 2.5rem;
   padding: 0 var(--space-3);
-  background: var(--surface-card);
-  border: 1px solid var(--border-default);
+  background: var(--input-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   font-size: var(--text-base);
   color: var(--text-primary);
   transition:
     border-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out);
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
 }
 
 .input::placeholder {
@@ -30,7 +32,7 @@
 .input:focus {
   outline: none;
   border-color: var(--brand-9);
-  box-shadow: var(--shadow-focus);
+  box-shadow: var(--focus);
 }
 
 .input:disabled {
@@ -44,7 +46,7 @@
 }
 
 .invalid:focus {
-  box-shadow: 0 0 0 3px var(--danger-3);
+  box-shadow: 0 0 0 4px var(--danger-3);
 }
 
 .error {

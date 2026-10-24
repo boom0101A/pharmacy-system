@@ -60492,7 +60492,75 @@ function broadcastStockChanged(productIds) {
   io2?.emit("stock:changed", { productIds });
 }
 
+// ../server/dist/src/lib/money.js
+var MINOR_UNITS_PER_MAJOR = 100;
+function toMinorUnits(major) {
+  return Math.round(major * MINOR_UNITS_PER_MAJOR);
+}
+function fromMinorUnits(minor) {
+  return minor / MINOR_UNITS_PER_MAJOR;
+}
+
 // ../server/dist/src/services/batches.service.js
+async function adjustBatchQuantity(batchId, userId, input) {
+  return prisma.$transaction(async (tx) => {
+    const batch = await tx.batch.findUnique({ where: { id: batchId }, include: { product: true } });
+    if (!batch)
+      throw new AppError(404, "\u0627\u0644\u062F\u0641\u0639\u0629 \u063A\u064A\u0631 \u0645\u0648\u062C\u0648\u062F\u0629");
+    if (batch.product.archivedAt)
+      throw new AppError(409, ARCHIVED_MESSAGE);
+    if (input.quantity === input.expectedQuantity) {
+      throw new AppError(400, "\u0627\u0644\u0643\u0645\u064A\u0629 \u0627\u0644\u062C\u062F\u064A\u062F\u0629 \u0645\u0637\u0627\u0628\u0642\u0629 \u0644\u0644\u062D\u0627\u0644\u064A\u0629 \u2014 \u0644\u0627 \u0634\u064A\u0621 \u0644\u062A\u0639\u062F\u064A\u0644\u0647");
+    }
+    const { count } = await tx.batch.updateMany({
+      where: { id: batchId, quantity: input.expectedQuantity },
+      data: { quantity: input.quantity }
+    });
+    if (count === 0) {
+      throw new AppError(409, "\u062A\u063A\u064A\u0651\u0631\u062A \u0643\u0645\u064A\u0629 \u0647\u0630\u0647 \u0627\u0644\u062F\u0641\u0639\u0629 \u0644\u0644\u062A\u0648 (\u0628\u064A\u0639 \u0623\u0648 \u062A\u0639\u062F\u064A\u0644 \u0622\u062E\u0631) \u2014 \u0623\u0639\u062F \u0641\u062A\u062D \u0627\u0644\u0646\u0627\u0641\u0630\u0629 \u0648\u062D\u0627\u0648\u0644 \u0645\u062C\u062F\u062F\u0627\u064B");
+    }
+    const difference = input.quantity - input.expectedQuantity;
+    const line = await tx.purchaseItem.findFirst({ where: { batchId } });
+    if (line) {
+      await tx.purchaseItem.update({
+        where: { id: line.id },
+        data: { quantity: Math.max(0, line.quantity + difference) }
+      });
+      const items = await tx.purchaseItem.findMany({ where: { purchaseId: line.purchaseId } });
+      const total = fromMinorUnits(items.reduce((sum, i) => sum + i.quantity * toMinorUnits(Number(i.unitPrice)), 0));
+      await tx.purchase.update({ where: { id: line.purchaseId }, data: { total } });
+    }
+    await tx.stockAdjustment.create({
+      data: {
+        batchId,
+        userId,
+        oldQuantity: input.expectedQuantity,
+        newQuantity: input.quantity,
+        reason: input.reason,
+        purchaseItemId: line?.id ?? null
+      }
+    });
+    return tx.batch.findUniqueOrThrow({ where: { id: batchId } });
+  });
+}
+async function listStockAdjustments(productId) {
+  const rows2 = await prisma.stockAdjustment.findMany({
+    where: { batch: { productId } },
+    include: { user: { select: { name: true } } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: 50
+  });
+  return rows2.map((r) => ({
+    id: r.id,
+    batchId: r.batchId,
+    oldQuantity: r.oldQuantity,
+    newQuantity: r.newQuantity,
+    reason: r.reason,
+    userName: r.user.name,
+    purchaseItemId: r.purchaseItemId,
+    createdAt: r.createdAt.toISOString()
+  }));
+}
 async function writeOffBatch(batchId, userId) {
   return prisma.$transaction(async (tx) => {
     const batch = await tx.batch.findUnique({ where: { id: batchId } });
@@ -60521,10 +60589,10 @@ async function deleteBatch(batchId) {
     prisma.purchaseItem.count({ where: { batchId } })
   ]);
   if (saleCount > 0) {
-    throw new AppError(409, "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u062F\u0641\u0639\u0629 \u0628\u064A\u0639 \u0645\u0646\u0647\u0627 \u0633\u0627\u0628\u0642\u0627\u064B \u2014 \u0635\u0641\u0651\u0631 \u0643\u0645\u064A\u062A\u0647\u0627 \u0628\u062F\u0644\u0627\u064B \u0645\u0646 \u0630\u0644\u0643 \u0639\u0628\u0631 \u0627\u0644\u062A\u0639\u062F\u064A\u0644");
+    throw new AppError(409, "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u062F\u0641\u0639\u0629 \u0628\u064A\u0639 \u0645\u0646\u0647\u0627 \u0633\u0627\u0628\u0642\u0627\u064B \u2014 \u0635\u062D\u0651\u062D \u0643\u0645\u064A\u062A\u0647\u0627 \u0628\u062F\u0644\u0627\u064B \u0645\u0646 \u0630\u0644\u0643 (\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0643\u0645\u064A\u0629)");
   }
   if (purchaseItemCount > 0) {
-    throw new AppError(409, "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u062F\u0641\u0639\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0641\u0627\u062A\u0648\u0631\u0629 \u0634\u0631\u0627\u0621 \u2014 \u0635\u0641\u0651\u0631 \u0643\u0645\u064A\u062A\u0647\u0627 \u0628\u062F\u0644\u0627\u064B \u0645\u0646 \u0630\u0644\u0643 \u0639\u0628\u0631 \u0627\u0644\u062A\u0639\u062F\u064A\u0644");
+    throw new AppError(409, "\u0644\u0627 \u064A\u0645\u0643\u0646 \u062D\u0630\u0641 \u062F\u0641\u0639\u0629 \u0645\u0631\u062A\u0628\u0637\u0629 \u0628\u0641\u0627\u062A\u0648\u0631\u0629 \u0634\u0631\u0627\u0621 \u2014 \u0635\u062D\u0651\u062D \u0643\u0645\u064A\u062A\u0647\u0627 \u0628\u062F\u0644\u0627\u064B \u0645\u0646 \u0630\u0644\u0643 (\u062A\u0639\u062F\u064A\u0644 \u0627\u0644\u0643\u0645\u064A\u0629)");
   }
   return prisma.batch.delete({ where: { id: batchId } });
 }
@@ -60543,7 +60611,9 @@ batchesRouter.get("/", asyncHandler(async (req, res) => {
   const productId = req.query.productId !== void 0 ? parseIdParam(String(req.query.productId), "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641") : void 0;
   const rows2 = await prisma.batch.findMany({
     where: productId ? { productId } : {},
-    orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }]
+    orderBy: [{ expiryDate: "asc" }, { receivedAt: "asc" }],
+    // Which invoice it came from: correcting its quantity corrects that invoice too.
+    include: { purchaseItems: { select: { purchaseId: true }, take: 1 } }
   });
   res.json(withoutCostFor(req.auth.role, rows2.map((b) => ({
     id: b.id,
@@ -60553,7 +60623,8 @@ batchesRouter.get("/", asyncHandler(async (req, res) => {
     quantity: b.quantity,
     purchasePrice: toNumber(b.purchasePrice),
     receivedAt: b.receivedAt.toISOString(),
-    openedSubUnits: b.openedSubUnits
+    openedSubUnits: b.openedSubUnits,
+    purchaseId: b.purchaseItems[0]?.purchaseId ?? null
   }))));
 }));
 batchesRouter.post("/", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
@@ -60575,6 +60646,31 @@ batchesRouter.post("/", checkRole("admin", "pharmacist"), asyncHandler(async (re
   });
   broadcastStockChanged([batch.productId]);
   res.status(201).json({
+    id: batch.id,
+    productId: batch.productId,
+    batchNumber: batch.batchNumber,
+    expiryDate: batch.expiryDate?.toISOString() ?? null,
+    quantity: batch.quantity,
+    purchasePrice: toNumber(batch.purchasePrice),
+    receivedAt: batch.receivedAt.toISOString(),
+    openedSubUnits: batch.openedSubUnits
+  });
+}));
+batchesRouter.get("/adjustments", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
+  const productId = parseIdParam(String(req.query.productId ?? ""), "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u0635\u0646\u0641");
+  res.json(await listStockAdjustments(productId));
+}));
+var adjustSchema = external_exports.object({
+  quantity: external_exports.number({ invalid_type_error: "\u0627\u0644\u0643\u0645\u064A\u0629 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0631\u0642\u0645\u0627\u064B" }).int("\u0627\u0644\u0643\u0645\u064A\u0629 \u064A\u062C\u0628 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0639\u062F\u062F\u0627\u064B \u0635\u062D\u064A\u062D\u0627\u064B").min(0, "\u0627\u0644\u0643\u0645\u064A\u0629 \u0644\u0627 \u064A\u0645\u0643\u0646 \u0623\u0646 \u062A\u0643\u0648\u0646 \u0633\u0627\u0644\u0628\u0629"),
+  expectedQuantity: external_exports.number().int().min(0),
+  reason: external_exports.string().trim().min(3, "\u0627\u0643\u062A\u0628 \u0633\u0628\u0628 \u0627\u0644\u062A\u0639\u062F\u064A\u0644 (3 \u0623\u062D\u0631\u0641 \u0639\u0644\u0649 \u0627\u0644\u0623\u0642\u0644)").max(200, "\u0627\u0644\u0633\u0628\u0628 \u0637\u0648\u064A\u0644 \u062C\u062F\u0627\u064B")
+});
+batchesRouter.post("/:id/adjust", checkRole("admin", "pharmacist"), asyncHandler(async (req, res) => {
+  const id = parseIdParam(req.params.id, "\u0645\u0639\u0631\u0651\u0641 \u0627\u0644\u062F\u0641\u0639\u0629");
+  const data = adjustSchema.parse(req.body);
+  const batch = await adjustBatchQuantity(id, req.auth.userId, data);
+  broadcastStockChanged([batch.productId]);
+  res.json({
     id: batch.id,
     productId: batch.productId,
     batchNumber: batch.batchNumber,
@@ -60803,15 +60899,6 @@ async function createSale(userId, input) {
   }
   broadcastStockChanged(result.affectedProductIds);
   return mapSale(result.sale);
-}
-
-// ../server/dist/src/lib/money.js
-var MINOR_UNITS_PER_MAJOR = 100;
-function toMinorUnits(major) {
-  return Math.round(major * MINOR_UNITS_PER_MAJOR);
-}
-function fromMinorUnits(minor) {
-  return minor / MINOR_UNITS_PER_MAJOR;
 }
 
 // ../server/dist/src/services/salesHistory.service.js
@@ -61471,7 +61558,7 @@ import path6 from "node:path";
 import fs4 from "node:fs/promises";
 import path5 from "node:path";
 async function dumpTables() {
-  const [users, categories, products, batches, suppliers, purchases, purchaseItems, sales, saleItems, returns, returnItems, batchWriteOffs] = await prisma.$transaction(
+  const [users, categories, products, batches, suppliers, purchases, purchaseItems, sales, saleItems, returns, returnItems, batchWriteOffs, stockAdjustments] = await prisma.$transaction(
     [
       prisma.user.findMany(),
       prisma.category.findMany(),
@@ -61484,7 +61571,8 @@ async function dumpTables() {
       prisma.saleItem.findMany(),
       prisma.return.findMany(),
       prisma.returnItem.findMany(),
-      prisma.batchWriteOff.findMany()
+      prisma.batchWriteOff.findMany(),
+      prisma.stockAdjustment.findMany()
     ],
     // One snapshot of the whole database. Twelve independent reads while the
     // tills keep selling could capture a sale's lines without the sale (or
@@ -61503,7 +61591,8 @@ async function dumpTables() {
     saleItems,
     returns,
     returnItems,
-    batchWriteOffs
+    batchWriteOffs,
+    stockAdjustments
   };
 }
 function backupFilename(date) {
@@ -61589,12 +61678,15 @@ var backupSchema = external_exports.object({
     returns: rows,
     returnItems: rows,
     // Backups written before write-offs existed have no such table.
-    batchWriteOffs: rows.default([])
+    batchWriteOffs: rows.default([]),
+    // Nor before quantity corrections did.
+    stockAdjustments: rows.default([])
   })
 });
 async function applyRestore(payload) {
   const t = payload.tables;
   await prisma.$transaction(async (tx) => {
+    await tx.stockAdjustment.deleteMany();
     await tx.returnItem.deleteMany();
     await tx.return.deleteMany();
     await tx.saleItem.deleteMany();
@@ -61631,6 +61723,8 @@ async function applyRestore(payload) {
       await tx.return.createMany({ data: t.returns });
     if (t.returnItems.length)
       await tx.returnItem.createMany({ data: t.returnItems });
+    if (t.stockAdjustments.length)
+      await tx.stockAdjustment.createMany({ data: t.stockAdjustments });
     const tables = [
       "users",
       "categories",
@@ -61643,7 +61737,8 @@ async function applyRestore(payload) {
       "sales",
       "sale_items",
       "returns",
-      "return_items"
+      "return_items",
+      "stock_adjustments"
     ];
     for (const table of tables) {
       await tx.$executeRawUnsafe(`SELECT setval(pg_get_serial_sequence('"${table}"', 'id'), COALESCE((SELECT MAX(id) FROM "${table}"), 1), true)`);

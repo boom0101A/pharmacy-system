@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Building2, Download, Printer, RotateCcw, Save, Server, ShieldCheck, Trash2, Upload, Volume2 } from 'lucide-react';
+import { Building2, Download, Palette, Printer, RotateCcw, Save, Server, ShieldCheck, Trash2, Upload, Volume2 } from 'lucide-react';
 import type { BackupFile } from '@pharmacy/shared-types';
 import styles from './Settings.module.css';
 import { Button } from '../components/ui/Button';
@@ -15,11 +15,13 @@ import { LicenseRenewal } from '../components/LicenseRenewal';
 import { LICENSE_CHANGED_EVENT } from '../lib/useLicenseCheck';
 import { cleanIpcError, formatDate } from '../lib/cx';
 import { isSoundEnabled, setSoundEnabled } from '../lib/sounds.js';
+import { useAppearance } from '../lib/appearance';
 
 const MAX_LOGO_BYTES = 8 * 1024 * 1024;
 
 export function Settings() {
   const toast = useToast();
+  const appearance = useAppearance();
   const [server, setServer] = useState(getServerUrl());
   // Comes from the server itself: a machine cannot see which of its own
   // addresses the rest of the network can reach.
@@ -302,6 +304,22 @@ export function Settings() {
           />
           تفعيل أصوات التنبيه (إتمام بيع، حفظ، حذف)
         </label>
+      </section>
+
+      <section className={styles.card}>
+        <h2 className={styles.title}>
+          <Palette size={18} />
+          المظهر
+        </h2>
+        <label className={styles.checkboxRow}>
+          <input type="checkbox" checked={appearance.dark} onChange={(e) => appearance.setDark(e.target.checked)} />
+          الوضع الليلي
+        </label>
+        <label className={styles.checkboxRow}>
+          <input type="checkbox" checked={appearance.perf} onChange={(e) => appearance.setPerf(e.target.checked)} />
+          وضع الأداء (بدون تأثير الزجاج) — للأجهزة البطيئة
+        </label>
+        <p className={styles.hint}>يُحفظ على هذا الجهاز فقط.</p>
       </section>
 
       <section className={styles.card}>

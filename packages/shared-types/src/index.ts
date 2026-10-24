@@ -88,6 +88,29 @@ export interface Batch {
   purchasePrice: number;
   receivedAt: string;
   openedSubUnits: number;
+  /** The purchase invoice this batch was received on; null when received by hand. Only in GET /batches. */
+  purchaseId?: number | null;
+}
+
+/** POST /batches/:id/adjust — correcting a quantity that was typed in wrong. */
+export interface AdjustBatchInput {
+  /** The batch's correct remaining quantity. */
+  quantity: number;
+  /** The quantity the form showed — the server refuses if a sale changed it since. */
+  expectedQuantity: number;
+  reason: string;
+}
+
+/** One logged quantity correction (GET /batches/adjustments). */
+export interface StockAdjustment {
+  id: number;
+  batchId: number;
+  oldQuantity: number;
+  newQuantity: number;
+  reason: string;
+  userName: string;
+  purchaseItemId: number | null;
+  createdAt: string;
 }
 
 export interface BatchInput {

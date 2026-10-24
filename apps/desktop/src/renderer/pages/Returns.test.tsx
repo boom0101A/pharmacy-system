@@ -120,3 +120,29 @@ describe('Returns — opened from the sales history', () => {
     expect(await screen.findByLabelText(/كمية إرجاع/)).toBeTruthy();
   });
 });
+
+describe('Returns — browsing sales by day', () => {
+  it('never shows an earlier day’s sales under the newly chosen day when its answer arrives late', async () => {
+    const row = (id: number, userName: string) => ({ id, date: new Date().toISOString(), total: 1000, discount: 0, userName, items: [] });
+    let resolveFirst!: (rows: unknown[]) => void;
+    api.salesByDate
+      .mockImplementationOnce(() => new Promise((r) => (resolveFirst = r)) as never)
+      .mockResolvedValueOnce([row(2, 'كاشير اليوم الجديد')] as never);
+    const { container } = render(
+      <MemoryRouter>
+        <ToastProvider>
+          <Returns />
+        </ToastProvider>
+      </MemoryRouter>,
+    );
+    await waitFor(() => expect(resolveFirst).toBeTypeOf('function'));
+
+    const date = container.querySelector('input[type="date"]') as HTMLInputElement;
+    fireEvent.change(date, { target: { value: '2026-01-02' } });
+    expect(await screen.findByText('كاشير اليوم الجديد')).toBeTruthy();
+
+    resolveFirst([row(1, 'كاشير اليوم القديم')]);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByText('كاشير اليوم القديم')).toBeNull();
+  });
+});

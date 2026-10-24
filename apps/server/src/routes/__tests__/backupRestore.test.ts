@@ -8,7 +8,7 @@ import { writeBackup } from '../../backup.js';
 import { createPurchase } from '../../services/purchases.service.js';
 import { createSale } from '../../services/sales.service.js';
 import { createReturn } from '../../services/returns.service.js';
-import { writeOffBatch } from '../../services/batches.service.js';
+import { adjustBatchQuantity, writeOffBatch } from '../../services/batches.service.js';
 import { resetDatabase } from '../../../vitest.setup.js';
 import { applyRestore } from '../../../scripts/restore.js';
 
@@ -120,5 +120,30 @@ describe('backup + restore round-trip', () => {
     // per-table sequence reset in applyRestore actually ran.
     const newCategory = await prisma.category.create({ data: { name: `تصنيف-جديد-${Date.now()}` } });
     expect(newCategory.id).toBeGreaterThan(category.id);
+  });
+
+  it('keeps the quantity-correction history, linked to its invoice line, and its id sequence', async () => {
+    const admin = await prisma.user.create({
+      data: { name: 'مدير', username: `adj-admin-${Date.now()}`, passwordHash: 'x', role: 'admin' },
+    });
+    const supplier = await prisma.supplier.create({ data: { name: `مورد-${Date.now()}` } });
+    const product = await prisma.product.create({ data: { name: 'بنادول', salePrice: '20', purchasePrice: '10' } });
+    const purchase = await createPurchase(admin.id, {
+      supplierId: supplier.id,
+      items: [{ productId: product.id, quantity: 500, unitPrice: 10 }],
+    });
+    const batch = await prisma.batch.findFirstOrThrow({ where: { productId: product.id } });
+    await adjustBatchQuantity(batch.id, admin.id, { quantity: 50, expectedQuantity: 500, reason: 'خطأ إدخال' });
+    const logBefore = await prisma.stockAdjustment.findFirstOrThrow();
+
+    const payload = JSON.parse(await fs.readFile(await writeBackup(uploadsSrc), 'utf8'));
+    await resetDatabase();
+    await applyRestore(payload);
+
+    expect(await prisma.stockAdjustment.findFirstOrThrow()).toEqual(logBefore);
+    expect(logBefore.purchaseItemId).toBe(purchase.items[0].id);
+    // The next correction must not collide with the restored row's id.
+    await adjustBatchQuantity(batch.id, admin.id, { quantity: 49, expectedQuantity: 50, reason: 'جرد' });
+    expect(await prisma.stockAdjustment.count()).toBe(2);
   });
 });

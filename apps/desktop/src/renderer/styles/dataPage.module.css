@@ -9,10 +9,12 @@
 }
 
 .tableWrap {
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  box-shadow: var(--glass-shadow);
 }
 
 .table {
@@ -24,12 +26,12 @@
 .table th {
   padding: var(--space-3);
   text-align: start;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-heavy);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  background: var(--surface-page);
+  background: var(--th-bg);
   border-block-end: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
@@ -38,6 +40,14 @@
   padding: var(--space-3);
   border-block-end: 1px solid var(--border-subtle);
   vertical-align: middle;
+}
+
+.table tbody tr {
+  transition: background-color 120ms var(--ease-out);
+}
+
+.table tbody tr:hover td {
+  background: var(--row-hover);
 }
 
 .table tbody tr:last-child td {
@@ -84,8 +94,10 @@
 .select {
   height: 2.5rem;
   padding: 0 var(--space-3);
-  background: var(--surface-card);
-  border: 1px solid var(--border-default);
+  background: var(--input-bg);
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   font-size: var(--text-base);
 }

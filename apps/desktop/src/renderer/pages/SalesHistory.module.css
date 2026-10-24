@@ -8,39 +8,48 @@
   gap: var(--space-3);
 }
 
+/* Segmented glass, like the design file's tabs. */
 .presets {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  justify-self: start;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
 }
 
 .preset {
+  /* 44px: touch screens. */
   height: 2.75rem;
   padding: 0 var(--space-4);
-  background: var(--surface-card);
+  background: none;
   color: var(--text-secondary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-full);
+  border: 1px solid transparent;
+  border-radius: 9px;
   font: inherit;
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
   cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out);
+  transition: all var(--duration-normal) var(--ease-out);
 }
 
 .preset:hover {
-  background: var(--surface-hover);
+  color: var(--text-primary);
 }
 
 .presetActive {
-  background: var(--brand-3);
+  background: var(--glass-bg-strong);
+  border-color: var(--glass-edge);
   color: var(--brand-11);
-  border-color: var(--brand-7);
+  box-shadow: 0 2px 8px -2px rgba(6, 78, 59, 0.2), 0 1px 0 rgba(255, 255, 255, 0.8) inset;
 }
 
 .preset:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow: var(--focus);
 }
 
 .filterRow {
@@ -67,9 +76,11 @@
   display: grid;
   gap: var(--space-1);
   padding: var(--space-4);
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
 }
 
 .summaryValue {

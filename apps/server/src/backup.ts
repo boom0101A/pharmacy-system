@@ -23,6 +23,7 @@ async function dumpTables() {
     returns,
     returnItems,
     batchWriteOffs,
+    stockAdjustments,
   ] = await prisma.$transaction(
     [
       prisma.user.findMany(),
@@ -37,6 +38,7 @@ async function dumpTables() {
       prisma.return.findMany(),
       prisma.returnItem.findMany(),
       prisma.batchWriteOff.findMany(),
+      prisma.stockAdjustment.findMany(),
     ],
     // One snapshot of the whole database. Twelve independent reads while the
     // tills keep selling could capture a sale's lines without the sale (or
@@ -57,6 +59,7 @@ async function dumpTables() {
     returns,
     returnItems,
     batchWriteOffs,
+    stockAdjustments,
   };
 }
 

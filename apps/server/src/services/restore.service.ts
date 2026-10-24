@@ -25,6 +25,8 @@ const backupSchema = z.object({
     returnItems: rows,
     // Backups written before write-offs existed have no such table.
     batchWriteOffs: rows.default([]),
+    // Nor before quantity corrections did.
+    stockAdjustments: rows.default([]),
   }),
 });
 
@@ -36,6 +38,7 @@ export async function applyRestore(payload: BackupPayload): Promise<void> {
   await prisma.$transaction(async (tx) => {
     // Children before parents, so no foreign key ever points at a row that's
     // about to disappear.
+    await tx.stockAdjustment.deleteMany();
     await tx.returnItem.deleteMany();
     await tx.return.deleteMany();
     await tx.saleItem.deleteMany();
@@ -64,6 +67,8 @@ export async function applyRestore(payload: BackupPayload): Promise<void> {
     if (t.saleItems.length) await tx.saleItem.createMany({ data: t.saleItems as never[] });
     if (t.returns.length) await tx.return.createMany({ data: t.returns as never[] });
     if (t.returnItems.length) await tx.returnItem.createMany({ data: t.returnItems as never[] });
+    // Last: it points at batches, users and purchase lines.
+    if (t.stockAdjustments.length) await tx.stockAdjustment.createMany({ data: t.stockAdjustments as never[] });
 
     // createMany with an explicit id never advances the table's own
     // autoincrement sequence — without this, the next INSERT with no
@@ -71,6 +76,7 @@ export async function applyRestore(payload: BackupPayload): Promise<void> {
     const tables = [
       'users', 'categories', 'suppliers', 'products', 'batches', 'batch_write_offs',
       'purchases', 'purchase_items', 'sales', 'sale_items', 'returns', 'return_items',
+      'stock_adjustments',
     ];
     for (const table of tables) {
       await tx.$executeRawUnsafe(

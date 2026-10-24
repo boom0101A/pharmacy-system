@@ -1,21 +1,28 @@
+/*
+ * The floating shell from the design file: sidebar and top bar are separate
+ * glass panes with rounded corners, held off the window edge and from each
+ * other by --shell-gap, with the moving backdrop showing between them.
+ */
 .shell {
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
+  gap: var(--shell-gap);
   height: 100%;
+  padding: var(--shell-gap);
 }
 
 /* ---- Sidebar ----------------------------------------------------------- */
 .sidebar {
   display: flex;
   flex-direction: column;
-  background: var(--brand-12);
-  color: var(--white-a11);
   padding: var(--space-5) var(--space-3);
   overflow-y: auto;
-  /* Separates the sidebar from the content beside it — this app is RTL-only
-     (dir="rtl" is hardcoded, never mirrors), so the sidebar always sits on
-     the visual right and the shadow always needs to fall to its left. */
-  box-shadow: -2px 0 12px var(--black-a4);
+  border-radius: var(--radius-xl);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  color: var(--text-secondary);
   position: relative;
   z-index: 1;
 }
@@ -24,26 +31,37 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 0 var(--space-3) var(--space-5);
-  margin-block-end: var(--space-4);
-  border-block-end: 1px solid var(--white-a4);
+  padding: 0 var(--space-2) var(--space-5);
+  margin-block-end: var(--space-3);
+  border-block-end: 1px solid var(--line);
 }
 
 .brandMark {
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
   flex-shrink: 0;
-  /* The one place green and the cyan signature meet — see --highlight-* in tokens.css. */
-  background: linear-gradient(135deg, var(--brand-9), var(--highlight-9));
+  background: var(--grad-button);
   border-radius: var(--radius-md);
-  color: #fff;
+  color: var(--text-on-solid);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 8px 20px -6px rgba(5, 150, 105, 0.6);
+}
+
+/* The glossy top half every gradient mark carries in the design file. */
+.brandMark::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 50% 0;
+  background: linear-gradient(rgba(255, 255, 255, 0.35), transparent);
+  pointer-events: none;
 }
 
 .brandLogo {
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.5rem;
+  height: 2.5rem;
   flex-shrink: 0;
   object-fit: contain;
   border-radius: var(--radius-md);
@@ -51,29 +69,29 @@
 
 .brandName {
   font-size: var(--text-base);
-  font-weight: var(--weight-bold);
-  color: #fff;
+  font-weight: var(--weight-heavy);
+  color: var(--text-primary);
 }
 
 .brandMeta {
   font-size: var(--text-xs);
-  color: var(--white-a9);
+  color: var(--text-muted);
 }
 
 .nav {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: 2px;
   flex: 1;
   position: relative;
 }
 
 /*
  * One shared pill instead of each item painting its own background: sliding
- * this between measured positions (AppShell.tsx, useLayoutEffect) is what
- * makes the active state glide from item to item instead of vanishing and
- * reappearing. Sits behind the items (z-index 0 vs. their 1) so their icon
- * and text are never obscured mid-slide.
+ * it between measured positions (AppShell.tsx, useLayoutEffect) is what makes
+ * the active state glide from item to item. A glass pill with a gradient
+ * edge, overshooting slightly as it lands — as in the design file. Sits behind
+ * the items (z-index 0 vs. their 1) so their icon and text are never obscured.
  */
 .navIndicator {
   position: absolute;
@@ -81,42 +99,63 @@
   top: 0;
   z-index: 0;
   border-radius: var(--radius-md);
-  background: var(--brand-9);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-edge);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 6px 16px -8px rgba(6, 78, 59, 0.35);
   transition:
-    transform var(--duration-normal) var(--ease-out),
-    height var(--duration-normal) var(--ease-out);
+    transform var(--duration-page) var(--ease-spring),
+    height var(--duration-page) var(--ease-spring);
+}
+
+.navIndicator::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: -1px;
+  top: 25%;
+  bottom: 25%;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--grad-brand);
 }
 
 .navItem {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3);
+  /* 44px: the till may be a touch screen. */
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: var(--white-a10);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
   text-decoration: none;
   position: relative;
   z-index: 1;
   transition:
     background-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
+    color var(--duration-normal) var(--ease-out);
 }
 
 .navItem:hover {
-  background: var(--white-a3);
-  color: #fff;
-  /* Content sits to the sidebar's left in this RTL-only layout — a small
-     shift that direction reads as the item reaching toward it. */
-  transform: translateX(-3px);
+  background: var(--glass-bg-soft);
+  color: var(--text-primary);
+}
+
+.navItem:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
 }
 
 .navItemActive,
 .navItemActive:hover {
-  color: #fff;
-  transform: none;
+  background: transparent;
+  color: var(--brand-11);
+  font-weight: var(--weight-heavy);
+}
+
+.navItemActive svg {
+  color: var(--brand-10);
 }
 
 .userBox {
@@ -124,56 +163,63 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
-  margin-block-start: var(--space-4);
-  border-block-start: 1px solid var(--white-a4);
+  margin-block-start: var(--space-3);
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg-soft);
+  border: 1px solid var(--line);
 }
 
 .avatar {
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.4rem;
+  height: 2.4rem;
   flex-shrink: 0;
-  background: var(--white-a4);
+  background: var(--grad-button);
   border-radius: var(--radius-full);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-  color: #fff;
+  font-weight: var(--weight-heavy);
+  color: var(--text-on-solid);
+  box-shadow: 0 0 0 3px var(--glass-bg-strong);
 }
 
 .userName {
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
-  color: #fff;
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
 }
 
 .userRole {
   font-size: var(--text-xs);
-  color: var(--white-a9);
+  color: var(--text-muted);
 }
 
 .logout {
   margin-inline-start: auto;
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
-  background: transparent;
-  border: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  background: none;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  color: var(--white-a10);
+  color: var(--text-secondary);
   cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
 }
 
 .logout:hover {
-  background: var(--white-a4);
-  color: #fff;
+  background: var(--danger-bg);
+  color: var(--danger-fg);
 }
 
 /* ---- Main -------------------------------------------------------------- */
 .main {
   display: flex;
   flex-direction: column;
+  gap: var(--shell-gap);
+  min-width: 0;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -183,15 +229,35 @@
   justify-content: space-between;
   gap: var(--space-4);
   height: var(--topbar-height);
-  padding: 0 var(--space-6);
-  background: var(--surface-card);
-  border-block-end: 1px solid var(--border-subtle);
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
   flex-shrink: 0;
 }
 
+/* The design file's .crumb: the page's own sidebar icon beside its name. */
 .pageTitle {
-  font-size: var(--text-xl);
-  animation: titleIn var(--duration-fast) var(--ease-out);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--weight-heavy);
+  letter-spacing: -0.01em;
+  animation: titleIn var(--duration-normal) var(--ease-out);
+}
+
+.pageTitleIcon {
+  display: inline-grid;
+  color: var(--brand-10);
+}
+
+.pageTitleIcon svg {
+  width: 20px;
+  height: 20px;
 }
 
 /* Text needs less motion than a whole page to read as smooth, not busy —
@@ -205,26 +271,120 @@
   }
 }
 
-.topbarDate {
-  font-size: var(--text-sm);
+.topbarTools {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/*
+ * The design file's .iconBtn, at 44px instead of its 36 — the till may be a
+ * touch screen.
+ */
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  flex-shrink: 0;
+  background: var(--glass-bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-out);
+}
+
+.iconButton:hover {
+  color: var(--brand-11);
+  border-color: var(--brand-7);
+}
+
+.iconButton:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.iconButton[aria-pressed='true'] {
+  background: var(--ok-bg);
+  color: var(--ok-fg);
+}
+
+.clock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+  margin-inline-start: var(--space-2);
+  white-space: nowrap;
+}
+
+.clock b {
+  font-size: var(--text-base);
+  font-weight: var(--weight-heavy);
+  font-variant-numeric: tabular-nums;
+}
+
+.clock span {
+  font-size: 11px;
   color: var(--text-muted);
+}
+
+/* ---- Shortcuts reference (ShortcutsDialog) ------------------------------- */
+.shortcutGroup + .shortcutGroup {
+  margin-block-start: var(--space-5);
+}
+
+.shortcutGroupTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-heavy);
+  color: var(--brand-11);
+}
+
+.shortcuts {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 16px;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.shortcuts dt {
+  color: var(--text-primary);
+}
+
+.shortcuts dd {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+  justify-self: end;
+  /* Key names read left-to-right (Ctrl then Z) even in the RTL dialog. */
+  direction: ltr;
+}
+
+.shortcuts kbd {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: var(--weight-bold);
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--glass-bg-soft);
+  border: 1px solid var(--line-strong);
+  color: var(--text-primary);
 }
 
 .content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: var(--space-6);
-  animation: pageIn var(--duration-normal) var(--ease-out);
+  padding: var(--space-2) var(--space-3) var(--space-6);
+  animation: pageIn var(--duration-page) var(--ease-out);
 }
 
-/* Small enough not to look like the page is sliding into place. */
 @keyframes pageIn {
   from {
     opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
+    transform: translateY(6px);
   }
 }

@@ -1,4 +1,7 @@
+/* No overflow: hidden — the gloss (::after) already follows the radius via
+   border-radius: inherit, and the .sm hit area (::before) must reach outside. */
 .button {
+  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -8,40 +11,69 @@
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
+  white-space: nowrap;
   cursor: pointer;
   transition:
     background-color var(--duration-fast) var(--ease-out),
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out),
+    filter var(--duration-normal) var(--ease-out),
     transform var(--duration-fast) var(--ease-out);
 }
 
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
 .button:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
+  filter: grayscale(0.3);
 }
 
 .button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: translateY(0) scale(0.98);
 }
 
 /* ---- Variants ------------------------------------------------------------ */
-.primary {
-  background: var(--brand-9);
+.primary,
+.danger {
   color: var(--text-on-solid);
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
-.primary:hover:not(:disabled) {
-  background: var(--brand-10);
-  /* Green-tinted rather than neutral — see --shadow-brand in tokens.css. */
+.primary {
+  background: var(--grad-button);
   box-shadow: var(--shadow-brand);
 }
 
-/* The lift is the hover state; pressing it should put the button back down. */
-.primary:active:not(:disabled) {
-  box-shadow: none;
+/* The glossy top half of every solid button in the design file. */
+.primary::after,
+.danger::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 50% 0;
+  background: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0));
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.primary:hover:not(:disabled),
+.danger:hover:not(:disabled) {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.primary:hover:not(:disabled) {
+  box-shadow: var(--shadow-brand-hover);
+}
+
+.danger {
+  background: var(--grad-danger);
+  box-shadow: 0 6px 16px -6px rgba(225, 29, 72, 0.6);
 }
 
 .ghost {
@@ -50,27 +82,22 @@
 }
 
 .ghost:hover:not(:disabled) {
-  background: var(--surface-hover);
+  background: var(--glass-bg-soft);
   color: var(--text-primary);
 }
 
 .outline {
-  background: transparent;
-  border-color: var(--border-default);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(10px);
+  border-color: var(--line-strong);
   color: var(--text-primary);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
 }
 
 .outline:hover:not(:disabled) {
-  background: var(--surface-hover);
-}
-
-.danger {
-  background: var(--danger-9);
-  color: #fff;
-}
-
-.danger:hover:not(:disabled) {
-  background: var(--danger-10);
+  border-color: var(--brand-7);
+  color: var(--brand-11);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 4px 12px -6px rgba(16, 185, 129, 0.4);
 }
 
 /* ---- Sizes ----------------------------------------------------------- */
@@ -78,6 +105,15 @@
   height: 2rem;
   padding: 0 var(--space-3);
   font-size: var(--text-xs);
+  border-radius: 10px;
+}
+
+/* 32px to look at, 44px to hit: an invisible strip above and below, so a
+   finger on a touch-screen till lands even when the button looks compact. */
+.sm::before {
+  content: "";
+  position: absolute;
+  inset: -6px 0;
 }
 
 .lg {
@@ -90,6 +126,7 @@
   height: 3.25rem;
   padding: 0 var(--space-6);
   font-size: var(--text-lg);
+  border-radius: var(--radius-lg);
 }
 
 .fullWidth {

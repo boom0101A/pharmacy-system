@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const api = {
   products: vi.fn(),
@@ -14,8 +14,9 @@ const api = {
 };
 vi.mock('../lib/api', () => ({ api, ApiError: class extends Error {} }));
 vi.mock('../lib/api.js', () => ({ api, ApiError: class extends Error {} }));
+const auth = vi.hoisted(() => ({ role: 'pharmacist' }));
 vi.mock('../store/auth', () => ({
-  useAuth: () => ({ can: (...roles: string[]) => roles.includes('pharmacist') }),
+  useAuth: () => ({ can: (...roles: string[]) => roles.includes(auth.role) }),
 }));
 
 const { Inventory } = await import('./Inventory');
@@ -97,6 +98,73 @@ describe('Inventory — deleting a product that was sold', () => {
     fireEvent.click(await screen.findByRole('button', { name: /استرجاع/ }));
 
     await waitFor(() => expect(api.restoreProduct).toHaveBeenCalledWith(7));
+  });
+});
+
+describe('Inventory — page header and filter chips', () => {
+  beforeEach(() => {
+    auth.role = 'pharmacist';
+    window.matchMedia = vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() });
+    Object.values(api).forEach((fn) => fn.mockClear());
+    api.products.mockResolvedValue([PRODUCT]);
+    api.productStats.mockResolvedValue({ total: 12, low: 2, expiring: 3, out: 1 });
+  });
+
+  // The role is module-level; leave it as the other describe blocks expect.
+  afterEach(() => {
+    auth.role = 'pharmacist';
+  });
+
+  const chip = (name: RegExp) => screen.getByRole('button', { name });
+  // The number is its own (LTR-isolated) span, so match the whole line.
+  const countLine = (n: number) =>
+    screen.findByText((_, el) => el?.tagName === 'P' && el.textContent?.replace(/\s+/g, ' ').trim() === `${n} صنف`);
+
+  it('titles the page and counts the items in the current filter', async () => {
+    renderPage();
+    expect(screen.getByRole('heading', { level: 2, name: 'المخزون' })).toBeTruthy();
+    expect(await countLine(12)).toBeTruthy();
+  });
+
+  it('shows one chip per filter with its count, and filters on click', async () => {
+    renderPage();
+    await countLine(12);
+    const group = screen.getByRole('group', { name: 'تصفية المخزون' });
+    expect(within(group).getAllByRole('button')).toHaveLength(4);
+    expect(chip(/^الكل\s*12$/).getAttribute('aria-pressed')).toBe('true');
+    expect(chip(/^منخفض\s*2$/)).toBeTruthy();
+    expect(chip(/^قارب الانتهاء\s*3$/)).toBeTruthy();
+    expect(chip(/^نفد\s*1$/)).toBeTruthy();
+
+    fireEvent.click(chip(/^منخفض/));
+
+    expect(chip(/^منخفض/).getAttribute('aria-pressed')).toBe('true');
+    expect(chip(/^الكل/).getAttribute('aria-pressed')).toBe('false');
+    await waitFor(() => expect(api.products).toHaveBeenLastCalledWith(undefined, expect.objectContaining({ status: 'low' })));
+    expect(await countLine(2)).toBeTruthy();
+  });
+
+  it('has no "add to purchases" button on the low filter', async () => {
+    renderPage();
+    await countLine(12);
+    fireEvent.click(chip(/^منخفض/));
+    await countLine(2);
+    expect(screen.queryByRole('button', { name: /إضافة للمشتريات/ })).toBeNull();
+  });
+
+  it('puts the F1 hint on the new-medicine button', async () => {
+    renderPage();
+    const add = await screen.findByRole('button', { name: /دواء جديد/ });
+    expect(add.querySelector('kbd')?.textContent).toBe('F1');
+  });
+
+  it('gives the cashier the search and chips but no editing buttons', async () => {
+    auth.role = 'cashier';
+    renderPage();
+    await countLine(12);
+    expect(screen.getByRole('group', { name: 'تصفية المخزون' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /دواء جديد/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /الأصناف المؤرشفة/ })).toBeNull();
   });
 });
 

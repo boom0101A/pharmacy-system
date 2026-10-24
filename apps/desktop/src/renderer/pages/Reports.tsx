@@ -46,6 +46,27 @@ const REPORT_LABEL: Record<string, string> = {
   today: 'مبيعات اليوم',
 };
 
+/*
+ * Recharts paints its own greys (white tooltip, #666 ticks, #ccc grid) that
+ * ignore the theme — unreadable in dark mode. Pointing them at the tokens
+ * makes the charts follow light/dark like everything else.
+ */
+const CHART_GRID = { strokeDasharray: '3 3', stroke: 'var(--line-strong)' };
+const CHART_AXIS = { stroke: 'var(--line-strong)', tick: { fill: 'var(--text-secondary)', fontSize: 12 } };
+const CHART_TOOLTIP = {
+  contentStyle: {
+    background: 'var(--glass-bg-strong)',
+    backdropFilter: 'var(--glass-blur)',
+    border: '1px solid var(--glass-border)',
+    borderRadius: 'var(--radius-md)',
+    boxShadow: 'var(--glass-shadow)',
+    color: 'var(--text-primary)',
+  },
+  labelStyle: { color: 'var(--text-secondary)', fontWeight: 700 },
+  itemStyle: { color: 'var(--text-primary)' },
+  cursor: { fill: 'var(--row-hover)', stroke: 'var(--line-strong)' },
+};
+
 export function Reports() {
   const canSeeProfit = useAuth((s) => s.can('admin'));
 
@@ -121,10 +142,14 @@ export function Reports() {
         <div className={styles.chartCard}>
           <ResponsiveContainer width="100%" height={320}>
             <LineChart data={sales}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" tickFormatter={(d) => formatDate(d)} />
-              <YAxis />
-              <Tooltip labelFormatter={(d) => formatDate(String(d))} formatter={(v) => formatMoney(Number(v))} />
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="date" tickFormatter={(d) => formatDate(d)} {...CHART_AXIS} />
+              <YAxis {...CHART_AXIS} />
+              <Tooltip
+                labelFormatter={(d) => formatDate(String(d))}
+                formatter={(v) => formatMoney(Number(v))}
+                {...CHART_TOOLTIP}
+              />
               <Line type="monotone" dataKey="total" stroke="var(--brand-9)" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
@@ -203,10 +228,10 @@ export function Reports() {
         <div className={styles.chartCard}>
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={byCategory}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="categoryName" />
-              <YAxis />
-              <Tooltip formatter={(v) => formatMoney(Number(v))} />
+              <CartesianGrid {...CHART_GRID} />
+              <XAxis dataKey="categoryName" {...CHART_AXIS} />
+              <YAxis {...CHART_AXIS} />
+              <Tooltip formatter={(v) => formatMoney(Number(v))} {...CHART_TOOLTIP} />
               <Bar dataKey="revenue" fill="var(--accent-9)" />
             </BarChart>
           </ResponsiveContainer>

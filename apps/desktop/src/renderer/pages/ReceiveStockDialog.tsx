@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Trash2 } from 'lucide-react';
-import type { Batch, Product } from '@pharmacy/shared-types';
+import type { Batch, Product, StockAdjustment } from '@pharmacy/shared-types';
 import styles from './Inventory.module.css';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Dialog } from '../components/ui/Dialog';
@@ -11,6 +11,8 @@ import { api } from '../lib/api';
 import { parsePriceInput } from '../lib/priceInput';
 import { formatPriceInput, PriceInput } from '../components/ui/PriceInput';
 import { useAuth } from '../store/auth';
+import { formatDate, formatTime } from '../lib/cx';
+import { AdjustQuantityDialog } from './AdjustQuantityDialog';
 
 interface Props {
   /** Non-null opens the dialog for that product. */
@@ -40,6 +42,9 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
   const [purchasePrice, setPurchasePrice] = useState('');
   const [saving, setSaving] = useState(false);
   const canDeleteBatch = useAuth((s) => s.can('admin'));
+  const canAdjust = useAuth((s) => s.can('admin', 'pharmacist'));
+  const [adjustTarget, setAdjustTarget] = useState<Batch | null>(null);
+  const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [savingBatchId, setSavingBatchId] = useState<number | null>(null);
   const [deletingBatchId, setDeletingBatchId] = useState<number | null>(null);
@@ -66,17 +71,32 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
     }
   }, []);
 
+  const loadAdjustments = useCallback(
+    async (productId: number) => {
+      if (!canAdjust) return;
+      try {
+        const rows = await api.stockAdjustments(productId);
+        if (shownProductId.current === productId) setAdjustments(rows);
+      } catch {
+        if (shownProductId.current === productId) setAdjustments([]);
+      }
+    },
+    [canAdjust],
+  );
+
   useEffect(() => {
     shownProductId.current = product?.id ?? null;
     if (product) {
       setBatches([]);
+      setAdjustments([]);
       setQuantity('');
       setExpiryDate('');
       setBatchNumber('');
       setPurchasePrice(formatPriceInput(product.purchasePrice));
       loadBatches(product.id);
+      loadAdjustments(product.id);
     }
-  }, [product, loadBatches]);
+  }, [product, loadBatches, loadAdjustments]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -219,6 +239,8 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
                   key={batch.id}
                   batch={batch}
                   canDelete={canDeleteBatch}
+                  canAdjust={canAdjust}
+                  onAdjust={() => setAdjustTarget(batch)}
                   saving={savingBatchId === batch.id}
                   deleting={deletingBatchId === batch.id}
                   onSave={(expiry, number) => saveBatchEdit(batch, expiry, number)}
@@ -230,6 +252,39 @@ export function ReceiveStockDialog({ product, onClose, onSaved }: Props) {
           </table>
         </div>
       )}
+
+      {adjustments.length > 0 && (
+        <section className={styles.adjustLog}>
+          <h3 className={styles.adjustLogTitle}>سجل تعديلات الكمية</h3>
+          <ul aria-label="سجل تعديلات الكمية">
+            {adjustments.map((a) => (
+              <li key={a.id}>
+                <span>
+                  من <span className="numeric">{a.oldQuantity}</span> إلى{' '}
+                  <strong className="numeric">{a.newQuantity}</strong> {product?.unit}
+                </span>
+                <span>{a.reason}</span>
+                <span className={styles.adjustLogMeta}>
+                  {a.userName} · {formatDate(a.createdAt)} {formatTime(a.createdAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <AdjustQuantityDialog
+        batch={adjustTarget}
+        unit={product?.unit ?? ''}
+        onClose={() => setAdjustTarget(null)}
+        onSaved={() => {
+          if (product) {
+            loadBatches(product.id);
+            loadAdjustments(product.id);
+          }
+          onSaved();
+        }}
+      />
 
       <ConfirmDialog
         open={writeOffTarget !== null}
@@ -255,6 +310,8 @@ function isExpired(expiryDate: string | null): boolean {
 function BatchRow({
   batch,
   canDelete,
+  canAdjust,
+  onAdjust,
   saving,
   deleting,
   onSave,
@@ -263,6 +320,8 @@ function BatchRow({
 }: {
   batch: Batch;
   canDelete: boolean;
+  canAdjust: boolean;
+  onAdjust: () => void;
   saving: boolean;
   deleting: boolean;
   onSave: (expiry: string, number: string) => void;
@@ -287,6 +346,11 @@ function BatchRow({
           {changed && (
             <Button variant="outline" size="sm" disabled={saving} onClick={() => onSave(expiry, number)}>
               حفظ
+            </Button>
+          )}
+          {canAdjust && (
+            <Button variant="outline" size="sm" onClick={onAdjust}>
+              تعديل الكمية
             </Button>
           )}
           {batch.quantity > 0 && isExpired(batch.expiryDate) && (

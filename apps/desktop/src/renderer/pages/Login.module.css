@@ -1,28 +1,42 @@
+/* The design file's split sign-in: introduction (AuthHero) beside the card,
+   over the moving backdrop. A narrow window drops to the card alone. */
 .page {
   display: grid;
-  place-items: center;
+  grid-template-columns: 1.1fr 1fr;
+  align-items: center;
   height: 100%;
-  /* A quiet green wash rather than a flat panel — the only gradient in the app. */
-  background:
-    radial-gradient(1200px 600px at 50% -10%, var(--brand-3), transparent 70%),
-    var(--surface-page);
+  overflow-y: auto;
 }
 
 /* Fades in as the splash fades out, so the handover reads as one movement. */
 .card {
-  animation: cardIn var(--duration-normal) var(--ease-out) 60ms backwards;
-  width: min(90vw, 24rem);
-  padding: var(--space-8);
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  grid-column: 2;
+  justify-self: center;
+  margin: 2rem;
+  animation: cardIn var(--duration-slow) var(--ease-out) 60ms backwards;
+  width: min(92vw, 26rem);
+  padding: 2.25rem;
+  background: var(--glass-sheen), var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--glass-shadow);
+}
+
+@media (max-width: 900px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    grid-column: 1;
+  }
 }
 
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.99);
+    transform: translateY(12px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -47,15 +61,24 @@
 }
 
 .mark {
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
   width: 3.25rem;
   height: 3.25rem;
-  /* Same brand-to-signature gradient as the sidebar mark in AppShell. */
-  background: linear-gradient(135deg, var(--brand-9), var(--highlight-9));
+  /* Same gradient and gloss as the sidebar mark in AppShell. */
+  background: var(--grad-button);
   border-radius: var(--radius-lg);
-  color: #fff;
-  box-shadow: var(--shadow-brand);
+  color: var(--text-on-solid);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset, 0 8px 20px -6px rgba(5, 150, 105, 0.6);
+}
+
+.mark::after {
+  content: '';
+  position: absolute;
+  inset: 0 0 50% 0;
+  background: linear-gradient(rgba(255, 255, 255, 0.35), transparent);
 }
 
 .logo {
@@ -66,7 +89,8 @@
 }
 
 .title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-heavy);
 }
 
 .subtitle {
@@ -101,21 +125,25 @@
   background: none;
   border: none;
   padding: 0;
-  font-size: var(--text-xs);
-  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--highlight-10);
   cursor: pointer;
+}
+
+.serverToggle:hover {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.serverToggle:hover {
-  color: var(--text-secondary);
+:global(.dark) .serverToggle {
+  color: #2dd4bf;
 }
 
 .notice {
   padding: var(--space-3);
   border-radius: var(--radius-md);
-  background: var(--success-3, #e6f6ec);
-  color: var(--success-11, #1a7f4b);
+  background: var(--success-3);
+  color: var(--success-11);
   font-size: var(--text-sm);
 }

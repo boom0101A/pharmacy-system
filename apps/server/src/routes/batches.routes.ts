@@ -4,7 +4,12 @@ import { prisma, toNumber } from '../prisma.js';
 import { AppError, asyncHandler } from '../middleware/errors.js';
 import { checkRole, requireAuth } from '../middleware/auth.js';
 import { broadcastStockChanged } from '../sockets/stock.js';
-import { deleteBatch, writeOffBatch } from '../services/batches.service.js';
+import {
+  adjustBatchQuantity,
+  deleteBatch,
+  listStockAdjustments,
+  writeOffBatch,
+} from '../services/batches.service.js';
 import { parseIdParam } from '../lib/parseIdParam.js';
 import { withoutCostFor } from '../lib/costVisibility.js';
 import { ARCHIVED_MESSAGE } from '../services/products.service.js';
@@ -33,6 +38,8 @@ batchesRouter.get(
     const rows = await prisma.batch.findMany({
       where: productId ? { productId } : {},
       orderBy: [{ expiryDate: 'asc' }, { receivedAt: 'asc' }],
+      // Which invoice it came from: correcting its quantity corrects that invoice too.
+      include: { purchaseItems: { select: { purchaseId: true }, take: 1 } },
     });
 
     res.json(
@@ -45,6 +52,7 @@ batchesRouter.get(
         purchasePrice: toNumber(b.purchasePrice),
         receivedAt: b.receivedAt.toISOString(),
         openedSubUnits: b.openedSubUnits,
+        purchaseId: b.purchaseItems[0]?.purchaseId ?? null,
       }))),
     );
   }),
@@ -91,7 +99,55 @@ batchesRouter.post(
   }),
 );
 
-/** Expiry date and batch number only — quantity stays out of reach on purpose. */
+/** A product's quantity corrections — the audit trail behind POST /:id/adjust. */
+batchesRouter.get(
+  '/adjustments',
+  checkRole('admin', 'pharmacist'),
+  asyncHandler(async (req, res) => {
+    const productId = parseIdParam(String(req.query.productId ?? ''), 'معرّف الصنف');
+    res.json(await listStockAdjustments(productId));
+  }),
+);
+
+const adjustSchema = z.object({
+  quantity: z
+    .number({ invalid_type_error: 'الكمية يجب أن تكون رقماً' })
+    .int('الكمية يجب أن تكون عدداً صحيحاً')
+    .min(0, 'الكمية لا يمكن أن تكون سالبة'),
+  expectedQuantity: z.number().int().min(0),
+  reason: z.string().trim().min(3, 'اكتب سبب التعديل (3 أحرف على الأقل)').max(200, 'السبب طويل جداً'),
+});
+
+/**
+ * Correcting a quantity typed in wrong. Its own endpoint rather than a field
+ * on PUT /:id below: it needs a reason, an audit row and the purchase-invoice
+ * correction, none of which an expiry-date edit should ever trigger.
+ */
+batchesRouter.post(
+  '/:id/adjust',
+  checkRole('admin', 'pharmacist'),
+  asyncHandler(async (req, res) => {
+    const id = parseIdParam(req.params.id, 'معرّف الدفعة');
+    const data = adjustSchema.parse(req.body);
+
+    const batch = await adjustBatchQuantity(id, req.auth!.userId, data);
+    broadcastStockChanged([batch.productId]);
+
+    // Admin/pharmacist only, so the cost stays in (no withoutCostFor here).
+    res.json({
+      id: batch.id,
+      productId: batch.productId,
+      batchNumber: batch.batchNumber,
+      expiryDate: batch.expiryDate?.toISOString() ?? null,
+      quantity: batch.quantity,
+      purchasePrice: toNumber(batch.purchasePrice),
+      receivedAt: batch.receivedAt.toISOString(),
+      openedSubUnits: batch.openedSubUnits,
+    });
+  }),
+);
+
+/** Expiry date and batch number only — quantity has its own audited endpoint (POST /:id/adjust). */
 const batchEditSchema = z.object({
   batchNumber: z.string().trim().min(1).nullish(),
   expiryDate: z.coerce.date().nullish(),

@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import {
   Archive,
   ArchiveRestore,
-  Clock,
   Package,
-  PackageMinus,
-  PackageX,
   Pencil,
   Plus,
   Search,
-  ShoppingCart,
   Trash2,
 } from 'lucide-react';
 import type { Product } from '@pharmacy/shared-types';
@@ -29,13 +25,6 @@ import { usePendingDeletes } from '../store/pendingDeletes';
 import { useToast } from '../components/ui/Toast';
 import { cx, formatDate, formatMoney } from '../lib/cx';
 
-const TONE_CLASS = {
-  brand: styles.toneBrand,
-  warn: styles.toneWarn,
-  accent: styles.toneAccent,
-  danger: styles.toneDanger,
-} as const;
-
 const PAGE_SIZE = 40;
 const LOW_STOCK_ALERT_MS = 8000;
 
@@ -43,7 +32,6 @@ type StatusFilter = 'all' | 'low' | 'expiring' | 'out' | 'archived';
 
 export function Inventory() {
   const toast = useToast();
-  const navigate = useNavigate();
   const { can } = useAuth();
   const canEdit = can('admin', 'pharmacist');
   const canDelete = can('admin', 'pharmacist');
@@ -160,10 +148,10 @@ export function Inventory() {
   }, [canEdit, productDialogOpen, receivingFor, deletingProduct]);
 
   const STAT_TILES = [
-    { key: 'all', label: 'الكل', count: counts.total, icon: Package, tone: 'brand' },
-    { key: 'low', label: 'يحتاج إعادة طلب', count: counts.low, icon: PackageMinus, tone: 'warn' },
-    { key: 'expiring', label: 'قارب على الانتهاء', count: counts.expiring, icon: Clock, tone: 'accent' },
-    { key: 'out', label: 'نفد', count: counts.out, icon: PackageX, tone: 'danger' },
+    { key: 'all', label: 'الكل', count: counts.total },
+    { key: 'low', label: 'منخفض', count: counts.low },
+    { key: 'expiring', label: 'قارب الانتهاء', count: counts.expiring },
+    { key: 'out', label: 'نفد', count: counts.out },
   ] as const;
 
   const visible = useMemo(() => products.filter((p) => !pendingDeleteIds.has(p.id)), [products, pendingDeleteIds]);
@@ -307,81 +295,71 @@ export function Inventory() {
       )}
 
       <div className={styles.page}>
-        <div className={styles.statGrid}>
-          {STAT_TILES.map((tile) => {
-            const Icon = tile.icon;
-            const active = tile.key === statusFilter;
-            return (
-              <button
-                key={tile.key}
-                type="button"
-                className={cx(styles.statTile, TONE_CLASS[tile.tone], active && styles.statTileActive)}
-                onClick={() => setStatusFilter(tile.key)}
+        <div className={styles.pageHeader}>
+          <div>
+            <h2 className={styles.pageTitle}>المخزون</h2>
+            <p className={styles.pageCount}>
+              <span className="numeric">{shownCount}</span> صنف
+            </p>
+          </div>
+          {canEdit && (
+            <div className={styles.headerActions}>
+              <Button
+                variant={statusFilter === 'archived' ? 'primary' : 'outline'}
+                onClick={() => setStatusFilter(statusFilter === 'archived' ? 'all' : 'archived')}
               >
-                <span className={styles.statIcon}>
-                  <Icon size={20} />
-                </span>
-                <span className={styles.statText}>
-                  <span className={styles.statValue}>{tile.count}</span>
-                  <span className={styles.statLabel}>{tile.label}</span>
-                </span>
-              </button>
-            );
-          })}
+                <Archive size={16} />
+                {statusFilter === 'archived' ? 'العودة إلى كل الأصناف' : 'الأصناف المؤرشفة'}
+              </Button>
+              <Button
+                size="lg"
+                className={styles.addButton}
+                onClick={() => {
+                  setEditing(null);
+                  setProductDialogOpen(true);
+                }}
+              >
+                <Plus size={18} />
+                دواء جديد
+                <kbd className={styles.keyHint} aria-hidden="true">
+                  F1
+                </kbd>
+              </Button>
+            </div>
+          )}
         </div>
 
-        {canEdit && (
-          <div>
-            <Button
-              variant={statusFilter === 'archived' ? 'primary' : 'ghost'}
-              size="sm"
-              onClick={() => setStatusFilter(statusFilter === 'archived' ? 'all' : 'archived')}
-            >
-              <Archive size={15} />
-              {statusFilter === 'archived' ? 'العودة إلى كل الأصناف' : 'الأصناف المؤرشفة'}
-            </Button>
+        <div className={styles.toolbar}>
+          <div className={styles.searchBox}>
+            <Search size={16} className={styles.searchIcon} />
+            <input
+              className={styles.search}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="ابحث بالاسم أو الباركود…"
+              aria-label="بحث في المخزون"
+            />
           </div>
-        )}
+          <div className={styles.chips} role="group" aria-label="تصفية المخزون">
+            {STAT_TILES.map((tile) => {
+              const active = tile.key === statusFilter;
+              return (
+                <button
+                  key={tile.key}
+                  type="button"
+                  className={cx(styles.chip, active && styles.chipActive)}
+                  aria-pressed={active}
+                  onClick={() => setStatusFilter(tile.key)}
+                >
+                  {tile.label}
+                  <span className={cx(styles.chipCount, 'numeric')}>{tile.count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className={styles.card}>
-          <div className={styles.toolbar}>
-            <div className={styles.searchBox}>
-              <Search size={16} className={styles.searchIcon} />
-              <input
-                className={styles.search}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="ابحث بالاسم أو الباركود…"
-                aria-label="بحث في المخزون"
-              />
-            </div>
-            {canEdit && (
-              <div className={styles.spacer}>
-                {statusFilter === 'low' && visible.length > 0 && (
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      navigate('/purchases', { state: { reorderProducts: visible } })
-                    }
-                  >
-                    <ShoppingCart size={16} />
-                    إضافة للمشتريات
-                  </Button>
-                )}
-                <Button
-                  onClick={() => {
-                    setEditing(null);
-                    setProductDialogOpen(true);
-                  }}
-                  title="F1"
-                >
-                  <Plus size={16} />
-                  دواء جديد
-                </Button>
-              </div>
-            )}
-          </div>
-
           {loading ? (
             <table className={styles.table}>
               <tbody>

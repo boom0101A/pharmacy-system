@@ -22,8 +22,8 @@
   position: fixed;
   inset: 0;
   z-index: var(--z-dialog);
-  background: var(--black-a6);
-  backdrop-filter: blur(2px);
+  background: rgba(4, 30, 22, 0.28);
+  backdrop-filter: blur(6px);
   animation: overlayIn var(--duration-normal) var(--ease-out);
 }
 
@@ -36,10 +36,12 @@
   width: min(90vw, 34rem);
   max-height: 85vh;
   overflow-y: auto;
-  background: var(--surface-card);
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  animation: contentIn var(--duration-normal) var(--ease-out);
+  box-shadow: var(--glass-shadow);
+  animation: contentIn 250ms var(--ease-out);
 }
 
 @keyframes contentInRtl {
@@ -117,11 +119,12 @@
   justify-content: space-between;
   gap: var(--space-4);
   padding: var(--space-5) var(--space-6);
-  border-block-end: 1px solid var(--border-subtle);
+  border-block-end: 1px solid var(--line);
 }
 
 .title {
-  font-size: var(--text-xl);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-heavy);
 }
 
 .description {
@@ -131,16 +134,24 @@
 }
 
 .close {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   flex-shrink: 0;
   background: transparent;
   border: none;
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-md);
   color: var(--text-muted);
   cursor: pointer;
+}
+
+/* 36px drawn, 44px to tap. */
+.close::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
 }
 
 .close:hover {
@@ -157,8 +168,8 @@
   justify-content: flex-end;
   gap: var(--space-3);
   padding: var(--space-4) var(--space-6);
-  background: var(--surface-page);
-  border-block-start: 1px solid var(--border-subtle);
+  background: var(--glass-bg-soft);
+  border-block-start: 1px solid var(--line);
   border-end-start-radius: var(--radius-xl);
   border-end-end-radius: var(--radius-xl);
 }

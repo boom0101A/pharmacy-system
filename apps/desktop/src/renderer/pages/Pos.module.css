@@ -21,25 +21,35 @@
   inset-inline-start: var(--space-3);
   top: 50%;
   transform: translateY(-50%);
-  color: var(--text-muted);
+  color: var(--brand-10);
   pointer-events: none;
 }
 
 .scanInput {
   width: 100%;
-  height: 3rem;
+  height: 3.5rem;
   padding-inline-start: calc(var(--space-3) * 2 + 22px);
   padding-inline-end: var(--space-4);
-  background: var(--surface-card);
-  border: 1px solid var(--border-default);
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  font-size: var(--text-base);
+  box-shadow: var(--glass-shadow);
+  font-size: var(--text-lg);
+  color: var(--text-primary);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+}
+
+.scanInput::placeholder {
+  color: var(--text-muted);
 }
 
 .scanInput:focus {
   outline: none;
   border-color: var(--brand-9);
-  box-shadow: var(--shadow-focus);
+  box-shadow: var(--glass-shadow), var(--focus);
 }
 
 .results {
@@ -49,6 +59,8 @@
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: var(--space-3);
   align-content: start;
+  /* Room for the hover lift and its shadow, which the scroll box would clip. */
+  padding: 4px 4px var(--space-4);
 }
 
 .productSkeleton {
@@ -65,25 +77,31 @@
      edit button is an absolute overlay) this looks identical to before, but
      it lets the sub-unit quick-add button stack below it for divisible items. */
   flex-direction: column;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
   transition:
-    border-color var(--duration-fast) var(--ease-out),
-    box-shadow var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
+    transform var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
 }
 
 .productCard:hover:has(.productMain:not(:disabled)) {
-  border-color: var(--brand-7);
-  box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  border-color: var(--brand-6);
+  box-shadow: var(--glass-shadow), 0 16px 30px -14px rgba(5, 150, 105, 0.45);
+  transform: translateY(-3px);
+}
+
+.productCard:active:has(.productMain:not(:disabled)) {
+  transform: scale(0.98);
 }
 
 /* Where the arrow keys are sitting. */
 .productCardActive {
   border-color: var(--brand-9);
-  box-shadow: var(--shadow-focus);
+  box-shadow: var(--glass-shadow), var(--focus);
 }
 
 /* Big hit area — this gets tapped quickly, sometimes on a touch screen. */
@@ -100,19 +118,61 @@
   cursor: pointer;
 }
 
+/*
+ * Out of stock: faded and desaturated, as in the design file — on this
+ * button only, never the whole card. The card also carries its own buttons
+ * that stay live exactly when the boxes run out: selling a loose strip
+ * (.subUnitButton) and "show alternatives" (.alternativesButton, which only
+ * appears at zero stock). Fading the card made both look disabled.
+ */
 .productMain:disabled {
-  opacity: 0.55;
   cursor: not-allowed;
+  opacity: 0.55;
+  filter: saturate(0.5);
 }
 
 .productThumb {
+  position: relative;
   display: grid;
   place-items: center;
-  height: 6rem;
-  background: var(--surface-sunken);
+  height: 5rem;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.8), transparent 50%),
+    linear-gradient(135deg, rgba(167, 243, 208, 0.7), rgba(153, 246, 228, 0.55) 60%, rgba(165, 243, 252, 0.55));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-md);
-  color: var(--text-muted);
+  color: var(--brand-11);
   overflow: hidden;
+}
+
+:global(.dark) .productThumb {
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.12), transparent 50%),
+    linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(13, 148, 136, 0.2) 60%, rgba(8, 145, 178, 0.2));
+}
+
+/* Stock at a glance. Same rule as the badge beside the price, which still
+   carries the words — the dot is decoration only (aria-hidden). */
+.stockDot {
+  position: absolute;
+  top: 8px;
+  inset-inline-start: 8px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--glass-bg-strong);
+}
+
+.stockOk {
+  background: var(--brand-9);
+}
+
+.stockLow {
+  background: var(--warn-9);
+}
+
+.stockOut {
+  background: var(--danger-9);
 }
 
 .productThumb img {
@@ -123,7 +183,8 @@
 
 .productName {
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-heavy);
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -145,7 +206,7 @@
 
 .productPrice {
   font-size: var(--text-base);
-  font-weight: var(--weight-bold);
+  font-weight: var(--weight-heavy);
   color: var(--brand-11);
 }
 
@@ -153,15 +214,29 @@
   position: absolute;
   top: var(--space-2);
   inset-inline-end: var(--space-2);
+  /* Above the thumbnail, which is now positioned for the stock dot. */
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 1.75rem;
   height: 1.75rem;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-full);
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
+  transition:
+    color var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+/* 28px drawn, 44px to tap — it sits on a card that is itself a tap target,
+   so a near miss would add the medicine to the cart instead of editing it. */
+.editButton::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
 }
 
 .editButton:hover {
@@ -175,16 +250,23 @@
 .alternativesButton {
   margin: 0 var(--space-3) var(--space-3);
   padding: var(--space-2);
-  background: var(--accent-3);
-  border: 1px dashed var(--accent-6);
-  border-radius: var(--radius-sm);
+  background: var(--info-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
   font-size: var(--text-xs);
-  color: var(--accent-11);
+  font-weight: var(--weight-bold);
+  color: var(--info-fg);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-1);
+  transition: border-color var(--duration-fast) var(--ease-out);
+}
+
+.subUnitButton:hover:not(:disabled),
+.alternativesButton:hover {
+  border-color: currentColor;
 }
 
 .subUnitButton:disabled {
@@ -202,22 +284,63 @@
 .cart {
   display: flex;
   flex-direction: column;
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  padding: var(--space-4);
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4) var(--space-5) var(--space-5);
   min-height: 0;
+  box-shadow: var(--glass-shadow);
+}
+
+/* The cart is the strong pane of the till. Same specificity as .cart's own
+   rule above, so this later one wins the background. */
+.cart {
+  background: var(--glass-sheen), var(--glass-bg-strong);
 }
 
 .cartHeader {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
+  padding-block-end: var(--space-3);
   margin-block-end: var(--space-3);
+  border-block-end: 1px solid var(--line);
+}
+
+.cartTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .cartTitle {
+  margin: 0;
   font-size: var(--text-lg);
+  font-weight: var(--weight-heavy);
+}
+
+/* How many lines are in the cart. */
+.cartCount {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 6px;
+  border-radius: var(--radius-full);
+  background: var(--grad-button);
+  color: var(--text-on-solid);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  animation: countPop 300ms var(--ease-pop);
+}
+
+@keyframes countPop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
 }
 
 .clearCart {
@@ -233,10 +356,22 @@
   flex: 1;
   display: grid;
   place-items: center;
-  gap: var(--space-2);
+  align-content: center;
+  gap: 6px;
   color: var(--text-muted);
   font-size: var(--text-sm);
   text-align: center;
+}
+
+/* The icon sits in a dashed glass circle, as in the design file. */
+.emptyCart > svg {
+  box-sizing: content-box;
+  padding: 1.25rem;
+  margin-block-end: 6px;
+  border-radius: 50%;
+  background: var(--glass-bg-soft);
+  border: 1px dashed var(--line-strong);
+  color: var(--brand-9);
 }
 
 .cartLines {
@@ -248,8 +383,9 @@
 }
 
 .cartLine {
-  padding-block-end: var(--space-3);
-  border-block-end: 1px solid var(--border-subtle);
+  padding: var(--space-2) var(--space-2) var(--space-3);
+  border-block-end: 1px solid var(--line);
+  border-radius: var(--radius-md);
 }
 
 /*
@@ -268,7 +404,7 @@
 @keyframes cartLineFlash {
   0% {
     transform: translateY(-4px);
-    background: var(--brand-3);
+    background: rgba(16, 185, 129, 0.18);
   }
   100% {
     transform: none;
@@ -286,7 +422,7 @@
 .cartLineName {
   flex: 1;
   font-size: var(--text-sm);
-  font-weight: var(--weight-medium);
+  font-weight: var(--weight-bold);
 }
 
 .lineUnitBadge {
@@ -315,19 +451,43 @@
   place-items: center;
   width: 2.75rem;
   height: 2.75rem;
-  background: var(--surface-sunken);
-  border: none;
-  border-radius: var(--radius-sm);
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+  font-weight: var(--weight-heavy);
   cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.cartLineControls button:hover:not(:disabled) {
+  background: var(--brand-11);
+  color: var(--text-on-solid);
+}
+
+.cartLineControls .removeLine:hover:not(:disabled) {
+  background: var(--danger-bg);
+  color: var(--danger-fg);
 }
 
 .qtyInput {
   width: 3.5rem;
   height: 2.75rem;
   font-size: var(--text-base);
+  font-weight: var(--weight-heavy);
   text-align: center;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+}
+
+.qtyInput:focus {
+  outline: none;
+  border-color: var(--brand-9);
+  box-shadow: var(--focus);
 }
 
 .removeLine {
@@ -341,23 +501,27 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding-block: var(--space-3);
-  border-block-start: 1px solid var(--border-subtle);
+  border-block-start: 1px solid var(--line);
   font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  color: var(--text-secondary);
 }
 
 .discountInput {
   width: 7rem;
   height: 2.25rem;
-  padding: 0 var(--space-2);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  padding: 0 var(--space-3);
+  background: var(--input-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
   text-align: end;
 }
 
 .discountInput:focus {
   outline: none;
   border-color: var(--brand-9);
-  box-shadow: var(--shadow-focus);
+  box-shadow: var(--focus);
 }
 
 /* The total is the single largest thing on screen — read across the counter. */
@@ -366,8 +530,22 @@
   align-items: baseline;
   justify-content: space-between;
   margin-block-end: var(--space-4);
-  font-size: var(--text-2xl);
-  font-weight: var(--weight-bold);
+  padding-block-start: var(--space-2);
+  border-block-start: 1px dashed var(--line-strong);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-heavy);
+}
+
+/* The figure itself, large and in the brand gradient (plain brand colour
+   wherever background clipping is unavailable). */
+.totalRow > :last-child {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-black);
+  color: var(--brand-11);
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .lastReceipt {
@@ -377,9 +555,11 @@
   gap: var(--space-2);
   margin-block-start: var(--space-4);
   padding: var(--space-4);
-  background: var(--brand-2);
-  border-radius: var(--radius-md);
+  background: var(--glass-bg-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
   font-size: var(--text-sm);
+  font-weight: var(--weight-bold);
   animation: receiptIn var(--duration-normal) var(--ease-out);
 }
 
@@ -400,9 +580,15 @@
   }
 }
 
+/* The design file's success mark: a gradient disc that pops in. */
 .lastReceiptIcon {
-  color: var(--brand-9);
-  animation: receiptTick var(--duration-normal) var(--ease-spring) 120ms backwards;
+  box-sizing: content-box;
+  padding: 0.75rem;
+  border-radius: 50%;
+  background: var(--grad-button);
+  color: var(--text-on-solid);
+  box-shadow: 0 10px 24px -8px rgba(5, 150, 105, 0.7);
+  animation: receiptTick 400ms var(--ease-pop) 120ms backwards;
 }
 
 @keyframes receiptTick {
@@ -439,12 +625,14 @@
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
-  height: 3rem;
+  height: 3.5rem;
   padding: 0 var(--space-4);
-  background: var(--surface-card);
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
   color: var(--text-secondary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
   font: inherit;
   font-size: var(--text-sm);
   font-weight: var(--weight-semibold);
@@ -454,19 +642,19 @@
 }
 
 .hideToggle:hover {
-  background: var(--surface-hover);
-  color: var(--text-primary);
+  color: var(--brand-11);
+  border-color: var(--brand-7);
 }
 
 .hideToggle[aria-pressed='true'] {
-  background: var(--brand-3);
-  color: var(--brand-11);
+  background: var(--ok-bg);
+  color: var(--ok-fg);
   border-color: var(--brand-7);
 }
 
 .hideToggle:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow: var(--glass-shadow), var(--focus);
 }
 
 /* A product with no category says so, quietly — a hint that it needs one. */

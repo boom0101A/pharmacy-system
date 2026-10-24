@@ -1,0 +1,88 @@
+/* The design file's ambient backdrop, value for value. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  animation: drift 28s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.b1 {
+  width: 46vw;
+  height: 46vw;
+  background: var(--blob-1);
+  top: -14vw;
+  right: -8vw;
+}
+
+.b2 {
+  width: 38vw;
+  height: 38vw;
+  background: var(--blob-2);
+  bottom: -12vw;
+  left: 10vw;
+  animation-delay: -8s;
+}
+
+.b3 {
+  width: 30vw;
+  height: 30vw;
+  background: var(--blob-3);
+  top: 30vh;
+  left: -8vw;
+  animation-delay: -14s;
+}
+
+.b4 {
+  width: 26vw;
+  height: 26vw;
+  background: var(--blob-4);
+  top: 40vh;
+  right: 30vw;
+  animation-delay: -20s;
+}
+
+/* The fine dot grain over the colour, as in the file. */
+.backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 3px 3px;
+  mix-blend-mode: overlay;
+}
+
+.backdrop[data-paused] .blob {
+  animation-play-state: paused;
+}
+
+@keyframes drift {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(4vw, 3vh) scale(1.08);
+  }
+  100% {
+    transform: translate(-3vw, -2vh) scale(0.95);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blob {
+    animation: none;
+  }
+}
+
+/* Performance mode: no blobs at all — the plain --bg-base shows through. */
+:global(.perf) .backdrop {
+  display: none;
+}

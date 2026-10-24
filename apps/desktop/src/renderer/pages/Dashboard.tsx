@@ -141,7 +141,7 @@ export function Dashboard() {
           </div>
         )}
 
-        <Link to="/inventory?filter=low" className={styles.stat}>
+        <Link to="/inventory?filter=low" className={cx(styles.stat, styles.statWarn)}>
           <span className={styles.statIcon}>
             <AlertTriangle size={20} />
           </span>
@@ -151,7 +151,7 @@ export function Dashboard() {
           </div>
         </Link>
 
-        <Link to="/inventory?filter=expiring" className={styles.stat}>
+        <Link to="/inventory?filter=expiring" className={cx(styles.stat, styles.statDanger)}>
           <span className={styles.statIcon}>
             <Clock size={20} />
           </span>

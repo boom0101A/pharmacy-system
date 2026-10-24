@@ -1,26 +1,40 @@
+/* Same split layout as the login screen (Login.module.css). */
 .page {
   display: grid;
-  place-items: center;
+  grid-template-columns: 1.1fr 1fr;
+  align-items: center;
   height: 100%;
-  background:
-    radial-gradient(1200px 600px at 50% -10%, var(--brand-3), transparent 70%),
-    var(--surface-page);
+  overflow-y: auto;
 }
 
 .card {
-  animation: cardIn var(--duration-normal) var(--ease-out) 60ms backwards;
-  width: min(90vw, 26rem);
-  padding: var(--space-8);
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  grid-column: 2;
+  justify-self: center;
+  margin: 2rem;
+  animation: cardIn var(--duration-slow) var(--ease-out) 60ms backwards;
+  width: min(92vw, 26rem);
+  padding: 2.25rem;
+  background: var(--glass-sheen), var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--glass-shadow);
+}
+
+@media (max-width: 900px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    grid-column: 1;
+  }
 }
 
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.99);
+    transform: translateY(12px) scale(0.98);
   }
   to {
     opacity: 1;
@@ -48,14 +62,14 @@
   place-items: center;
   width: 3.25rem;
   height: 3.25rem;
-  background: linear-gradient(135deg, var(--brand-9), var(--highlight-9));
+  background: var(--grad-button);
   border-radius: var(--radius-lg);
-  color: #fff;
+  color: var(--text-on-solid);
   box-shadow: var(--shadow-brand);
 }
 
 .title {
-  font-size: var(--text-2xl);
+  font-size: var(--text-xl);
 }
 
 .subtitle {

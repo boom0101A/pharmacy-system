@@ -47,15 +47,19 @@ export function Returns() {
     loadHistory();
   }, [loadHistory]);
 
+  // A later day picked must not be overwritten by an earlier day's slower answer.
+  const browseRequest = useRef(0);
   const loadBrowseSales = useCallback(async () => {
     if (!canSeeHistory) return;
+    const id = ++browseRequest.current;
     setLoadingBrowse(true);
     try {
-      setBrowseSales(await api.salesByDate(browseDate));
+      const rows = await api.salesByDate(browseDate);
+      if (id === browseRequest.current) setBrowseSales(rows);
     } catch (err) {
-      toast.error('تعذّر تحميل مبيعات هذا اليوم', (err as Error).message);
+      if (id === browseRequest.current) toast.error('تعذّر تحميل مبيعات هذا اليوم', (err as Error).message);
     } finally {
-      setLoadingBrowse(false);
+      if (id === browseRequest.current) setLoadingBrowse(false);
     }
   }, [canSeeHistory, browseDate, toast]);
 

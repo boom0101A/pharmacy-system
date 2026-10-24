@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Check, Copy, ShieldCheck, Upload } from 'lucide-react';
 import styles from './Activation.module.css';
+import { AuthHero } from '../components/AuthHero';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 
@@ -64,6 +65,7 @@ export function Activation({ onActivated }: ActivationProps) {
 
   return (
     <div className={styles.page}>
+      <AuthHero />
       <div className={styles.card}>
         <div className={styles.brand}>
           <span className={styles.mark}>

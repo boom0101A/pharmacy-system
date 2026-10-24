@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { KeyRound } from 'lucide-react';
 import styles from './Login.module.css';
+import { AuthHero } from '../components/AuthHero';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { api } from '../lib/api';
@@ -44,6 +45,7 @@ export function ChangePassword() {
 
   return (
     <div className={styles.page}>
+      <AuthHero />
       <div className={styles.card}>
         <div className={styles.brand}>
           <span className={styles.mark}>

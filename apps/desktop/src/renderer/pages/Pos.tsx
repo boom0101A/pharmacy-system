@@ -325,6 +325,9 @@ export function Pos() {
   useEffect(() => {
     function onKeyDown(event: globalThis.KeyboardEvent) {
       if (dialogOpenRef.current) return;
+      // Dialogs opened outside this page (the top bar's shortcuts card) don't
+      // raise the guard above. Esc meant for closing one must not empty the cart.
+      if (document.querySelector('[role="dialog"]')) return;
 
       if (event.key === 'F8') {
         event.preventDefault();
@@ -436,6 +439,20 @@ export function Pos() {
                       ) : (
                         <Pill size={22} strokeWidth={1.5} />
                       )}
+                      {/* Decoration only — the badge below says the same in words. */}
+                      <span
+                        aria-hidden="true"
+                        className={cx(
+                          styles.stockDot,
+                          product.stock <= 0 && product.looseSubUnits > 0
+                            ? styles.stockLow
+                            : product.stock <= 0
+                              ? styles.stockOut
+                              : product.stock <= product.reorderLevel
+                                ? styles.stockLow
+                                : styles.stockOk,
+                        )}
+                      />
                     </span>
                     <span className={styles.productName}>{product.name}</span>
                     <span className={cx(styles.lineUnitPrice, !product.categoryName && styles.categoryMissing)}>
@@ -505,7 +522,16 @@ export function Pos() {
 
       <aside className={styles.cart}>
         <div className={styles.cartHeader}>
-          <h2 className={styles.cartTitle}>السلة</h2>
+          <div className={styles.cartTitleGroup}>
+            <h2 className={styles.cartTitle}>السلة</h2>
+            {/* Outside the <h2> so the heading's name stays "السلة". Keyed by
+                the count so the pop replays as lines are added or removed. */}
+            {cart.lines.length > 0 && (
+              <span key={cart.lines.length} className={`${styles.cartCount} numeric`}>
+                {cart.lines.length}
+              </span>
+            )}
+          </div>
           {cart.lines.length > 0 && (
             <button
               type="button"

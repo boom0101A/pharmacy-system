@@ -17,7 +17,10 @@ import {
 import styles from './AppShell.module.css';
 import { useAuth } from '../store/auth';
 import { useBranding } from '../store/branding';
-import { cx, formatDate } from '../lib/cx';
+import { cx } from '../lib/cx';
+import { Clock } from './Clock';
+import { ShortcutsButton } from './ShortcutsDialog';
+import { ThemeToggle } from './ThemeToggle';
 import type { Role } from '@pharmacy/shared-types';
 
 interface NavEntry {
@@ -98,18 +101,6 @@ const ROLE_LABEL: Record<Role, string> = {
   cashier: 'كاشير',
 };
 
-const TITLES: Record<string, string> = {
-  '/': 'لوحة التحكم',
-  '/pos': 'نقطة البيع',
-  '/returns': 'الإرجاعات',
-  '/inventory': 'المخزون',
-  '/suppliers': 'الموردون',
-  '/purchases': 'المشتريات',
-  '/reports': 'التقارير',
-  '/users': 'المستخدمون',
-  '/settings': 'الإعدادات',
-};
-
 export function AppShell() {
   const { user, logout } = useAuth();
   const logoUrl = useBranding((s) => s.logoUrl);
@@ -118,6 +109,10 @@ export function AppShell() {
   const indicatorRef = useRef<HTMLDivElement>(null);
 
   const visible = NAV.filter((entry) => user && entry.roles.includes(user.role));
+  // The page's title and icon come from the sidebar entry itself. A separate
+  // title map had already drifted once: "سجل الفواتير" was added to the
+  // sidebar but not to the map, and showed an empty title.
+  const current = NAV.find((entry) => entry.to === pathname);
 
   /**
    * The active-item highlight used to just vanish from the old link and
@@ -206,8 +201,15 @@ export function AppShell() {
 
       <div className={styles.main}>
         <header className={styles.topbar}>
-          <h1 key={pathname} className={styles.pageTitle}>{TITLES[pathname] ?? ''}</h1>
-          <span className={styles.topbarDate}>{formatDate(new Date().toISOString())}</span>
+          <h1 key={pathname} className={styles.pageTitle}>
+            {current && <span className={styles.pageTitleIcon} aria-hidden="true">{current.icon}</span>}
+            {current?.label ?? ''}
+          </h1>
+          <div className={styles.topbarTools}>
+            <ShortcutsButton />
+            <ThemeToggle />
+            <Clock />
+          </div>
         </header>
         {/* Keyed by route so the fade replays on navigation. Keying the <main>
             itself rather than an inner wrapper keeps pages that size themselves

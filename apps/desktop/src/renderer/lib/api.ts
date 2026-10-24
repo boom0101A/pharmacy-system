@@ -1,4 +1,5 @@
 import type {
+  AdjustBatchInput,
   BackupFile,
   Batch,
   BatchInput,
@@ -25,6 +26,7 @@ import type {
   SalesHistoryPage,
   SalesReportPoint,
   SoldProductRow,
+  StockAdjustment,
   Supplier,
   SupplierInput,
   TopProductPoint,
@@ -276,9 +278,14 @@ export const api = {
     request<Batch[]>(`/batches${productId ? `?productId=${productId}` : ''}`),
   createBatch: (data: BatchInput) =>
     request<Batch>('/batches', { method: 'POST', body: JSON.stringify(data) }),
-  /** Expiry/batch number only — quantity is deliberately not editable here. */
+  /** Expiry/batch number only — the quantity has its own audited call, adjustBatch. */
   updateBatch: (id: number, data: { expiryDate: string | null; batchNumber: string | null }) =>
     request<Batch>(`/batches/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  /** Corrects a quantity typed in wrong; logged, and fixes the purchase invoice too. */
+  adjustBatch: (id: number, data: AdjustBatchInput) =>
+    request<Batch>(`/batches/${id}/adjust`, { method: 'POST', body: JSON.stringify(data) }),
+  stockAdjustments: (productId: number) =>
+    request<StockAdjustment[]>(`/batches/adjustments?productId=${productId}`),
   deleteBatch: (id: number) => request<void>(`/batches/${id}`, { method: 'DELETE' }),
   writeOffBatch: (id: number) => request<Batch>(`/batches/${id}/write-off`, { method: 'POST' }),
 

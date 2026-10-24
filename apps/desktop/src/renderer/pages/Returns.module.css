@@ -6,8 +6,9 @@
 }
 
 .form {
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-5);
@@ -51,11 +52,12 @@
 .table th {
   padding: var(--space-2) var(--space-3);
   text-align: start;
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-heavy);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  background: var(--th-bg);
   border-block-end: 1px solid var(--border-subtle);
   white-space: nowrap;
 }
@@ -200,8 +202,9 @@
 
 /* ---- History side panel ---- */
 .history {
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--glass-sheen), var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   padding: var(--space-5);

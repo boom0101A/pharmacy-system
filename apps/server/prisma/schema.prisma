@@ -40,6 +40,7 @@ model User {
   purchases Purchase[]
   returns   Return[]
   writeOffs BatchWriteOff[]
+  stockAdjustments StockAdjustment[]
 
   @@map("users")
 }
@@ -102,6 +103,7 @@ model Batch {
   saleItems     SaleItem[]
   purchaseItems PurchaseItem[]
   writeOffs     BatchWriteOff[]
+  adjustments   StockAdjustment[]
 
   @@index([productId, expiryDate])
   @@map("batches")
@@ -121,6 +123,28 @@ model BatchWriteOff {
   user  User  @relation(fields: [userId], references: [id])
 
   @@map("batch_write_offs")
+}
+
+// A correction of a batch's quantity typed in wrong (500 for 50). Never
+// deleted: quietly lowering stock is also how a sale goes unrecorded. When the
+// batch came from a purchase invoice, that invoice line was corrected by the
+// same difference, and purchaseItemId says which one.
+model StockAdjustment {
+  id             Int      @id @default(autoincrement())
+  batchId        Int      @map("batch_id")
+  userId         Int      @map("user_id")
+  oldQuantity    Int      @map("old_quantity")
+  newQuantity    Int      @map("new_quantity")
+  reason         String
+  purchaseItemId Int?     @map("purchase_item_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  batch        Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id])
+  purchaseItem PurchaseItem? @relation(fields: [purchaseItemId], references: [id], onDelete: SetNull)
+
+  @@index([batchId])
+  @@map("stock_adjustments")
 }
 
 model Supplier {
@@ -164,6 +188,7 @@ model PurchaseItem {
   purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   product  Product  @relation(fields: [productId], references: [id])
   batch    Batch?   @relation(fields: [batchId], references: [id])
+  adjustments StockAdjustment[]
 
   @@map("purchase_items")
 }

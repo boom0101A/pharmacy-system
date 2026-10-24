@@ -1,7 +1,7 @@
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateY(-8px);
+    transform: translateY(-10px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -28,11 +28,12 @@
   align-items: flex-start;
   gap: var(--space-3);
   padding: var(--space-4);
-  background: var(--surface-card);
-  border: 1px solid var(--border-subtle);
+  background: var(--glass-bg-strong);
+  backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  animation: slideIn var(--duration-normal) var(--ease-out);
+  box-shadow: var(--glass-shadow);
+  animation: slideIn 300ms var(--ease-spring);
 }
 
 .toast[data-state='closed'] {
@@ -41,7 +42,7 @@
 }
 
 .toast[data-tone='success'] .icon {
-  color: var(--brand-9);
+  color: var(--brand-10);
 }
 
 .toast[data-tone='error'] .icon {
@@ -59,7 +60,7 @@
 
 .title {
   font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
+  font-weight: var(--weight-bold);
 }
 
 .description {
@@ -101,7 +102,7 @@
   gap: var(--space-3);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
   overflow: hidden;
-  background: linear-gradient(135deg, var(--brand-12), #0f2a20);
+  background: linear-gradient(135deg, var(--surface-inverse), var(--surface-inverse-2));
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-lg);
