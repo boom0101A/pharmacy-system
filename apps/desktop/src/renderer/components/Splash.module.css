@@ -1,126 +1,197 @@
 /*
- * Launch screen. Always deep green, in both themes, so the app introduces
- * itself with its own identity before handing over to the login form.
- * Fixed tokens (--surface-inverse, jade-9) on purpose: --brand-11/12 turn
- * into light tints in dark mode.
+ * Launch screen: a glass scene over the moving backdrop (components/Backdrop),
+ * which stays put underneath and carries on into the login screen. Every
+ * motion here is transform/opacity only, so it stays smooth on a slow till.
+ * Light/dark follow the theme tokens.
+ *
+ * Timeline (ms):  veil 0–500 · glow 0–700 · card 200–900 · ripples 450–1500
+ *                 sheen 750–1150 · words 800–1350 · tagline 1150 · bar → dwell
  */
 
 .page {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
   display: grid;
   place-items: center;
-  height: 100%;
   overflow: hidden;
-  background:
-    radial-gradient(58rem 32rem at 50% -10%, color-mix(in srgb, #10b981 60%, transparent), transparent 60%),
-    radial-gradient(
-      34rem 22rem at 4% 114%,
-      color-mix(in srgb, var(--accent-9) 34%, transparent),
-      transparent 62%
-    ),
-    var(--surface-inverse);
+  cursor: default;
 }
 
-.leaving {
-  animation: splashOut var(--duration-normal) var(--ease-out) forwards;
+/* Opaque at first, then thins out to let the blobs show through. */
+.veil {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-base);
+  animation: veilIn 500ms var(--ease-out) forwards;
 }
 
-@keyframes splashOut {
+@keyframes veilIn {
   from {
     opacity: 1;
   }
   to {
+    opacity: 0.55;
+  }
+}
+
+/* A soft brand-coloured bloom widening from the centre. */
+.glow {
+  position: absolute;
+  width: 46rem;
+  height: 46rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.28), rgba(8, 145, 178, 0.12) 45%, transparent 70%);
+  animation: glowIn 700ms var(--ease-out) both;
+}
+
+@keyframes glowIn {
+  from {
     opacity: 0;
+    transform: scale(0.4);
   }
 }
 
 .inner {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-5);
   text-align: center;
+}
+
+/* ---- The mark: a glass card that pops up, two ripples, one sheen ------- */
+.markWrap {
+  position: relative;
+  display: grid;
+  place-items: center;
 }
 
 .mark {
   position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
-  width: 6rem;
-  height: 6rem;
-  /* Same green-into-green tile as the installer icon, so launch and desktop
-     shortcut read as the same mark. */
-  background: var(--gradient-brand);
-  border-radius: var(--radius-xl);
-  color: #fff;
-  box-shadow: var(--shadow-lg);
-  animation: markIn var(--duration-slow) var(--ease-out) backwards;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 30px;
+  background: var(--grad-button);
+  color: var(--text-on-solid);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 24px 50px -16px rgba(5, 150, 105, 0.6);
+  animation: markIn 700ms var(--ease-pop) 200ms both;
 }
 
-/* A slow ripple so the screen is not completely static while it waits. */
+/* The glossy top half every gradient mark carries in this design. */
 .mark::after {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  animation: halo 2.6s var(--ease-out) infinite;
+  inset: 0 0 50% 0;
+  background: linear-gradient(rgba(255, 255, 255, 0.32), transparent);
+  pointer-events: none;
 }
 
 @keyframes markIn {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.88);
-  }
-  to {
-    opacity: 1;
-    transform: none;
+    transform: translateY(24px) scale(0.6);
   }
 }
 
-@keyframes halo {
+.sheen {
+  position: absolute;
+  inset: -20% auto -20% -60%;
+  width: 45%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: translateX(-120%) skewX(-18deg);
+  animation: sheen 450ms var(--ease-out) 750ms forwards;
+}
+
+@keyframes sheen {
+  to {
+    transform: translateX(420%) skewX(-18deg);
+  }
+}
+
+.ripple {
+  position: absolute;
+  width: 6.5rem;
+  height: 6.5rem;
+  border-radius: 30px;
+  border: 2px solid rgba(16, 185, 129, 0.45);
+  opacity: 0;
+  animation: ripple 1000ms var(--ease-out) 450ms;
+}
+
+.rippleLate {
+  animation-delay: 650ms;
+}
+
+@keyframes ripple {
   from {
-    box-shadow: 0 0 0 0 var(--white-a6);
+    opacity: 0.9;
+    transform: scale(1);
   }
   to {
-    box-shadow: 0 0 0 1.75rem transparent;
+    opacity: 0;
+    transform: scale(1.9);
   }
 }
 
+/* ---- The name, word by word, then the tagline -------------------------- */
 .text {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: var(--space-2);
-  animation: riseIn var(--duration-normal) var(--ease-out) 160ms backwards;
 }
 
 .wordmark {
+  margin: 0;
   font-size: var(--text-3xl);
-  font-weight: var(--weight-bold);
-  color: #fff;
+  font-weight: var(--weight-heavy);
+  line-height: var(--leading-tight);
+}
+
+.word {
+  display: inline-block;
+  background: var(--grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: wordIn 550ms var(--ease-out) 800ms both;
+}
+
+.wordLate {
+  animation-delay: 950ms;
+}
+
+@keyframes wordIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    filter: blur(6px);
+  }
 }
 
 .tagline {
-  font-size: var(--text-sm);
-  color: var(--white-a10);
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  animation: wordIn 500ms var(--ease-out) 1150ms both;
 }
 
-@keyframes riseIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
+/* ---- A thin glass progress track filling over the dwell ---------------- */
 .progress {
   width: 11rem;
-  height: 3px;
-  overflow: hidden;
-  background: var(--white-a4);
+  height: 5px;
+  margin-block-start: var(--space-3);
   border-radius: var(--radius-full);
-  animation: riseIn var(--duration-normal) var(--ease-out) 280ms backwards;
+  overflow: hidden;
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  animation: wordIn 400ms var(--ease-out) 900ms both;
 }
 
 .progressFill {
@@ -128,38 +199,55 @@
   width: 100%;
   height: 100%;
   border-radius: inherit;
-  /* Emerald through teal into cyan — the brand gradient. */
-  background: var(--gradient-brand);
+  background: var(--grad-brand);
   /*
    * Scaled rather than widened: `width` is a layout property, so animating it
-   * makes the browser re-lay-out the bar on every frame, while a transform is
-   * handed to the compositor. RTL, so it grows from its right edge.
+   * re-lays-out the bar on every frame, while a transform is handed to the
+   * compositor. RTL, so it grows from its right edge.
    */
-  transform-origin: right center;
-  animation: progressFill var(--splash-dwell) var(--ease-out) forwards;
+  transform-origin: right;
+  transform: scaleX(0);
+  animation: fill calc(var(--splash-dwell) - 900ms) var(--ease-out) 900ms forwards;
 }
 
-@keyframes progressFill {
-  from {
-    transform: scaleX(0);
-  }
+@keyframes fill {
   to {
     transform: scaleX(1);
   }
 }
 
-/*
- * The global override in tokens.css only zeroes durations. Delays and infinite
- * loops need saying explicitly, or the text would still be held back by its
- * delay on a screen that is already leaving.
- */
-@media (prefers-reduced-motion: reduce) {
-  .text,
-  .progress {
-    animation-delay: 0ms !important;
-  }
+/* ---- Exit: content lifts away, the veil fades, the backdrop stays ------- */
+.leaving .inner {
+  animation: innerOut var(--splash-exit) var(--ease-out) forwards;
+}
 
-  .mark::after {
-    animation: none;
+.leaving .veil,
+.leaving .glow {
+  animation: fadeOut var(--splash-exit) var(--ease-out) forwards;
+}
+
+@keyframes innerOut {
+  to {
+    opacity: 0;
+    transform: translateY(-18px) scale(1.04);
+  }
+}
+
+@keyframes fadeOut {
+  to {
+    opacity: 0;
+  }
+}
+
+/* Performance mode: no blur on the words. */
+:global(.perf) .word,
+:global(.perf) .tagline {
+  animation-name: wordInPlain;
+}
+
+@keyframes wordInPlain {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
   }
 }
